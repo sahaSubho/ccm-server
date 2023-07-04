@@ -1,35 +1,35 @@
-const { Model } = require('sequelize');
+const { Model } = require('sequelize')
+const { userRoles } = require('../config/constant')
 
 module.exports = (sequelize, DataTypes) => {
-    class User extends Model {
-        /**
-         * Helper method for defining associations.
-         * This method is not a part of Sequelize lifecycle.
-         * The `models/index` file will call this method automatically.
-         */
-        static associate(models) {
-            // define association here
-          //  User.belongsTo(models.agency, { foreignKey: 'agency_id', targetKey: 'id' });
-        }
+  class User extends Model {
+    /**
+     * Helper method for defining associations.
+     * This method is not a part of Sequelize lifecycle.
+     * The `models/index` file will call this method automatically.
+     */
+    static associate(models) {
+      // define association here
+      User.hasMany(models.user_tokens, { foreignKey: 'user_id' })
+      User.hasMany(models.tournaments, { foreignKey: 'created_by' })
     }
+  }
 
-    User.init(
-        {
-            uuid: DataTypes.UUID,
-            first_name: DataTypes.STRING,
-            last_name: DataTypes.STRING,
-            email: DataTypes.STRING,
-            password: DataTypes.STRING,
-            status: DataTypes.INTEGER,
-            email_verified: DataTypes.INTEGER,
-            address: DataTypes.STRING,
-            phone_number: DataTypes.STRING,
-        },
-        {
-            sequelize,
-            modelName: 'user',
-            underscored: true,
-        },
-    );
-    return User;
-};
+  User.init(
+    {
+      first_name: DataTypes.STRING,
+      last_name: DataTypes.STRING,
+      email: DataTypes.STRING,
+      password: DataTypes.STRING,
+      role: DataTypes.ENUM(...Object.values(userRoles)),
+      phone_number: DataTypes.STRING,
+      active: DataTypes.INTEGER,
+    },
+    {
+      sequelize,
+      modelName: 'users',
+      underscored: true,
+    }
+  )
+  return User
+}

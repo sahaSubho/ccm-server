@@ -1,20 +1,20 @@
-const SuperDao = require('./SuperDao');
-const models = require('../models');
+const SuperDao = require('./SuperDao')
+const models = require('../models')
 
-const Token = models.token;
+const Token = models.user_tokens
 
 class TokenDao extends SuperDao {
-    constructor() {
-        super(Token);
-    }
+  constructor() {
+    super(Token)
+  }
 
-    async findOne(where) {
-        return Token.findOne({ where });
-    }
+  async findOne(where) {
+    return Token.findOne({ where })
+  }
 
-    async remove(where) {
-        return Token.destroy({ where });
-    }
+  async remove(where) {
+    return Token.destroy({ where })
+  }
 }
 
-module.exports = TokenDao;
+module.exports = TokenDao
