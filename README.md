@@ -1,16 +1,13 @@
-# Boilerplate for Node-Express with sequelize ORM
+# CircleChess Node Server
 
-A boilerplate for any enterprise rest api or service with Node.js, Express and Sequelize ORM for mysql, postgresql or others.
-
-By running this project you will get a production ready environment with all necessary supports for validation, unit testing, socket, redis and many more.
+By running this project you will get a production ready environment with all necessary supports.
 
 ## Manual Installation
 
-Clone the repo:
+Clone the repo
 
 ```bash
-git clone https://github.com/aoyan107/node-express-mysql-boilerplate
-cd node-express-mysql-boilerplate
+git clone ...
 ```
 
 Install the dependencies:
@@ -27,15 +24,14 @@ cp .env.example .env
 # open .env and modify the environment variables (if needed)
 ```
 
-
 ## Features
 
-- **ORM**: [Sequelize](https://sequelize.org/)  orm for object data modeling
-- **Migration and Seed**: DB migration and Seed using [Sequelize-CLI](https://github.com/sequelize/cli) 
+- **ORM**: [Sequelize](https://sequelize.org/) orm for object data modeling
+- **Migration and Seed**: DB migration and Seed using [Sequelize-CLI](https://github.com/sequelize/cli)
 - **Authentication and authorization**: using [passport](http://www.passportjs.org)
 - **Error handling**: centralized error handling
 - **Validation**: request data validation using [Joi](https://github.com/hapijs/joi)
-- **Logging**: using [winston](https://github.com/winstonjs/winston) 
+- **Logging**: using [winston](https://github.com/winstonjs/winston)
 - **Testing**: unittests using [Mocha](https://mochajs.org/)
 - **Caching**: Caching using [Redis](https://redis.io/)
 - **Bidirectional Communication**: using [Scoket](https://socket.io/)
@@ -108,7 +104,6 @@ REDIS_PASSWORD=your-password
 ## Project Structure
 
 ```
-specs\
 src\
  |--config\         # Environment variables and configuration related things
  |--controllers\    # Route controllers (controller layer)
