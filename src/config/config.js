@@ -11,6 +11,7 @@ const envValidation = Joi.object()
       .required(),
     PORT: Joi.number().default(3000),
     FILE_PATH: Joi.string(),
+    API_KEY: Joi.string().required(),
     DB_HOST: Joi.string().default('localhost'),
     DB_USER: Joi.string().required(),
     DB_PASS: Joi.string().required(),
@@ -47,8 +48,9 @@ if (error) {
 }
 
 module.exports = {
-  nodeEnv: envVar.NODE_ENV,
+  env: envVar.NODE_ENV,
   port: envVar.PORT,
+  apiKey: envVar.API_KEY,
   filePath: envVar.FILE_PATH || `http://localhost:${envVar.PORT}/`,
   dbHost: envVar.DB_HOST,
   dbUser: envVar.DB_USER,

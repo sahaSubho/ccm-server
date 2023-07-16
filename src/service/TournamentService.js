@@ -1,4 +1,6 @@
 const httpStatus = require('http-status')
+const { Op } = require('sequelize')
+const moment = require('moment')
 const TournamentDao = require('../dao/TournamentDao')
 const responseHandler = require('../helper/responseHandler')
 const logger = require('../config/logger')
@@ -39,6 +41,30 @@ class TournamentService {
       }
 
       return responseHandler.returnSuccess(httpStatus.CREATED, message, data)
+    } catch (e) {
+      logger.error(e)
+      return responseHandler.returnError(
+        httpStatus.BAD_REQUEST,
+        'Something went wrong!'
+      )
+    }
+  }
+
+  /**
+   * Get Tournament List
+   * @returns {Object}
+   */
+  getTournaments = async (limit = 10, offset = 0) => {
+    try {
+      let message = 'Fetched tournaments successfully.'
+      let data = await this.tournamentDao.findByWhere(
+        { is_active: true, end_date: { [Op.gte]: moment() } },
+        undefined,
+        ['end_date', 'asc'],
+        limit,
+        offset
+      )
+      return responseHandler.returnSuccess(httpStatus.OK, message, data)
     } catch (e) {
       logger.error(e)
       return responseHandler.returnError(

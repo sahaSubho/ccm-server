@@ -17,4 +17,6 @@ router.post(
   tournamentController.create
 )
 
+router.get('/get-tournaments', auth(), tournamentController.getTournaments)
+
 module.exports = router
