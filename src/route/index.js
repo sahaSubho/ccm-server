@@ -1,6 +1,7 @@
 const express = require('express')
 const authRoute = require('./authRoute')
 const tournamentRoute = require('./tournamentRoute')
+const playersRoute = require('./playersRoute')
 
 const router = express.Router()
 
@@ -12,6 +13,10 @@ const defaultRoutes = [
   {
     path: '/tournament',
     route: tournamentRoute,
+  },
+  {
+    path: '/players',
+    route: playersRoute,
   },
 ]
 

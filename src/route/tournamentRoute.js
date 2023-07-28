@@ -17,6 +17,23 @@ router.post(
   tournamentController.create
 )
 
-router.get('/get-tournaments', auth(), tournamentController.getTournaments)
+router.get('/get-tournaments', tournamentController.getTournaments)
+router.get(
+  '/get-tournament-list',
+  auth(),
+  tournamentController.getTournamentsByUser
+)
+router.get(
+  '/generate-pairing',
+  auth(),
+  tournamentValidator.pairingValidator,
+  tournamentController.createTournamentPairing
+)
+router.get(
+  '/get-pairings',
+  auth(),
+  tournamentValidator.pairingValidator,
+  tournamentController.getPairings
+)
 
 module.exports = router

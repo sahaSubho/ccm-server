@@ -1,3 +1,4 @@
+const fs = require('fs')
 const multer = require('multer')
 // Set up Multer storage
 const storage = multer.diskStorage({
@@ -17,6 +18,11 @@ const storage = multer.diskStorage({
       ].includes(file.mimetype)
     )
       dest += 'brochure/'
+    else dest += 'files/'
+
+    if (!fs.existsSync(dest)) {
+      fs.mkdirSync(dest)
+    }
 
     cb(null, dest) // specify the folder where files will be stored
   },
