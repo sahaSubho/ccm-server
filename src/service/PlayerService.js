@@ -14,7 +14,7 @@ class PlayersService {
   }
 
   /**
-   * Create a user
+   * Upload players
    * @param {Object} req
    * @returns {Object}
    */
@@ -47,7 +47,7 @@ class PlayersService {
 
       if (!data.length) {
         message = 'Players are already registered in this tournament.'
-        return responseHandler.returnError(httpStatus.OK, message)
+        return responseHandler.returnError(httpStatus.BAD_REQUEST, message)
       }
 
       const result = await this.playersDao.bulkCreate(data)
@@ -66,6 +66,34 @@ class PlayersService {
       )
 
       return responseHandler.returnSuccess(httpStatus.CREATED, message, data)
+    } catch (e) {
+      logger.error(e)
+      return responseHandler.returnError(
+        httpStatus.BAD_REQUEST,
+        'Something went wrong!'
+      )
+    }
+  }
+
+  /**
+   * get list of player for each tournament
+   * @param {Number} tournamentId
+   * @returns {Object}
+   */
+  getPlayersByTournament = async (tournamentId) => {
+    try {
+      let message = 'Successfully fetched players for tournament.'
+      const tournament = await this.tournamentDao.findById(tournamentId)
+
+      if (!tournament.player_fide_ids) {
+        message = 'No players exist for this tournament!'
+        return responseHandler.returnError(httpStatus.BAD_REQUEST, message)
+      }
+
+      const fide_ids = tournament.player_fide_ids.split(',')
+      const data = await this.playersDao.findByWhere({ fide_id: fide_ids })
+
+      return responseHandler.returnSuccess(httpStatus.OK, message, data)
     } catch (e) {
       logger.error(e)
       return responseHandler.returnError(

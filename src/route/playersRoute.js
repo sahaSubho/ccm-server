@@ -16,5 +16,6 @@ router.post(
   playerValidator.uploadValidator,
   playersController.uploadPlayers
 )
+router.get('/:id', playersController.getPlayersByTournament)
 
 module.exports = router

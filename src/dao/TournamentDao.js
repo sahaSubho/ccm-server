@@ -2,14 +2,21 @@ const SuperDao = require('./SuperDao')
 const models = require('../models')
 
 const Tournament = models.tournaments
+const Users = models.users
 
 class TournamentDao extends SuperDao {
   constructor() {
     super(Tournament)
   }
 
-  async findOne(where) {
-    return Tournament.findOne({ where })
+  async findOneWithUser(id, attributes) {
+    return Tournament.findOne({
+      where: { id },
+      include: {
+        model: Users,
+        attributes: attributes, // You can specify which user attributes to include
+      },
+    })
   }
 
   async remove(where) {

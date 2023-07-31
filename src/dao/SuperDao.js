@@ -1,4 +1,5 @@
 const logger = require('../config/logger')
+const sequelize = require('sequelize')
 
 class SuperDao {
   constructor(model) {
@@ -198,6 +199,14 @@ class SuperDao {
         console.log(e)
         return []
       })
+  }
+
+  async findDistinct(key, where) {
+    return this.Model.findAll({
+      attributes: [[sequelize.fn('DISTINCT', sequelize.col(key)), key]],
+      where: where,
+      raw: true,
+    })
   }
 }
 module.exports = SuperDao

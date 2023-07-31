@@ -89,6 +89,54 @@ class TournamentService {
   }
 
   /**
+   * Get Tournament List
+   * @param {Number} id
+   * @returns {Object}
+   */
+  getTournamentById = async (id) => {
+    try {
+      let message = 'Fetched tournament details successfully.'
+      let data = await this.tournamentDao.findOneWithUser(id, [
+        'id',
+        'email',
+        'phone_number',
+      ])
+
+      const roundDetails = await this.tournamentPairingsDao.findDistinct(
+        'round',
+        { tournament_id: id }
+      )
+      const scored = await this.tournamentPairingsDao.findCountByGroup(
+        'round',
+        'player_score',
+        {
+          tournament_id: id,
+          player_score: { [Op.gt]: 0 },
+        }
+      )
+
+      const pairings = [...Array(data.rounds).keys()].reduce((acc, curr) => {
+        acc[curr + 1] = {
+          paired: roundDetails.map((r) => r.round).includes(curr + 1),
+          scored: scored.some((s) => s.round === curr + 1),
+        }
+        return acc
+      }, {})
+
+      data.setDataValue('pairings', pairings)
+      data.setDataValue('currentRound', roundDetails.map((r) => r.round).pop())
+
+      return responseHandler.returnSuccess(httpStatus.OK, message, data)
+    } catch (e) {
+      logger.error(e)
+      return responseHandler.returnError(
+        httpStatus.BAD_REQUEST,
+        'Something went wrong!'
+      )
+    }
+  }
+
+  /**
    * Get Tournament List created by Organizer
    * @returns {Object}
    */
@@ -99,7 +147,7 @@ class TournamentService {
         {
           is_active: true,
           created_by: userId,
-          start_date: { [Op.gte]: moment() },
+          // start_date: { [Op.gte]: moment() },
         },
         undefined,
         ['end_date', 'asc']
@@ -209,7 +257,43 @@ class TournamentService {
         round: round,
         tournament_id: tournamentId,
       })
-      return responseHandler.returnSuccess(httpStatus.OK, message, data)
+      if (!data.length) {
+        message = `Pairing of Round ${round} is not done yet! Please try again.`
+        return responseHandler.returnError(httpStatus.BAD_REQUEST, message)
+      }
+      const players = data
+        .filter((p) => !p.parent_id)
+        .map((e) => ({
+          player: e,
+          opponent: data.find((d) => d.parent_id === e.id),
+        }))
+      return responseHandler.returnSuccess(httpStatus.OK, message, players)
+    } catch (e) {
+      logger.error(e)
+      return responseHandler.returnError(
+        httpStatus.BAD_REQUEST,
+        'Something went wrong!'
+      )
+    }
+  }
+
+  updateScoring = async (round, scores) => {
+    try {
+      let message = `Updated scores of matches for Round ${round} successfully.`
+
+      const promises = scores.map(
+        async (s) =>
+          await this.tournamentPairingsDao.updateById(
+            { player_score: s.score },
+            s.id
+          )
+      )
+      const result = await Promise.all(promises)
+      if (!result.length) {
+        message = `Updating scores of Round ${round} is failed! Please try again.`
+        return responseHandler.returnError(httpStatus.BAD_REQUEST, message)
+      }
+      return responseHandler.returnSuccess(httpStatus.OK, message)
     } catch (e) {
       logger.error(e)
       return responseHandler.returnError(

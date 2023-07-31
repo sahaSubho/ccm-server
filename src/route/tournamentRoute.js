@@ -31,9 +31,10 @@ router.get(
 )
 router.get(
   '/get-pairings',
-  auth(),
   tournamentValidator.pairingValidator,
   tournamentController.getPairings
 )
+router.post('/score-upload', tournamentController.updateScoring)
+router.get('/:id', tournamentController.getTournamentById)
 
 module.exports = router
