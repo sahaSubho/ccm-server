@@ -18,7 +18,7 @@ class SuperDao {
   }
 
   async findById(id) {
-    return this.Model.findOne({ where: { id } })
+    return this.Model.findOne({ where: { id }, raw: true })
       .then((result) => {
         return result
       })
@@ -108,6 +108,7 @@ class SuperDao {
         order: [order],
         limit,
         offset,
+        raw: true,
       })
     }
 
@@ -117,6 +118,7 @@ class SuperDao {
       order: [order],
       limit,
       offset,
+      raw: true,
     })
   }
 

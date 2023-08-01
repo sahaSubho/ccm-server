@@ -11,6 +11,9 @@ module.exports = (sequelize, DataTypes) => {
     static associate(models) {
       // define association here
       Tournament.belongsTo(models.users, { foreignKey: 'created_by' })
+      Tournament.hasMany(models.tournament_pairings, {
+        foreignKey: 'tournament_id',
+      })
     }
   }
 
@@ -33,7 +36,10 @@ module.exports = (sequelize, DataTypes) => {
       country: DataTypes.STRING,
       brochure: DataTypes.STRING,
       display_pic: DataTypes.STRING,
-      player_fide_ids: DataTypes.STRING,
+      player_fide_ids: {
+        type: DataTypes.STRING(2000),
+        allowNull: false,
+      },
       created_by: DataTypes.INTEGER,
       is_active: DataTypes.BOOLEAN,
     },

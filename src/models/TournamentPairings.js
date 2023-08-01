@@ -22,7 +22,14 @@ module.exports = (sequelize, DataTypes) => {
       player_fide_id: DataTypes.INTEGER,
       player_name: DataTypes.STRING,
       player_rating: DataTypes.INTEGER,
-      player_score: DataTypes.DECIMAL,
+      player_score: {
+        type: DataTypes.DECIMAL(10, 2),
+        defaultValue: '0.0',
+      },
+      result: {
+        type: DataTypes.DECIMAL(10, 2),
+        defaultValue: '0.0',
+      },
       is_withdrawn: {
         type: DataTypes.BOOLEAN,
         allowNull: false,

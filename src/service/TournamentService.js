@@ -102,16 +102,21 @@ class TournamentService {
         'phone_number',
       ])
 
+      if (!data) {
+        message = "Tournament doesn't exists!"
+        return responseHandler.returnError(httpStatus.BAD_REQUEST, message)
+      }
+
       const roundDetails = await this.tournamentPairingsDao.findDistinct(
         'round',
         { tournament_id: id }
       )
       const scored = await this.tournamentPairingsDao.findCountByGroup(
         'round',
-        'player_score',
+        'result',
         {
           tournament_id: id,
-          player_score: { [Op.gt]: 0 },
+          result: { [Op.gt]: 0 },
         }
       )
 
@@ -123,8 +128,16 @@ class TournamentService {
         return acc
       }, {})
 
+      let currentRound = roundDetails.map((r) => r.round).pop() || 1
+
+      console.log('currentRound', currentRound, scored)
+
+      if (scored.some((s) => s.round === currentRound)) {
+        currentRound += 1
+      }
+
       data.setDataValue('pairings', pairings)
-      data.setDataValue('currentRound', roundDetails.map((r) => r.round).pop())
+      data.setDataValue('currentRound', currentRound)
 
       return responseHandler.returnSuccess(httpStatus.OK, message, data)
     } catch (e) {
@@ -210,21 +223,24 @@ class TournamentService {
         }))
         await this.tournamentPairingsDao.bulkCreate(opponents)
       } else {
-        const pairing = await this.tournamentPairingsDao.findByWhere({
-          round: round,
+        let pairing = await this.tournamentPairingsDao.findByWhere({
+          round: round - 1,
         })
+        pairing = pairing.map((p) => p.dataValues)
         const players = pairing.filter((p) => !p.parent_id)
         const opponents = pairing.filter((p) => p.parent_id)
+
         const { whitePlayers, blackPlayers } = swissOtherRoundPairings(
           players,
           opponents,
           round,
           tournamentId
         )
+
         data = whitePlayers.map((w, i) => [w, blackPlayers[i]])
         const res = await this.tournamentPairingsDao.bulkCreate(whitePlayers)
-        if (!result) {
-          message = 'Failed to upload players! Please try again.'
+        if (!res) {
+          message = 'Failed to pair players! Please try again.'
           return responseHandler.returnError(httpStatus.BAD_REQUEST, message)
         }
         const newOpponents = blackPlayers.map((b, i) => ({
@@ -283,10 +299,7 @@ class TournamentService {
 
       const promises = scores.map(
         async (s) =>
-          await this.tournamentPairingsDao.updateById(
-            { player_score: s.score },
-            s.id
-          )
+          await this.tournamentPairingsDao.updateById({ result: s.score }, s.id)
       )
       const result = await Promise.all(promises)
       if (!result.length) {

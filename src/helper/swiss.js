@@ -1,11 +1,20 @@
 function formatPlayerData(player, round, tournament_id) {
+  if (round === 1)
+    return {
+      round,
+      tournament_id,
+      player_fide_id: player.fide_id,
+      player_name: player.name,
+      player_rating: player.rating,
+      player_score: player.score || 0,
+    }
   return {
     round,
     tournament_id,
-    player_fide_id: player.fide_id,
-    player_name: player.name,
-    player_rating: player.rating,
-    player_score: player.score || 0,
+    player_fide_id: player.player_fide_id,
+    player_name: player.player_name,
+    player_rating: player.player_rating,
+    player_score: Number(player.player_score) + Number(player.result),
   }
 }
 
@@ -319,70 +328,78 @@ function swissFirstRoundPairing(players, tournament_id) {
 
 function swissOtherRoundPairings(players, opponents, round, tournament_id) {
   // Initialize the pairings.
-  // const nextParing = []
+  const nextParing = []
   const whitePlayers = []
   const blackPlayers = []
 
-  const points = [...new Set(pairings.flat().map((i) => i.player_score))]
+  const points = [
+    ...new Set([...players, ...opponents].map((i) => Number(i.player_score))),
+  ].sort((a, b) => b - a)
   // Sort the players by their ratings.
   players.sort(
-    (a, b) => b.player_score - a.player_score || a.name.localeCompare(b.name)
+    (a, b) =>
+      Number(b.player_score) - Number(a.player_score) ||
+      a.player_name.localeCompare(b.player_name)
   )
   opponents.sort(
-    (a, b) => b.player_score - a.player_score || a.name.localeCompare(b.name)
+    (a, b) =>
+      Number(b.player_score) - Number(a.player_score) ||
+      a.player_name.localeCompare(b.player_name)
   )
 
+  let tempPlayer = null
+  let type = null
   // Pair the players off.
   points.forEach((score) => {
-    const currentPlayers = players.filter((ele) => ele.player_score === score)
-    const currentOpponents = opponents.filter(
-      (ele) => ele.player_score === score
+    const currentPlayers = players.filter(
+      (ele) => Number(ele.player_score) === score
     )
-    const maxvalue = Math.max(currentOpponents.length, currentPlayers.length)
-    const minvalue = Math.min(currentOpponents.length, currentPlayers.length)
-    const oMedian = currentOpponents.length / 2
-    const pMedian = currentPlayers.length / 2
+    const currentOpponents = opponents.filter(
+      (ele) => Number(ele.player_score) === score
+    )
 
-    for (let i = 0; i < maxvalue / 2; i++) {
-      if (i >= oMedian || i >= pMedian) {
+    const maxvalue = Math.max(currentOpponents.length, currentPlayers.length)
+    // const minvalue = Math.min(currentOpponents.length, currentPlayers.length)
+
+    const oMedian = Math.round(currentOpponents.length / 2)
+    const pMedian = Math.round(currentPlayers.length / 2)
+
+    for (let i = 0; i < Math.round(maxvalue / 2); i++) {
+      if (tempPlayer && type) {
+        const newPlayer = type === 'player' ? currentPlayers : currentOpponents
+        nextParing.push([tempPlayer, newPlayer[i]])
+        tempPlayer = null
+        type = null
+      }
+      const remainingPlayers = currentPlayers.filter(
+        (a) => !nextParing.flat().some((n) => n.id === a.id)
+      )
+      const remainingOpponent = currentOpponents.filter(
+        (a) => !nextParing.flat().some((n) => n.id === a.id)
+      )
+      if (remainingPlayers.length === 1 || remainingOpponent.length === 1) {
+        tempPlayer =
+          remainingPlayers.length === 1
+            ? remainingPlayers[0]
+            : remainingOpponent[0]
+        type = remainingPlayers.length === 1 ? 'player' : 'opponent'
+      } else if (i >= oMedian || i >= pMedian) {
         const median = i >= oMedian ? pMedian : oMedian
         const newPlayers = i >= oMedian ? currentPlayers : currentOpponents
         if ((i >= oMedian && i % 2 == 0) || (i >= pMedian && i % 2 == 0)) {
-          // nextParing.push([newPlayers[i], newPlayers[median + i]])
-          whitePlayers.push(
-            formatPlayerData(newPlayers[i], round, tournament_id)
-          )
-          blackPlayers.push(
-            formatPlayerData(newPlayers[median + i], round, tournament_id)
-          )
+          nextParing.push([newPlayers[i], newPlayers[median + i]])
         } else {
-          // nextParing.push([newPlayers[median + i], newPlayers[i]])
-          whitePlayers.push(
-            formatPlayerData(newPlayers[median + i], round, tournament_id)
-          )
-          blackPlayers.push(
-            formatPlayerData(newPlayers[i], round, tournament_id)
-          )
+          nextParing.push([newPlayers[median + i], newPlayers[i]])
         }
       } else {
-        // nextParing.push([currentOpponents[oMedian + i], currentPlayers[i]])
-        whitePlayers.push(
-          formatPlayerData(currentOpponents[oMedian + i], round, tournament_id)
-        )
-        blackPlayers.push(
-          formatPlayerData(currentPlayers[i], round, tournament_id)
-        )
-
-        whitePlayers.push(
-          formatPlayerData(currentOpponents[i], round, tournament_id)
-        )
-        blackPlayers.push(
-          formatPlayerData(currentPlayers[pMedian + i], round, tournament_id)
-        )
-
-        // nextParing.push([currentOpponents[i], currentPlayers[pMedian + i]])
+        nextParing.push([currentOpponents[oMedian + i], currentPlayers[i]])
+        nextParing.push([currentOpponents[i], currentPlayers[pMedian + i]])
       }
     }
+  })
+  nextParing.forEach((p) => {
+    whitePlayers.push(formatPlayerData(p[0], round, tournament_id))
+    blackPlayers.push(formatPlayerData(p[1], round, tournament_id))
   })
 
   // Return the list of pairings.

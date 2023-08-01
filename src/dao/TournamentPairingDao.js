@@ -25,6 +25,7 @@ class TournamentPairingsDao extends SuperDao {
       ],
       group: [groupBy],
       where: where,
+      raw: true,
     })
   }
 }
