@@ -34,6 +34,11 @@ router.get(
   tournamentValidator.pairingValidator,
   tournamentController.getPairings
 )
+router.get(
+  '/players-ranking',
+  tournamentValidator.pairingValidator,
+  tournamentController.getPlayersRanking
+)
 router.post('/score-upload', tournamentController.updateScoring)
 router.get('/:id', tournamentController.getTournamentById)
 

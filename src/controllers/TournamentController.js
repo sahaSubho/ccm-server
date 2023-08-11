@@ -87,6 +87,21 @@ class TournamentController {
     }
   }
 
+  getPlayersRanking = async (req, res) => {
+    try {
+      const { round, tournamentId } = req.query
+      const pairing = await this.tournamentService.getPlayersRanking(
+        round,
+        tournamentId
+      )
+      const { status, message, data } = pairing.response
+      res.status(pairing.statusCode).send({ status, message, data })
+    } catch (e) {
+      logger.error(e)
+      res.status(httpStatus.BAD_GATEWAY).send(e)
+    }
+  }
+
   updateScoring = async (req, res) => {
     try {
       const { round } = req.query

@@ -1,0 +1,57 @@
+function calculateTB1TB2TB3(players) {
+  // Initialize tiebreaks object to store TB1, TB2, and TB3 for each player
+  const tiebreaks = {}
+
+  // Calculate opponent scores for each player
+  Object.keys(players).forEach((fide_id) => {
+    const oppScores = players[fide_id].reduce((p, c, i) => {
+      let score = 0
+      let isDraw = false
+      const player = Object.values(players)
+        .flat()
+        .find((p) => p.player_fide_id === Number(fide_id))
+      if (!c) {
+        if (player.scores) {
+          const n = players[fide_id].length
+          const r = i + 1
+          const current = player.scores[i]
+          score =
+            Number(current.score) + (1 - Number(current.result)) + 0.5 * (n - r)
+        }
+      } else {
+        score = c.scores.reduce((a, b) => a + Number(b.result), 0)
+        if (
+          player?.scores[i]?.result === c?.scores[i]?.result &&
+          Number(player.scores[i].result) < 1
+        ) {
+          isDraw = true
+        }
+      }
+      p.push({ score, isDraw })
+      return p
+    }, [])
+
+    const modifiedOppScores = oppScores.map((p) => p.score)
+    // Sort in descending order to easily calculate TB2.
+    modifiedOppScores.sort((a, b) => b - a)
+    // Calculate TB2 - Sum of Opponent Scores
+    const tb2 = modifiedOppScores.reduce((acc, score) => acc + score, 0)
+    tiebreaks[fide_id] = { TB1: 0, TB2: tb2, TB3: 0 }
+
+    // Calculate TB1 - Sum of Opponent Scores excluding the lowest opponent score
+    const tb1 = tb2 - modifiedOppScores[modifiedOppScores.length - 1]
+    tiebreaks[fide_id].TB1 = tb1
+
+    // Step 4: Calculate TB3 - Sonneborn-Berger score
+    const tb3 =
+      oppScores.filter((p) => !p.isDraw).reduce((acc, p) => acc + p.score, 0) +
+      0.5 *
+        oppScores.filter((p) => p.isDraw).reduce((acc, p) => acc + p.score, 0)
+    tiebreaks[fide_id].TB3 = tb3
+  })
+
+  return tiebreaks
+}
+// Example usage:
+
+module.exports = calculateTB1TB2TB3

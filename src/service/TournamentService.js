@@ -12,6 +12,7 @@ const {
   swissFirstRoundPairing,
   swissOtherRoundPairings,
 } = require('../helper/swiss')
+const calculateTB1TB2TB3 = require('../helper/tieBreakerCalculation')
 
 class TournamentService {
   constructor() {
@@ -72,7 +73,7 @@ class TournamentService {
     try {
       let message = 'Fetched tournaments successfully.'
       let data = await this.tournamentDao.findByWhere(
-        { is_active: true, end_date: { [Op.gte]: moment() } },
+        { is_active: true /* end_date: { [Op.gte]: moment() } */ },
         undefined,
         ['end_date', 'asc'],
         limit,
@@ -226,9 +227,18 @@ class TournamentService {
         let pairing = await this.tournamentPairingsDao.findByWhere({
           round: round - 1,
         })
-        pairing = pairing.map((p) => p.dataValues)
-        const players = pairing.filter((p) => !p.parent_id)
-        const opponents = pairing.filter((p) => p.parent_id)
+        const players = pairing
+          .filter((p) => !p.parent_id)
+          .map((e) => ({
+            ...e,
+            player_score: Number(e.player_score) + Number(e.result),
+          }))
+        const opponents = pairing
+          .filter((p) => p.parent_id)
+          .map((e) => ({
+            ...e,
+            player_score: Number(e.player_score) + Number(e.result),
+          }))
 
         const { whitePlayers, blackPlayers } = swissOtherRoundPairings(
           players,
@@ -283,6 +293,100 @@ class TournamentService {
           player: e,
           opponent: data.find((d) => d.parent_id === e.id),
         }))
+      return responseHandler.returnSuccess(httpStatus.OK, message, players)
+    } catch (e) {
+      logger.error(e)
+      return responseHandler.returnError(
+        httpStatus.BAD_REQUEST,
+        'Something went wrong!'
+      )
+    }
+  }
+
+  /**
+   * Get Tournament Players Ranking after particular Round
+   * @param {Number} round
+   * @param {Number} tournamentId
+   * @returns {Array}
+   */
+  getPlayersRanking = async (round, tournamentId) => {
+    try {
+      let message = `Fetched players ranking after round ${round} successfully.`
+      const exists = await this.tournamentPairingsDao.checkExist({
+        round: round,
+      })
+
+      if (!exists) {
+        message = `Round ${
+          round - 1
+        } is still going on! Please try after round ${round - 1} is ended.`
+        return responseHandler.returnError(httpStatus.BAD_REQUEST, message)
+      }
+
+      let data = await this.tournamentPairingsDao.findByWhere({
+        round: { [Op.lte]: round },
+        tournament_id: tournamentId,
+      })
+      if (!data.length) {
+        message = `No players found for Round ${round}! Please try again.`
+        return responseHandler.returnError(httpStatus.BAD_REQUEST, message)
+      }
+
+      const playersMapping = data.reduce((p, c) => {
+        const opponent = {
+          id: c.id,
+          player_fide_id: c.player_fide_id,
+          scores: data
+            .filter((d) => d.player_fide_id === c.player_fide_id)
+            .map((o) => ({
+              round: o.round,
+              score: o.player_score,
+              result: o.result,
+            })),
+        }
+        if (c.parent_id) {
+          const player = data.find(
+            (d) => d.id === c.parent_id && d.round === c.round
+          )
+          p[player.player_fide_id] = p[player.player_fide_id]
+            ? [...p[player.player_fide_id], opponent]
+            : [opponent]
+        } else {
+          const player = data.find(
+            (d) => d.parent_id === c.id && d.round === c.round
+          )
+          if (player) {
+            p[player.player_fide_id] = p[player.player_fide_id]
+              ? [...p[player.player_fide_id], opponent]
+              : [opponent]
+          } else {
+            p[c.player_fide_id] = p[c.player_fide_id]
+              ? [...p[c.player_fide_id], null]
+              : [null]
+          }
+        }
+        return p
+      }, {})
+
+      const tieBreakerResult = calculateTB1TB2TB3(playersMapping)
+      const players = data
+        .filter((d) => d.round === round)
+        .map((e) => ({
+          ...e,
+          ...tieBreakerResult[e.player_fide_id],
+          tieSum: Object.values(tieBreakerResult[e.player_fide_id]).reduce(
+            (a, b) => a + b,
+            0
+          ),
+          point: Number(e.player_score) + Number(e.result),
+        }))
+        .sort(
+          (a, b) =>
+            b.point - a.point ||
+            b.tieSum - a.tieSum ||
+            b.player_rating - a.player_rating
+        )
+
       return responseHandler.returnSuccess(httpStatus.OK, message, players)
     } catch (e) {
       logger.error(e)
