@@ -18,6 +18,18 @@ class TournamentController {
     }
   }
 
+  createLichessTournament = async (req, res) => {
+    try {
+      const tournament = await this.tournamentService.createLichessTournament(req.body, req)
+      console.log('Tournament Response = ', tournament)
+      const { status, message, data } = tournament.response
+      res.status(tournament.statusCode).send({ status, message, data })
+    } catch (e) {
+      logger.error(e)
+      res.status(httpStatus.BAD_GATEWAY).send(e)
+    }
+  }
+
   getTournaments = async (req, res) => {
     try {
       const { limit, offset } = req.query

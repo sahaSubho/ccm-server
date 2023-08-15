@@ -2,6 +2,7 @@ const httpStatus = require('http-status')
 const bcrypt = require('bcryptjs')
 const { v4: uuidv4 } = require('uuid')
 const UserDao = require('../dao/UserDao')
+const LichessUserDao = require('../dao/LichessUserDao')
 const responseHandler = require('../helper/responseHandler')
 const logger = require('../config/logger')
 const { userConstant } = require('../config/constant')
@@ -9,6 +10,7 @@ const { userConstant } = require('../config/constant')
 class UserService {
   constructor() {
     this.userDao = new UserDao()
+    this.lichessDao = new LichessUserDao()
   }
 
   /**
@@ -122,6 +124,22 @@ class UserService {
       httpStatus.BAD_REQUEST,
       'Password Update Failed!'
     )
+  }
+
+  getLichessUserById = async (lichessUserId) => {
+    try {
+      console.log('Lichess Profile User Id = ', lichessUserId);
+      const lichessProfile = await this.lichessDao.findByLichessId(lichessUserId)
+      console.log('Lichess Profile = ', lichessProfile);
+      return lichessProfile
+    } catch (e) {
+      console.log('Failed to fetch lichess profile')
+      logger.error(e)
+      return responseHandler.returnError(
+        httpStatus.BAD_REQUEST,
+        'Something went wrong!'
+      )
+    }
   }
 }
 

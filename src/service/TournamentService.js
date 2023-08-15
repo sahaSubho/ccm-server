@@ -21,6 +21,271 @@ class TournamentService {
     this.tournamentPairingsDao = new TournamentPairingsDao()
   }
 
+  createLichessSwissTournament = async (tournamentBody, req) => {
+    try {
+      // Creating lichess arena tournament
+      // Arena payload looks as below:
+      /*
+      {
+        arbiter: "M Venkatesan"
+         description: "Test Description"
+         duration: 7
+        entry_fee: 500
+        increment_time: "5"
+         initial_time: "10"
+        name: "ACC National Open Blitz Tournament"
+         organizer: "Alekhines Chess Club"
+         rated: true
+         startDate: Object { "$L": "en", "$y": 2023, "$M": 7, … }
+         startTime: undefined
+      }
+      */
+
+      try {
+        let message = 'Successfully created tournament.'
+        if (req.user.role !== userRoles.ORGANIZER) {
+          message =
+            'Tournament creation is limited to organizers. Kindly sign up or log in as an organizer to continue.'
+          return responseHandler.returnError(httpStatus.BAD_REQUEST, message)
+        }
+
+        tournamentBody.created_by = req.user.id
+        tournamentBody.is_active = true
+
+        let lichessRequestBody = {
+          "name": tournamentBody.name,
+          "clock.limit": parseInt(tournamentBody.initial_time),
+          "clock.increment": parseInt(tournamentBody.increment_time),
+          "nbRounds": tournamentBody.rounds,
+          "startsAt": tournamentBody.startDate,
+          "variant": "standard",
+          "rated": tournamentBody.rated,
+          "berserkable": false,     // Should this be true
+          "streakable": false,      // Should this be true
+          "hasChat": true,
+          "description": tournamentBody.description
+          // password: Should we have the tournament password here?
+        };
+
+        let name_len = tournamentBody.name?.length
+
+        if (name_len && name_len > 30) {
+          return responseHandler.returnError(
+            httpStatus.BAD_REQUEST,
+            'Name cannot exceed 30 characters'
+          )
+        }
+
+        // Options to be given as parameter 
+        // in fetch for making requests
+        // other then GET
+        let options = {
+          method: 'POST',
+          headers: {
+            'Content-Type':
+              'application/x-www-form-urlencoded',
+            // The authorization token has to be picked from the DB
+            'Authorization':
+              'Bearer lio_oTnnA1AE1Kd9xkS3aEwqoG10b2Podg58',
+            'Accept': 'application/json'
+          },
+          body: new URLSearchParams(lichessRequestBody)
+        }
+
+        let lichessUrl = '';
+
+        fetch('https://lichess.org/api/swiss/new/circlechess', options).then(async lichessResponse => {
+          console.log('Lichess Response Headers = ', lichessResponse)
+          console.log(lichessResponse.body);
+          try {
+            console.log(await lichessResponse.json());
+          } catch (e) {
+            console.log(e)
+          }
+          console.log(lichessUrl)
+          lichessUrl = lichessResponse.headers.Location
+          console.log(lichessUrl)
+        }).catch((e) => {
+          console.log('Lichess tournament creation failed', e)
+          message = 'Tournament creation failed! Please Try again.'
+          return responseHandler.returnError(httpStatus.BAD_REQUEST, message)
+        })
+
+        // Set up defaults for tournament row in the DB
+        tournamentBody.federation = 'Online Lichess'
+        tournamentBody.director = tournamentBody.organizer
+        tournamentBody.time_control = lichessRequestBody.clockTime + '+' + lichessRequestBody.clockIncrement
+        tournamentBody.start_date = lichessRequestBody.startDate
+        tournamentBody.end_date = lichessRequestBody.startDate
+        tournamentBody.tournament_type = 'Swiss'
+        tournamentBody.address = lichessUrl ? lichessUrl : 'Online Lichess'
+        tournamentBody.state = 'Online Lichess'
+        tournamentBody.country = 'Online Lichess'
+
+        this.tournamentDao.create(tournamentBody).then((data) => {
+          return responseHandler.returnSuccess(httpStatus.CREATED, message, { success: true, lichess_tournamen_url: lichessUrl })
+        }).catch(e => {
+          console.log('Tournament creation in circlechess db failed')
+          message = 'Tournament creation failed! Please Try again.'
+          return responseHandler.returnError(httpStatus.BAD_REQUEST, message)
+        });
+      } catch (e) {
+        logger.error(e)
+        return responseHandler.returnError(
+          httpStatus.BAD_REQUEST,
+          'Something went wrong!'
+        )
+      }
+    } catch (e) {
+      console.log('Error creating lichess tournament ..');
+      console.log(e);
+    }
+  }
+
+  createLichessArenaTournament = async (tournamentBody, req) => {
+    try {
+      // Creating lichess arena tournament
+      // Arena payload looks as below:
+      /*
+      {
+        arbiter: "M Venkatesan"
+         description: "Test Description"
+         duration: 7
+        entry_fee: 500
+        increment_time: "5"
+         initial_time: "10"
+        name: "ACC National Open Blitz Tournament"
+         organizer: "Alekhines Chess Club"
+         rated: true
+         startDate: Object { "$L": "en", "$y": 2023, "$M": 7, … }
+         startTime: undefined
+      }
+      */
+
+      console.log('Starting Arena creation ..');
+
+      try {
+        let message = 'Successfully created tournament.'
+        if (req.user.role !== userRoles.ORGANIZER) {
+          message =
+            'Tournament creation is limited to organizers. Kindly sign up or log in as an organizer to continue.'
+          return responseHandler.returnError(httpStatus.BAD_REQUEST, message)
+        }
+
+        tournamentBody.created_by = req.user.id
+        tournamentBody.is_active = true
+
+        let lichessRequestBody = {
+          name: tournamentBody.name,
+          clockTime: parseInt(tournamentBody.initial_time),
+          clockIncrement: parseInt(tournamentBody.increment_time),
+          minutes: tournamentBody.duration,
+          startDate: tournamentBody.startDate,
+          variant: "standard",
+          rated: tournamentBody.rated,
+          berserkable: false,     // Should this be true
+          streakable: false,      // Should this be true
+          hasChat: true,
+          description: tournamentBody.description
+          // password: Should we have the tournament password here?
+        };
+
+        let name_len = tournamentBody.name?.length
+
+        if (name_len && name_len > 30) {
+          console.log('Cannot exceed 30 characters');
+          return responseHandler.returnError(
+            httpStatus.BAD_REQUEST,
+            'Name cannot exceed 30 characters'
+          )
+        }
+
+        // validate lichess restrictions
+        let tournamentOKRatio = (tournamentBody.duration * 60) / (96 * tournamentBody.clockTime + 48 * tournamentBody.clockIncrement + 15)
+
+        if (tournamentOKRatio < 3 || tournamentOKRatio > 150) {
+          console.log('Cannot violate tournament timing ratio');
+          return responseHandler.returnError(
+            httpStatus.BAD_REQUEST,
+            'Lichess tournament time ratio check failed'
+          )
+        }
+
+        // Options to be given as parameter 
+        // in fetch for making requests
+        // other then GET
+        let options = {
+          method: 'POST',
+          headers: {
+            'Content-Type':
+              'application/x-www-form-urlencoded',
+            // The authorization token has to be picked from the DB
+            'Authorization':
+              'Bearer lio_oTnnA1AE1Kd9xkS3aEwqoG10b2Podg58',
+            'Accept': 'application/json'
+          },
+          body: new URLSearchParams(lichessRequestBody)
+        }
+
+        let lichessResponse = '';
+        let lichessUrl = '';
+        try {
+          lichessResponse = await fetch('https://lichess.org/api/tournament', options)
+
+          let json = await lichessResponse.json()
+          console.log(json)
+
+          // Set up defaults for tournament row in the DB
+          tournamentBody.federation = 'Online Lichess'
+          tournamentBody.director = tournamentBody.organizer
+          tournamentBody.time_control = lichessRequestBody.clockTime + '+' + lichessRequestBody.clockIncrement
+          tournamentBody.start_date = lichessRequestBody.startDate
+          tournamentBody.end_date = lichessRequestBody.startDate
+          tournamentBody.tournament_type = 'Arena'
+          lichessUrl = "https://lichess.org/tournament/" + json.id
+          tournamentBody.address = lichessUrl
+          tournamentBody.state = 'Online Lichess'
+          tournamentBody.country = 'Online Lichess'
+        } catch (e) {
+          console.log('Lichess tournament creation failed', e)
+          message = 'Tournament creation failed! Please Try again.'
+          return responseHandler.returnError(httpStatus.BAD_REQUEST, message)
+        }
+
+        const data = await this.tournamentDao.create(tournamentBody)
+        console.log(data)
+        return responseHandler.returnSuccess(
+          httpStatus.CREATED, message, { lichess_tournament_url: lichessUrl, tournament_id: data.id }
+        )
+      } catch (e) {
+        logger.error(e)
+        return responseHandler.returnError(
+          httpStatus.BAD_REQUEST,
+          'Something went wrong!'
+        )
+      }
+    } catch (e) {
+      console.log('Error creating lichess tournament ..')
+      console.log(e)
+      return responseHandler.returnError(
+        httpStatus.BAD_REQUEST,
+        'Something went wrong!'
+      )
+    }
+  }
+
+  createLichessTournament = async (tournamentBody, req) => {
+    const { tournament_type } = tournamentBody
+    if ('Swiss' === tournament_type) {
+      console.log('Creating Swiss tournament')
+      return this.createLichessSwissTournament(tournamentBody, req)
+    }
+    else {
+      console.log('Creating Arena tournament')
+      return this.createLichessArenaTournament(tournamentBody, req)
+    }
+  }
+
   /**
    * Create a user
    * @param {Object} tournamentBody

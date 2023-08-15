@@ -4,6 +4,8 @@ const sequelize = require('sequelize')
 
 const TournamentPairings = models.tournament_pairings
 
+console.log('Tournament Pairings Model = ', TournamentPairings)
+
 class TournamentPairingsDao extends SuperDao {
   constructor() {
     super(TournamentPairings)

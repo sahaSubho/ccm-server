@@ -38,7 +38,7 @@ module.exports = (sequelize, DataTypes) => {
       display_pic: DataTypes.STRING,
       player_fide_ids: {
         type: DataTypes.STRING(2000),
-        allowNull: false,
+        allowNull: true,
       },
       created_by: DataTypes.INTEGER,
       is_active: DataTypes.BOOLEAN,

@@ -18,7 +18,7 @@ const envValidation = Joi.object()
     DB_NAME: Joi.string().required(),
     JWT_SECRET: Joi.string().required().description('JWT secret key'),
     JWT_ACCESS_EXPIRATION_MINUTES: Joi.number()
-      .default(30)
+      .default(60*24)
       .description('minutes after which access tokens expire'),
     JWT_REFRESH_EXPIRATION_DAYS: Joi.number()
       .default(30)

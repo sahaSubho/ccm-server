@@ -21,6 +21,7 @@ router.post(
 router.post('/login', userValidator.userLoginValidator, authController.login)
 router.post('/refresh-token', authController.refreshTokens)
 router.post('/get-user', authController.getUserDetails)
+router.post('/get-lichess-account', auth(), authController.getConnectedLichessAccount)
 router.post('/logout', authController.logout)
 router.put(
   '/change-password',

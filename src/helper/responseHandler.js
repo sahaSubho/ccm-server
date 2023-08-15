@@ -17,6 +17,7 @@ const returnError = (statusCode, message) => {
     },
   }
 }
+
 const returnSuccess = (statusCode, message, data = {}) => {
   return {
     statusCode,
