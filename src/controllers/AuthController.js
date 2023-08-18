@@ -134,17 +134,13 @@ class AuthController {
           .send('Token is expired Please Login again!')
       }
       let lichess_username = '';  // to be populated from DB
-      console.log('Logged in user = ', tokenDoc.user_id)
       const user = await this.userService.getUserById(tokenDoc.user_id)
       if (user == null) {
         res.status(httpStatus.NOT_FOUND).send('User Not Found!')
       } else {
         lichess_username = user.lic_name;
-        console.log('Logged in user account = ', user);
-        console.log('Connected Lichess username = ', lichess_username);
         if (lichess_username) {
           let lichessUser = await this.userService.getLichessUserById(lichess_username);
-          console.log('Determined Connected Lichess User = ', lichessUser);
           if (lichessUser && lichessUser.lichess_token) {
             // the user has lichess account integrated
             // TODO: Here we should put an additional logic to validate the token
