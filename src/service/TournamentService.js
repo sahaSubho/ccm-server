@@ -802,14 +802,6 @@ class TournamentService {
 
       let bulkCreateObjects = {}
 
-      for (let key in prizeStructure) {
-        if (key.startsWith('id_')) continue
-        let keys = key.split("_")
-        let prizeCatId = keys[2]
-
-        bulkCreateObjects.prizeCatId
-      }
-
       let catMap = new Map()
 
       for (let key in prizeStructure) {
@@ -817,26 +809,36 @@ class TournamentService {
         let keys = key.split("_")
         let prizeCatId = keys[2]
 
-        if (!map.get(prizeCatId)) {
-          let inputs = []
+        console.log('prizeCatId Key = ', prizeCatId)
+
+        let inputs = []
+        if (!catMap.get(prizeCatId)) {
           catMap.set(prizeCatId, inputs)
+        } else {
+          inputs = catMap.get(prizeCatId)
         }
 
         inputs.push(key)
       }
 
-      catMap.forEach((catId, values) => {
-        for (let key in values) {
+      console.log(catMap)
+
+      catMap.forEach(async (values, catId) => {
+        console.log('Category: ', catId)
+        console.log('Values: ', values)
+        for (let index in values) {
+          let key = values[index]
           let keys = key.split("_")
           let prizeCatId = keys[2]
           let prizeIndex = keys[3]
   
           obj = {
             ...obj,
-            category_id: parseInt(prizeCatId),
+            category_id: parseInt(catId),
           }
   
           console.log('prizeIndex = ', prizeIndex)
+          console.log('key = ', key)
   
           switch (prizeIndex) {
             case '1': obj.prize1 = parseInt(prizeStructure[key])
@@ -848,16 +850,19 @@ class TournamentService {
             case '3': obj.prize3 = parseInt(prizeStructure[key])
             console.log('Assigning to prize 3 ', parseInt(prizeStructure[key]))
             break;
+            default: console.log('Prize Index = ', prizeIndex)
           }
-        }})
+        }
 
-      console.log('Inserting : ', obj)
-      try {
-        await this.tournamentPrizeMappingDao.create(obj)
-      } catch (e) {
-        console.log('Failed to insert into DB ', e)
-        return responseHandler.returnError(httpStatus.BAD_REQUEST, error_msg)
-      }
+        try {
+          console.log(obj)
+          await this.tournamentPrizeMappingDao.create(obj)
+        } catch (e) {
+          console.log('Failed to insert into DB ', e)
+          return responseHandler.returnError(httpStatus.BAD_REQUEST, error_msg)
+        }
+      })
+
 
       return responseHandler.returnSuccess(httpStatus.CREATED, success_msg, {})
     } catch (error) {
