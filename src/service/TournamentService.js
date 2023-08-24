@@ -791,7 +791,6 @@ class TournamentService {
       // Let us clean up current prize categories first
       try {
         await this.tournamentPrizeMappingDao.deleteByWhere({ tournament_id })
-        console.log('Cleaned up current prize categories ..')
       } catch (error) {
         console.log('Unable to delete current prize categories', error)
         message = 'Prize Category creation failed! Current category clean up failed. Please Try again.'
@@ -800,16 +799,12 @@ class TournamentService {
 
       delete prizeStructure['tournament_id']
 
-      let bulkCreateObjects = {}
-
       let catMap = new Map()
 
       for (let key in prizeStructure) {
         if (key.startsWith('id_')) continue
         let keys = key.split("_")
         let prizeCatId = keys[2]
-
-        console.log('prizeCatId Key = ', prizeCatId)
 
         let inputs = []
         if (!catMap.get(prizeCatId)) {
@@ -821,11 +816,7 @@ class TournamentService {
         inputs.push(key)
       }
 
-      console.log(catMap)
-
       catMap.forEach(async (values, catId) => {
-        console.log('Category: ', catId)
-        console.log('Values: ', values)
         for (let index in values) {
           let key = values[index]
           let keys = key.split("_")
@@ -837,32 +828,23 @@ class TournamentService {
             category_id: parseInt(catId),
           }
   
-          console.log('prizeIndex = ', prizeIndex)
-          console.log('key = ', key)
-  
           switch (prizeIndex) {
             case '1': obj.prize1 = parseInt(prizeStructure[key])
-              console.log('Assigning to prize 1 ', parseInt(prizeStructure[key]))
               break;
             case '2': obj.prize2 = parseInt(prizeStructure[key])
-            console.log('Assigning to prize 2 ', parseInt(prizeStructure[key]))
             break;
             case '3': obj.prize3 = parseInt(prizeStructure[key])
-            console.log('Assigning to prize 3 ', parseInt(prizeStructure[key]))
             break;
-            default: console.log('Prize Index = ', prizeIndex)
           }
         }
 
         try {
-          console.log(obj)
           await this.tournamentPrizeMappingDao.create(obj)
         } catch (e) {
           console.log('Failed to insert into DB ', e)
           return responseHandler.returnError(httpStatus.BAD_REQUEST, error_msg)
         }
       })
-
 
       return responseHandler.returnSuccess(httpStatus.CREATED, success_msg, {})
     } catch (error) {
