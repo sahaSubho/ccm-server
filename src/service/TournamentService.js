@@ -14,10 +14,14 @@ const {
 } = require('../helper/swiss')
 const calculateTB1TB2TB3 = require('../helper/tieBreakerCalculation')
 const UserService = require('./UserService')
+const PrizeCategoryDao = require('../dao/PrizeCategoryDao')
+const TournamentPrizeCategoryMappingDao = require('../dao/TournamentCategoryMappingDao')
 
 class TournamentService {
   constructor() {
     this.tournamentDao = new TournamentDao()
+    this.prizeCategoryDao = new PrizeCategoryDao()
+    this.tournamentPrizeMappingDao = new TournamentPrizeCategoryMappingDao()
     this.playersDao = new PlayersDao()
     this.tournamentPairingsDao = new TournamentPairingsDao()
     this.userService = new UserService()  // This is specifically to for querying the lichess token information from DB
@@ -722,6 +726,144 @@ class TournamentService {
         httpStatus.BAD_REQUEST,
         'Something went wrong!'
       )
+    }
+  }
+
+  recommendPrizeStructure = async (id) => {
+    const tournament = this.tournamentDao.findOneByWhere({ id })
+    const inflow = tournament.registration_inflow
+    console.log(inflow)
+
+    // Assuming this is returning back categories 
+    // in order of number of participants
+    const sort = (categories) => {
+      return categories
+    }
+
+    const categories = this.prizeCategoryDao.findAll({ tournament_id: id })
+    categories = sort(categories)
+  }
+
+  /**
+   * @param id: Tournament ID
+   * @returns Returns all static prize categories with their prize recommendations.
+   * These are merged with any prize categories already allocated to the tournament.
+   */
+  getStaticPrizeCategories = async (id) => {
+    try {
+      let message = 'Successfully retrieve all prize categories'
+      const prizeCats = await this.prizeCategoryDao.findAllRaw({})
+      const tournamentPrizeCategoryMappings = await this.tournamentPrizeMappingDao.findAllRaw({ tournament_id: id })
+
+      for (let catIdx in prizeCats) {
+        for (let mappingIdx in tournamentPrizeCategoryMappings) {
+          if (tournamentPrizeCategoryMappings[mappingIdx].category_id == prizeCats[catIdx].id) {
+            prizeCats[catIdx] = {
+              ...prizeCats[catIdx],
+              prize1Value: tournamentPrizeCategoryMappings[mappingIdx].prize1,
+              prize2Value: tournamentPrizeCategoryMappings[mappingIdx].prize2,
+              prize3Value: tournamentPrizeCategoryMappings[mappingIdx].prize3,
+            }
+          }
+        }
+      }
+
+      return responseHandler.returnSuccess(httpStatus.OK, message, prizeCats)
+    } catch (error) {
+      const message = 'Could not retrieve prize categories'
+      console.log(error)
+      return responseHandler.returnError(httpStatus.BAD_REQUEST, message)
+    }
+  }
+
+  updatePrizingCategories = async (prizeStructure, req) => {
+    try {
+      let success_msg = 'Prize structure creation successful'
+      let error_msg = 'Tournament Prize Category updation failed ..'
+      const { tournament_id, categories } = prizeStructure
+
+      let obj = {
+        tournament_id,
+      }
+
+      console.log('Prize Structure: ', prizeStructure)
+
+      // Let us clean up current prize categories first
+      try {
+        await this.tournamentPrizeMappingDao.deleteByWhere({ tournament_id })
+        console.log('Cleaned up current prize categories ..')
+      } catch (error) {
+        console.log('Unable to delete current prize categories', error)
+        message = 'Prize Category creation failed! Current category clean up failed. Please Try again.'
+        return responseHandler.returnError(httpStatus.BAD_REQUEST, error_msg)
+      }
+
+      delete prizeStructure['tournament_id']
+
+      let bulkCreateObjects = {}
+
+      for (let key in prizeStructure) {
+        if (key.startsWith('id_')) continue
+        let keys = key.split("_")
+        let prizeCatId = keys[2]
+
+        bulkCreateObjects.prizeCatId
+      }
+
+      let catMap = new Map()
+
+      for (let key in prizeStructure) {
+        if (key.startsWith('id_')) continue
+        let keys = key.split("_")
+        let prizeCatId = keys[2]
+
+        if (!map.get(prizeCatId)) {
+          let inputs = []
+          catMap.set(prizeCatId, inputs)
+        }
+
+        inputs.push(key)
+      }
+
+      catMap.forEach((catId, values) => {
+        for (let key in values) {
+          let keys = key.split("_")
+          let prizeCatId = keys[2]
+          let prizeIndex = keys[3]
+  
+          obj = {
+            ...obj,
+            category_id: parseInt(prizeCatId),
+          }
+  
+          console.log('prizeIndex = ', prizeIndex)
+  
+          switch (prizeIndex) {
+            case '1': obj.prize1 = parseInt(prizeStructure[key])
+              console.log('Assigning to prize 1 ', parseInt(prizeStructure[key]))
+              break;
+            case '2': obj.prize2 = parseInt(prizeStructure[key])
+            console.log('Assigning to prize 2 ', parseInt(prizeStructure[key]))
+            break;
+            case '3': obj.prize3 = parseInt(prizeStructure[key])
+            console.log('Assigning to prize 3 ', parseInt(prizeStructure[key]))
+            break;
+          }
+        }})
+
+      console.log('Inserting : ', obj)
+      try {
+        await this.tournamentPrizeMappingDao.create(obj)
+      } catch (e) {
+        console.log('Failed to insert into DB ', e)
+        return responseHandler.returnError(httpStatus.BAD_REQUEST, error_msg)
+      }
+
+      return responseHandler.returnSuccess(httpStatus.CREATED, success_msg, {})
+    } catch (error) {
+      console.log(error)
+      message = 'Prize Category creation failed! Please Try again.'
+      return responseHandler.returnError(httpStatus.BAD_REQUEST, error_msg)
     }
   }
 }

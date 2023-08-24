@@ -3,8 +3,6 @@ const models = require('../models')
 
 const LichessProfile = models.LichessProfile
 
-console.log('Lichess Profile model = ', LichessProfile)
-
 class LichessProfileDao extends SuperDao {
   constructor() {
     super(LichessProfile)

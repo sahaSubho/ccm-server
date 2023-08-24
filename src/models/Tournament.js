@@ -30,6 +30,10 @@ module.exports = (sequelize, DataTypes) => {
       end_date: DataTypes.DATE,
       rating: DataTypes.INTEGER,
       rounds: DataTypes.INTEGER,
+      /*
+      This is per category basis, needs to be
+      moved to another table
+      */
       entry_fee: DataTypes.INTEGER,
       address: DataTypes.STRING,
       state: DataTypes.STRING,
@@ -39,6 +43,14 @@ module.exports = (sequelize, DataTypes) => {
       player_fide_ids: {
         type: DataTypes.STRING(2000),
         allowNull: true,
+      },
+      /*
+      Net cash inflow expected from the tournament
+       */
+      registration_inflow: {
+        type: DataTypes.INTEGER,
+        allowNull: true,
+        defaultValue: 100000,
       },
       created_by: DataTypes.INTEGER,
       is_active: DataTypes.BOOLEAN,

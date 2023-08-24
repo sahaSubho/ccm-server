@@ -84,6 +84,10 @@ class TournamentValidator {
       return next()
     }
   }
+  async prizeConfigValidator(req, res, next) {
+    // TODO: update with the appropriate validation logic
+    return next()
+  }
 }
 
 module.exports = TournamentValidator

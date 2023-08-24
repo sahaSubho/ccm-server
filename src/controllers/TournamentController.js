@@ -43,7 +43,7 @@ class TournamentController {
       res.status(httpStatus.BAD_GATEWAY).send(e)
     }
   }
-  
+
   getTournamentById = async (req, res) => {
     try {
       const { id } = req.params
@@ -127,6 +127,24 @@ class TournamentController {
       logger.error(e)
       res.status(httpStatus.BAD_GATEWAY).send(e)
     }
+  }
+
+  updatePrizeCategories = async (req, res) => {
+    try {
+      const prizeCategories = await this.tournamentService.updatePrizingCategories(req.body, req)
+      const { status, message, data } = prizeCategories.response
+      res.status(prizeCategories.statusCode).send({ status, message, data })
+    } catch (e) {
+      logger.error(e)
+      res.status(httpStatus.BAD_GATEWAY).send(e)
+    }
+  }
+
+  getStaticPrizeCategories = async (req, res) => {
+    // Return static values only, no fancy processing
+    const prizeCats = await this.tournamentService.getStaticPrizeCategories(13)
+    const { status, message, data } = prizeCats.response
+    res.status(prizeCats.statusCode).send({ status, message, data })
   }
 }
 

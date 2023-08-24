@@ -41,6 +41,15 @@ router.get(
   tournamentValidator.pairingValidator,
   tournamentController.getPlayersRanking
 )
+router.post(
+  '/prize-config',
+  tournamentValidator.prizeConfigValidator,
+  tournamentController.updatePrizeCategories
+)
+router.get(
+  '/get-static-prize-cats',
+  tournamentController.getStaticPrizeCategories
+)
 router.post('/score-upload', tournamentController.updateScoring)
 router.get('/:id', tournamentController.getTournamentById)
 

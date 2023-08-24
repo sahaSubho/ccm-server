@@ -3,8 +3,6 @@ const models = require('../models')
 
 const User = models.users
 
-console.log('User Model = ', User);
-
 class UserDao extends SuperDao {
   constructor() {
     super(User)
