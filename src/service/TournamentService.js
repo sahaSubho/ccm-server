@@ -104,8 +104,6 @@ class TournamentService {
           )
         }
 
-        console.log('Lichess authorization token being used: ', lichess_bearer_token)
-        console.log('Lichess Request body = ', lichessRequestBody)
         // Options to be given as parameter 
         // in fetch for making requests
         // other then GET
@@ -125,14 +123,9 @@ class TournamentService {
 
         try {
           const lichessResponse = await fetch('https://lichess.org/api/swiss/new/circlechess', options)
-          console.log('Lichess Response Headers = ', lichessResponse)
-          console.log(lichessResponse.body);
           const json = await lichessResponse.json();
           console.log(json)
           if (!json.id) {
-            console.log('Lichess tournament creation failed .. tournament id undefined')
-            console.log('Json.global.length = ', json.global.length, ' ', json.global)
-            console.log('Json Error Global Length = ', json.error.global.length, ' ', json.error.global)
             if (json.global && json.global.length > 0)
               responseHandler.returnError(httpStatus.BAD_REQUEST, json.global[0])
             else if (json.error && json.error.global && json.error.global.length > 0)
@@ -159,7 +152,6 @@ class TournamentService {
         tournamentBody.address = lichessUrl
 
         const data = await this.tournamentDao.create(tournamentBody)
-        console.log(data)
         return responseHandler.returnSuccess(
           httpStatus.CREATED, message, { lichess_tournament_url: lichessUrl, tournament_id: data.id }
         )
@@ -195,8 +187,6 @@ class TournamentService {
          startTime: undefined
       }
       */
-
-      console.log('Starting Arena creation ..');
 
       try {
         let message = 'Successfully created tournament.'
@@ -268,12 +258,8 @@ class TournamentService {
           lichessResponse = await fetch('https://lichess.org/api/tournament', options)
 
           let json = await lichessResponse.json()
-          console.log(json)
 
           if (!json.id) {
-            console.log('Lichess tournament creation failed .. tournament id undefined')
-            console.log('Json.global.length = ', json.global.length, ' ', json.global)
-            console.log('Json Error Global Length = ', json.error.global.length, ' ', json.error.global)
             if (json.global && json.global.length > 0)
               responseHandler.returnError(httpStatus.BAD_REQUEST, json.global[0])
             else if (json.error && json.error.global && json.error.global.length > 0)
@@ -298,7 +284,6 @@ class TournamentService {
         }
 
         const data = await this.tournamentDao.create(tournamentBody)
-        console.log(data)
         return responseHandler.returnSuccess(
           httpStatus.CREATED, message, { lichess_tournament_url: lichessUrl, tournament_id: data.id }
         )
@@ -322,11 +307,9 @@ class TournamentService {
   createLichessTournament = async (tournamentBody, req) => {
     const { tournament_type } = tournamentBody
     if ('Swiss' === tournament_type) {
-      console.log('Creating Swiss tournament')
       return this.createLichessSwissTournament(tournamentBody, req)
     }
     else {
-      console.log('Creating Arena tournament')
       return this.createLichessArenaTournament(tournamentBody, req)
     }
   }
@@ -440,8 +423,6 @@ class TournamentService {
       }, {})
 
       let currentRound = roundDetails.map((r) => r.round).pop() || 1
-
-      console.log('currentRound', currentRound, scored)
 
       if (scored.some((s) => s.round === currentRound)) {
         currentRound += 1
@@ -729,21 +710,6 @@ class TournamentService {
     }
   }
 
-  recommendPrizeStructure = async (id) => {
-    const tournament = this.tournamentDao.findOneByWhere({ id })
-    const inflow = tournament.registration_inflow
-    console.log(inflow)
-
-    // Assuming this is returning back categories 
-    // in order of number of participants
-    const sort = (categories) => {
-      return categories
-    }
-
-    const categories = this.prizeCategoryDao.findAll({ tournament_id: id })
-    categories = sort(categories)
-  }
-
   /**
    * @param id: Tournament ID
    * @returns Returns all static prize categories with their prize recommendations.
@@ -785,8 +751,6 @@ class TournamentService {
       let obj = {
         tournament_id,
       }
-
-      console.log('Prize Structure: ', prizeStructure)
 
       // Let us clean up current prize categories first
       try {
