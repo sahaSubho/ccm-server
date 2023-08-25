@@ -29,6 +29,18 @@ class TournamentController {
       res.status(httpStatus.BAD_GATEWAY).send(e)
     }
   }
+
+  updatePlayerDetails = async (req, res) => {
+    try {
+      const { id } = req.params
+      const user = await this.playerService.updatePlayerDetails(id, req.body)
+      const { status, message, data } = user.response
+      res.status(user.statusCode).send({ status, message, data })
+    } catch (e) {
+      logger.error(e)
+      res.status(httpStatus.BAD_GATEWAY).send(e)
+    }
+  }
 }
 
 module.exports = TournamentController

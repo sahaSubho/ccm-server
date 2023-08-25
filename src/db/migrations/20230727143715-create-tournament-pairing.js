@@ -32,6 +32,10 @@ module.exports = {
         type: Sequelize.DECIMAL,
         defaultValue: 0.0,
       },
+      result: {
+        type: Sequelize.DECIMAL,
+        defaultValue: 0.0,
+      },
       is_withdrawn: {
         type: Sequelize.BOOLEAN,
         defaultValue: false,

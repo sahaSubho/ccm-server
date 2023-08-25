@@ -17,5 +17,10 @@ router.post(
   playersController.uploadPlayers
 )
 router.get('/:id', playersController.getPlayersByTournament)
+router.patch(
+  '/update-player-info/:id',
+  auth(),
+  playersController.updatePlayerDetails
+)
 
 module.exports = router

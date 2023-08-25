@@ -17,6 +17,8 @@ module.exports = (sequelize, DataTypes) => {
       name: DataTypes.STRING,
       fide_id: DataTypes.INTEGER,
       rating: DataTypes.INTEGER,
+      mobile: DataTypes.STRING,
+      upi_id: DataTypes.STRING,
       created_by: DataTypes.ENUM([userRoles.ORGANIZER, 'self']),
       is_active: {
         type: DataTypes.BOOLEAN,

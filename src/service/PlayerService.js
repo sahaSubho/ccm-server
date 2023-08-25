@@ -118,6 +118,36 @@ class PlayersService {
       )
     }
   }
+
+  /**
+   * get list of player for each tournament
+   * @param {Number} playerId
+   * @param {body} playerBody
+   * @returns {Object}
+   */
+  updatePlayerDetails = async (playerId, playerBody) => {
+    try {
+      let message = 'Successfully updated players.'
+
+      const data = await this.playersDao.updateById(playerBody, playerId)
+
+      if (!data.length) {
+        message = 'Players details failed to update.'
+        return responseHandler.returnError(httpStatus.BAD_REQUEST, message)
+      }
+      return responseHandler.returnSuccess(
+        httpStatus.NO_CONTENT,
+        message,
+        playerBody
+      )
+    } catch (error) {
+      logger.error(e)
+      return responseHandler.returnError(
+        httpStatus.BAD_REQUEST,
+        'Something went wrong!'
+      )
+    }
+  }
 }
 
 module.exports = PlayersService
