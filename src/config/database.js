@@ -1,6 +1,6 @@
 const config = require('./config')
 
-console.log('DB Config: ', JSON.stringify(config));
+console.log('DB Config: ', JSON.stringify(config))
 
 module.exports = {
   development: {
@@ -32,6 +32,12 @@ module.exports = {
     dialect: 'postgres',
     dialectOptions: {
       bigNumberStrings: true,
+    },
+    pool: {
+      min: 0,
+      max: 5,
+      acquireTimeoutMillis: 60000,
+      idleTimeoutMillis: 600000,
     },
   },
 }
