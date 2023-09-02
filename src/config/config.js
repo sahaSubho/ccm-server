@@ -37,6 +37,9 @@ const envValidation = Joi.object()
     REDIS_PORT: Joi.number().default(6379),
     REDIS_USE_PASSWORD: Joi.string().default('no'),
     REDIS_PASSWORD: Joi.string(),
+    JUSPAY_ENV: Joi.string(),
+    JUSPAY_API_KEY: Joi.string(),
+    JUSPAY_MERCHANT_ID: Joi.string(),
   })
   .unknown()
 
@@ -76,5 +79,13 @@ module.exports = {
     port: envVar.REDIS_PORT,
     usePassword: envVar.REDIS_USE_PASSWORD,
     password: envVar.REDIS_PASSWORD,
+  },
+  juspay: {
+    url:
+      envVar.JUSPAY_ENV === 'production'
+        ? 'https://api.juspay.in/payout/'
+        : 'https://sandbox.juspay.in/payout/',
+    apiKey: envVar.JUSPAY_API_KEY,
+    merchantId: envVar.JUSPAY_MERCHANT_ID,
   },
 }

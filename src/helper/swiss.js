@@ -26,16 +26,26 @@ function swissFirstRoundPairing(players, tournament_id) {
   // Sort the players by their ratings.
   players.sort((a, b) => b.rating - a.rating || a.name.localeCompare(b.name))
 
+  console.log(players)
+
   // Pair the players off.
   const median = players.length / 2
 
   for (let i = 0; i < players.length / 2; i++) {
     if (i % 2 == 0) {
-      whitePlayers.push(formatPlayerData(players[i], 1, tournament_id))
-      blackPlayers.push(formatPlayerData(players[median + i], 1, tournament_id))
+      if (players[i])
+        whitePlayers.push(formatPlayerData(players[i], 1, tournament_id))
+      if (players[median + i])
+        blackPlayers.push(
+          formatPlayerData(players[median + i], 1, tournament_id)
+        )
     } else {
-      blackPlayers.push(formatPlayerData(players[i], 1, tournament_id))
-      whitePlayers.push(formatPlayerData(players[median + i], 1, tournament_id))
+      if (players[i])
+        blackPlayers.push(formatPlayerData(players[i], 1, tournament_id))
+      if (players[median + i])
+        whitePlayers.push(
+          formatPlayerData(players[median + i], 1, tournament_id)
+        )
     }
   }
 

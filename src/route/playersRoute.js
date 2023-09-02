@@ -16,11 +16,30 @@ router.post(
   playerValidator.uploadValidator,
   playersController.uploadPlayers
 )
-router.get('/:id', playersController.getPlayersByTournament)
 router.patch(
   '/update-player-info/:id',
   auth(),
   playersController.updatePlayerDetails
 )
+router.post(
+  '/upload-prize-winning-players',
+  auth(),
+  upload.single('file'),
+  playerValidator.uploadValidator,
+  playersController.uploadPrizeWinningPlayers
+)
+
+router.patch(
+  '/update-winning-player/:id',
+  auth(),
+  playersController.updateWinningPlayerDetails
+)
+
+router.get(
+  '/prize-winning-players/:tournamentId',
+  auth(),
+  playersController.getPrizeWinningPlayers
+)
+router.get('/:id', playersController.getPlayersByTournament)
 
 module.exports = router

@@ -16,6 +16,7 @@ const calculateTB1TB2TB3 = require('../helper/tieBreakerCalculation')
 const UserService = require('./UserService')
 const PrizeCategoryDao = require('../dao/PrizeCategoryDao')
 const TournamentPrizeCategoryMappingDao = require('../dao/TournamentCategoryMappingDao')
+const parseFile = require('../helper/parseFile')
 
 class TournamentService {
   constructor() {
@@ -24,7 +25,7 @@ class TournamentService {
     this.tournamentPrizeMappingDao = new TournamentPrizeCategoryMappingDao()
     this.playersDao = new PlayersDao()
     this.tournamentPairingsDao = new TournamentPairingsDao()
-    this.userService = new UserService()  // This is specifically to for querying the lichess token information from DB
+    this.userService = new UserService() // This is specifically to for querying the lichess token information from DB
   }
 
   createLichessSwissTournament = async (tournamentBody, req) => {
@@ -57,13 +58,16 @@ class TournamentService {
 
         // fetch the lichess token
         let lichess_bearer_token = 'Bearer '
-        let lichess_username = req.user.lic_name;
+        let lichess_username = req.user.lic_name
         if (lichess_username) {
-          let lichessUser = await this.userService.getLichessUserById(lichess_username);
+          let lichessUser = await this.userService.getLichessUserById(
+            lichess_username
+          )
           if (lichessUser && lichessUser.lichess_token) {
             // the user has lichess account integrated
             // TODO: Here we should put an additional logic to validate the token
-            lichess_bearer_token = lichess_bearer_token + lichessUser.lichess_token
+            lichess_bearer_token =
+              lichess_bearer_token + lichessUser.lichess_token
           } else {
             return responseHandler.returnError(
               httpStatus.BAD_REQUEST,
@@ -81,19 +85,19 @@ class TournamentService {
         tournamentBody.is_active = true
 
         let lichessRequestBody = {
-          "name": tournamentBody.name,
-          "clock.limit": tournamentBody.initial_time,
-          "clock.increment": tournamentBody.increment_time,
-          "nbRounds": tournamentBody.rounds,
-          "startsAt": tournamentBody.startDate,
-          "variant": "standard",
-          "rated": tournamentBody.rated,
-          "berserkable": false,     // Should this be true
-          "streakable": false,      // Should this be true
-          "hasChat": true,
-          "description": tournamentBody.description
+          name: tournamentBody.name,
+          'clock.limit': tournamentBody.initial_time,
+          'clock.increment': tournamentBody.increment_time,
+          nbRounds: tournamentBody.rounds,
+          startsAt: tournamentBody.startDate,
+          variant: 'standard',
+          rated: tournamentBody.rated,
+          berserkable: false, // Should this be true
+          streakable: false, // Should this be true
+          hasChat: true,
+          description: tournamentBody.description,
           // password: Should we have the tournament password here?
-        };
+        }
 
         let name_len = tournamentBody.name?.length
 
@@ -104,34 +108,46 @@ class TournamentService {
           )
         }
 
-        // Options to be given as parameter 
+        // Options to be given as parameter
         // in fetch for making requests
         // other then GET
         let options = {
           method: 'POST',
           headers: {
-            'Content-Type':
-              'application/x-www-form-urlencoded',
+            'Content-Type': 'application/x-www-form-urlencoded',
             // The authorization token has to be picked from the DB
-            'Authorization': lichess_bearer_token,
-            'Accept': 'application/json'
+            Authorization: lichess_bearer_token,
+            Accept: 'application/json',
           },
-          body: new URLSearchParams(lichessRequestBody)
+          body: new URLSearchParams(lichessRequestBody),
         }
 
-        let lichessUrl = '';
+        let lichessUrl = ''
 
         try {
-          const lichessResponse = await fetch('https://lichess.org/api/swiss/new/circlechess', options)
-          const json = await lichessResponse.json();
+          const lichessResponse = await fetch(
+            'https://lichess.org/api/swiss/new/circlechess',
+            options
+          )
+          const json = await lichessResponse.json()
           console.log(json)
           if (!json.id) {
             if (json.global && json.global.length > 0)
-              responseHandler.returnError(httpStatus.BAD_REQUEST, json.global[0])
-            else if (json.error && json.error.global && json.error.global.length > 0)
-              responseHandler.returnError(httpStatus.BAD_REQUEST, json.error.global[0])
+              responseHandler.returnError(
+                httpStatus.BAD_REQUEST,
+                json.global[0]
+              )
+            else if (
+              json.error &&
+              json.error.global &&
+              json.error.global.length > 0
+            )
+              responseHandler.returnError(
+                httpStatus.BAD_REQUEST,
+                json.error.global[0]
+              )
           }
-          lichessUrl = "https://lichess.org/swiss/" + json.id
+          lichessUrl = 'https://lichess.org/swiss/' + json.id
         } catch (e) {
           console.log('Lichess tournament creation failed', e)
           message = 'Tournament creation failed! Please Try again.'
@@ -141,7 +157,8 @@ class TournamentService {
         // Set up defaults for tournament row in the DB
         tournamentBody.federation = 'Online Lichess'
         tournamentBody.director = tournamentBody.organizer
-        tournamentBody.time_control = tournamentBody.initial_time + '+' + tournamentBody.increment_time
+        tournamentBody.time_control =
+          tournamentBody.initial_time + '+' + tournamentBody.increment_time
         tournamentBody.start_date = tournamentBody.startDate
         tournamentBody.end_date = tournamentBody.startDate
         tournamentBody.tournament_type = 'Swiss'
@@ -152,9 +169,10 @@ class TournamentService {
         tournamentBody.address = lichessUrl
 
         const data = await this.tournamentDao.create(tournamentBody)
-        return responseHandler.returnSuccess(
-          httpStatus.CREATED, message, { lichess_tournament_url: lichessUrl, tournament_id: data.id }
-        )
+        return responseHandler.returnSuccess(httpStatus.CREATED, message, {
+          lichess_tournament_url: lichessUrl,
+          tournament_id: data.id,
+        })
       } catch (e) {
         logger.error(e)
         return responseHandler.returnError(
@@ -163,8 +181,8 @@ class TournamentService {
         )
       }
     } catch (e) {
-      console.log('Error creating lichess tournament ..');
-      console.log(e);
+      console.log('Error creating lichess tournament ..')
+      console.log(e)
     }
   }
 
@@ -205,19 +223,19 @@ class TournamentService {
           clockIncrement: tournamentBody.increment_time,
           minutes: tournamentBody.duration,
           startDate: tournamentBody.startDate,
-          variant: "standard",
+          variant: 'standard',
           rated: tournamentBody.rated,
-          berserkable: false,     // Should this be true
-          streakable: false,      // Should this be true
+          berserkable: false, // Should this be true
+          streakable: false, // Should this be true
           hasChat: true,
-          description: tournamentBody.description
+          description: tournamentBody.description,
           // password: Should we have the tournament password here?
-        };
+        }
 
         let name_len = tournamentBody.name?.length
 
         if (name_len && name_len > 30) {
-          console.log('Cannot exceed 30 characters');
+          console.log('Cannot exceed 30 characters')
           return responseHandler.returnError(
             httpStatus.BAD_REQUEST,
             'Name cannot exceed 30 characters'
@@ -225,9 +243,15 @@ class TournamentService {
         }
 
         // validate lichess restrictions
-        let tournamentOKRatio = (lichessRequestBody.minutes * 60) /
-          (96 * lichessRequestBody.clockTime + 48 * lichessRequestBody.clockIncrement + 15)
-        console.log('Cannot violate tournament timing ratio ', tournamentOKRatio);
+        let tournamentOKRatio =
+          (lichessRequestBody.minutes * 60) /
+          (96 * lichessRequestBody.clockTime +
+            48 * lichessRequestBody.clockIncrement +
+            15)
+        console.log(
+          'Cannot violate tournament timing ratio ',
+          tournamentOKRatio
+        )
 
         if (tournamentOKRatio < 3 || tournamentOKRatio > 150) {
           return responseHandler.returnError(
@@ -236,44 +260,58 @@ class TournamentService {
           )
         }
 
-        // Options to be given as parameter 
+        // Options to be given as parameter
         // in fetch for making requests
         // other then GET
         let options = {
           method: 'POST',
           headers: {
-            'Content-Type':
-              'application/x-www-form-urlencoded',
+            'Content-Type': 'application/x-www-form-urlencoded',
             // The authorization token has to be picked from the DB
-            'Authorization':
-              'Bearer lio_oTnnA1AE1Kd9xkS3aEwqoG10b2Podg58',
-            'Accept': 'application/json'
+            Authorization: 'Bearer lio_oTnnA1AE1Kd9xkS3aEwqoG10b2Podg58',
+            Accept: 'application/json',
           },
-          body: new URLSearchParams(lichessRequestBody)
+          body: new URLSearchParams(lichessRequestBody),
         }
 
-        let lichessResponse = '';
-        let lichessUrl = '';
+        let lichessResponse = ''
+        let lichessUrl = ''
         try {
-          lichessResponse = await fetch('https://lichess.org/api/tournament', options)
+          lichessResponse = await fetch(
+            'https://lichess.org/api/tournament',
+            options
+          )
 
           let json = await lichessResponse.json()
 
           if (!json.id) {
             if (json.global && json.global.length > 0)
-              responseHandler.returnError(httpStatus.BAD_REQUEST, json.global[0])
-            else if (json.error && json.error.global && json.error.global.length > 0)
-              responseHandler.returnError(httpStatus.BAD_REQUEST, json.error.global[0])
+              responseHandler.returnError(
+                httpStatus.BAD_REQUEST,
+                json.global[0]
+              )
+            else if (
+              json.error &&
+              json.error.global &&
+              json.error.global.length > 0
+            )
+              responseHandler.returnError(
+                httpStatus.BAD_REQUEST,
+                json.error.global[0]
+              )
           }
 
           // Set up defaults for tournament row in the DB
           tournamentBody.federation = 'Online Lichess'
           tournamentBody.director = tournamentBody.organizer
-          tournamentBody.time_control = lichessRequestBody.clockTime + '+' + lichessRequestBody.clockIncrement
+          tournamentBody.time_control =
+            lichessRequestBody.clockTime +
+            '+' +
+            lichessRequestBody.clockIncrement
           tournamentBody.start_date = lichessRequestBody.startDate
           tournamentBody.end_date = lichessRequestBody.startDate
           tournamentBody.tournament_type = 'Arena'
-          lichessUrl = "https://lichess.org/tournament/" + json.id
+          lichessUrl = 'https://lichess.org/tournament/' + json.id
           tournamentBody.address = lichessUrl
           tournamentBody.state = 'Online Lichess'
           tournamentBody.country = 'Online Lichess'
@@ -284,9 +322,10 @@ class TournamentService {
         }
 
         const data = await this.tournamentDao.create(tournamentBody)
-        return responseHandler.returnSuccess(
-          httpStatus.CREATED, message, { lichess_tournament_url: lichessUrl, tournament_id: data.id }
-        )
+        return responseHandler.returnSuccess(httpStatus.CREATED, message, {
+          lichess_tournament_url: lichessUrl,
+          tournament_id: data.id,
+        })
       } catch (e) {
         logger.error(e)
         return responseHandler.returnError(
@@ -308,8 +347,7 @@ class TournamentService {
     const { tournament_type } = tournamentBody
     if ('Swiss' === tournament_type) {
       return this.createLichessSwissTournament(tournamentBody, req)
-    }
-    else {
+    } else {
       return this.createLichessArenaTournament(tournamentBody, req)
     }
   }
@@ -366,7 +404,7 @@ class TournamentService {
     try {
       let message = 'Fetched tournaments successfully.'
       let data = await this.tournamentDao.findByWhere(
-        { is_active: true /* end_date: { [Op.gte]: moment() } */ },
+        { is_active: true },
         undefined,
         ['end_date', 'asc'],
         limit,
@@ -445,17 +483,32 @@ class TournamentService {
    * Get Tournament List created by Organizer
    * @returns {Object}
    */
-  getTournamentsByUser = async (userId) => {
+  getTournamentsByUser = async (
+    userId,
+    limit = 8,
+    offset = 0,
+    start_date,
+    end_date
+  ) => {
     try {
       let message = 'Fetched tournaments successfully.'
+      const where = {
+        is_active: true,
+        created_by: userId,
+      }
+      if (start_date) {
+        where['start_date'] = { [Op.gte]: moment(start_date) }
+      }
+      if (end_date) {
+        where['end_date'] = { [Op.lte]: moment(end_date).add(1, 'd') }
+      }
+
       let data = await this.tournamentDao.findByWhere(
-        {
-          is_active: true,
-          created_by: userId,
-          // start_date: { [Op.gte]: moment() },
-        },
+        where,
         undefined,
-        ['end_date', 'asc']
+        ['end_date', 'asc'],
+        limit,
+        offset
       )
       return responseHandler.returnSuccess(httpStatus.OK, message, data)
     } catch (e) {
@@ -562,6 +615,102 @@ class TournamentService {
   }
 
   /**
+   * Upload Tournament Pairing
+   * @param {Number} round
+   * @param {Number} tournamentId
+   * @returns {Array}
+   */
+  uploadTournamentPairing = async (round, tournamentId) => {
+    try {
+      let message = `Paired players uplaoded successfully for the ${this.getNumberWithOrdinal(
+        round
+      )} round of the tournament.`
+
+      const deleteRes = await this.tournamentPairingsDao.deleteByWhere({
+        round: round,
+        tournament_id: tournamentId,
+        player_score: { [Op.eq]: 0 },
+      })
+
+      if (!deleteRes) {
+        message = `Pairing for ${this.getNumberWithOrdinal(
+          round
+        )} round cannot be done again since it is ended.`
+        return responseHandler.returnError(httpStatus.BAD_REQUEST, message)
+      }
+
+      const filePath = req.file.path
+      const type = req.file.mimetype
+
+      let data = await parseFile(filePath, type)
+
+      if (!data) {
+        message =
+          'Failed to parse data from file! Please upload again with correct format.'
+        return responseHandler.returnError(httpStatus.BAD_REQUEST, message)
+      }
+
+      const whitePlayers = []
+      const blackPlayers = []
+      const result = []
+
+      let pairedData = await this.tournamentPairingsDao.findByWhere({
+        round: round,
+        tournament_id: tournamentId,
+      })
+
+      data.forEach((player) => {
+        const playerData = {
+          round,
+          tournament_id,
+          player_fide_id: player?.player_fide_id || '',
+          player_name: player.player_name,
+          player_rating: player?.player_rating || 0,
+          player_score:
+            pairedData.find(
+              (p) =>
+                p.player_name.toLoweCase() === player.player_name.toLoweCase()
+            )?.player_score || 0,
+        }
+        const opponentData = {
+          round,
+          tournament_id,
+          player_fide_id: player?.opponent_fide_id || '',
+          player_name: player.opponent_name,
+          player_rating: player?.opponent_rating || 0,
+          player_score:
+            pairedData.find(
+              (p) =>
+                p.player_name.toLoweCase() === player.player_name.toLoweCase()
+            )?.player_score || 0,
+        }
+        whitePlayers.push(playerData)
+        blackPlayers.push(opponentData)
+        result.push({ player: playerData, opponent: opponentData })
+      })
+
+      const res = await this.tournamentPairingsDao.bulkCreate(whitePlayers)
+      if (!res) {
+        message = 'Failed to pair players! Please try again.'
+        return responseHandler.returnError(httpStatus.BAD_REQUEST, message)
+      }
+      const opponents = blackPlayers.map((b, i) => ({
+        ...b,
+        parent_id: res[i].id,
+      }))
+      await this.tournamentPairingsDao.bulkCreate(opponents)
+
+      return responseHandler.returnSuccess(httpStatus.OK, message, result)
+    } catch (e) {
+      logger.error(e)
+      return responseHandler.returnError(
+        httpStatus.BAD_REQUEST,
+        'Something went wrong!'
+      )
+    }
+  }
+
+  /**
    * Get Tournament Pairing for particular Round
    * @param {Number} round
    * @param {Number} tournamentId
@@ -608,8 +757,9 @@ class TournamentService {
       })
 
       if (!exists) {
-        message = `Round ${round - 1
-          } is still going on! Please try after round ${round - 1} is ended.`
+        message = `Round ${
+          round - 1
+        } is still going on! Please try after round ${round - 1} is ended.`
         return responseHandler.returnError(httpStatus.BAD_REQUEST, message)
       }
 
@@ -719,11 +869,15 @@ class TournamentService {
     try {
       let message = 'Successfully retrieve all prize categories'
       const prizeCats = await this.prizeCategoryDao.findAllRaw({})
-      const tournamentPrizeCategoryMappings = await this.tournamentPrizeMappingDao.findAllRaw({ tournament_id: id })
+      const tournamentPrizeCategoryMappings =
+        await this.tournamentPrizeMappingDao.findAllRaw({ tournament_id: id })
 
       for (let catIdx in prizeCats) {
         for (let mappingIdx in tournamentPrizeCategoryMappings) {
-          if (tournamentPrizeCategoryMappings[mappingIdx].category_id == prizeCats[catIdx].id) {
+          if (
+            tournamentPrizeCategoryMappings[mappingIdx].category_id ==
+            prizeCats[catIdx].id
+          ) {
             prizeCats[catIdx] = {
               ...prizeCats[catIdx],
               prize1Value: tournamentPrizeCategoryMappings[mappingIdx].prize1,
@@ -757,7 +911,8 @@ class TournamentService {
         await this.tournamentPrizeMappingDao.deleteByWhere({ tournament_id })
       } catch (error) {
         console.log('Unable to delete current prize categories', error)
-        message = 'Prize Category creation failed! Current category clean up failed. Please Try again.'
+        message =
+          'Prize Category creation failed! Current category clean up failed. Please Try again.'
         return responseHandler.returnError(httpStatus.BAD_REQUEST, error_msg)
       }
 
@@ -767,7 +922,7 @@ class TournamentService {
 
       for (let key in prizeStructure) {
         if (key.startsWith('id_')) continue
-        let keys = key.split("_")
+        let keys = key.split('_')
         let prizeCatId = keys[2]
 
         let inputs = []
@@ -783,22 +938,25 @@ class TournamentService {
       catMap.forEach(async (values, catId) => {
         for (let index in values) {
           let key = values[index]
-          let keys = key.split("_")
+          let keys = key.split('_')
           let prizeCatId = keys[2]
           let prizeIndex = keys[3]
-  
+
           obj = {
             ...obj,
             category_id: parseInt(catId),
           }
-  
+
           switch (prizeIndex) {
-            case '1': obj.prize1 = parseInt(prizeStructure[key])
-              break;
-            case '2': obj.prize2 = parseInt(prizeStructure[key])
-            break;
-            case '3': obj.prize3 = parseInt(prizeStructure[key])
-            break;
+            case '1':
+              obj.prize1 = parseInt(prizeStructure[key])
+              break
+            case '2':
+              obj.prize2 = parseInt(prizeStructure[key])
+              break
+            case '3':
+              obj.prize3 = parseInt(prizeStructure[key])
+              break
           }
         }
 

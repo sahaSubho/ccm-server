@@ -17,7 +17,7 @@ const parseFile = async (filePath, type) => {
             Object.keys(data).reduce((a, b) => {
               a = {
                 ...a,
-                [b.toLowerCase()]: data[b],
+                [b.replace(' ', '_').toLowerCase()]: data[b],
               }
               return a
             }, {})
@@ -57,7 +57,7 @@ const parseFile = async (filePath, type) => {
                 row.values.reduce((a, b, i) => {
                   a = {
                     ...a,
-                    [data[i].toLowerCase()]: b,
+                    [data[i].replace(' ', '_').toLowerCase()]: b,
                   }
                   return a
                 }, {})
@@ -86,7 +86,7 @@ const parseFile = async (filePath, type) => {
             const obj = Object.keys(curr).reduce((a, b) => {
               a = {
                 ...a,
-                [b.toLowerCase()]: curr[b],
+                [b.replace(' ', '_').toLowerCase()]: curr[b],
               }
               return a
             }, {})

@@ -41,6 +41,46 @@ class TournamentController {
       res.status(httpStatus.BAD_GATEWAY).send(e)
     }
   }
+
+  updateWinningPlayerDetails = async (req, res) => {
+    try {
+      const { id } = req.params
+      const user = await this.playerService.updateWinningPlayerDetails(
+        id,
+        req.body
+      )
+      const { status, message, data } = user.response
+      res.status(user.statusCode).send({ status, message, data })
+    } catch (e) {
+      logger.error(e)
+      res.status(httpStatus.BAD_GATEWAY).send(e)
+    }
+  }
+
+  uploadPrizeWinningPlayers = async (req, res) => {
+    try {
+      const user = await this.playerService.uploadPrizeWinningPlayers(req)
+      const { status, message, data } = user.response
+      res.status(user.statusCode).send({ status, message, data })
+    } catch (e) {
+      logger.error(e)
+      res.status(httpStatus.BAD_GATEWAY).send(e)
+    }
+  }
+
+  getPrizeWinningPlayers = async (req, res) => {
+    try {
+      const { tournamentId } = req.params
+      const players = await this.playerService.getPrizeWinningPlayers(
+        tournamentId
+      )
+      const { status, message, data } = players.response
+      res.status(players.statusCode).send({ status, message, data })
+    } catch (e) {
+      logger.error(e)
+      res.status(httpStatus.BAD_GATEWAY).send(e)
+    }
+  }
 }
 
 module.exports = TournamentController

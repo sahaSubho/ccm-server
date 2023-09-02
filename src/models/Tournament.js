@@ -14,6 +14,9 @@ module.exports = (sequelize, DataTypes) => {
       Tournament.hasMany(models.tournament_pairings, {
         foreignKey: 'tournament_id',
       })
+      Tournament.hasMany(models.players_prize_payouts, {
+        foreignKey: 'tournament_id',
+      })
     }
   }
 

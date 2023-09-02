@@ -20,7 +20,10 @@ class TournamentController {
 
   createLichessTournament = async (req, res) => {
     try {
-      const tournament = await this.tournamentService.createLichessTournament(req.body, req)
+      const tournament = await this.tournamentService.createLichessTournament(
+        req.body,
+        req
+      )
       const { status, message, data } = tournament.response
       res.status(tournament.statusCode).send({ status, message, data })
     } catch (e) {
@@ -58,8 +61,13 @@ class TournamentController {
 
   getTournamentsByUser = async (req, res) => {
     try {
+      const { limit, offset, start_date, end_date } = req.query
       const tournaments = await this.tournamentService.getTournamentsByUser(
-        req.user.id
+        req.user.id,
+        limit,
+        offset,
+        start_date,
+        end_date
       )
       const { status, message, data } = tournaments.response
       res.status(tournaments.statusCode).send({ status, message, data })
@@ -78,6 +86,21 @@ class TournamentController {
       )
       const { status, message, data } = pairings.response
       res.status(pairings.statusCode).send({ status, message, data })
+    } catch (e) {
+      logger.error(e)
+      res.status(httpStatus.BAD_GATEWAY).send(e)
+    }
+  }
+
+  uploadTournamentPairing = async (req, res) => {
+    try {
+      const { round, tournamentId } = req.body
+      const pairing = await this.tournamentService.uploadTournamentPairing(
+        round,
+        tournamentId
+      )
+      const { status, message, data } = pairing.response
+      res.status(pairing.statusCode).send({ status, message, data })
     } catch (e) {
       logger.error(e)
       res.status(httpStatus.BAD_GATEWAY).send(e)
@@ -131,7 +154,8 @@ class TournamentController {
 
   updatePrizeCategories = async (req, res) => {
     try {
-      const prizeCategories = await this.tournamentService.updatePrizingCategories(req.body, req)
+      const prizeCategories =
+        await this.tournamentService.updatePrizingCategories(req.body, req)
       const { status, message, data } = prizeCategories.response
       res.status(prizeCategories.statusCode).send({ status, message, data })
     } catch (e) {

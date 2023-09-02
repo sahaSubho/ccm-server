@@ -1,5 +1,6 @@
 const httpStatus = require('http-status')
 const PlayersDao = require('../dao/PlayersDao')
+const PlayersPrizePayoutDao = require('../dao/PlayersPrizePayoutDao')
 const TournamentDao = require('../dao/TournamentDao')
 const responseHandler = require('../helper/responseHandler')
 const logger = require('../config/logger')
@@ -11,6 +12,7 @@ class PlayersService {
   constructor() {
     this.playersDao = new PlayersDao()
     this.tournamentDao = new TournamentDao()
+    this.playersPrizePayoutDao = new PlayersPrizePayoutDao()
   }
 
   /**
@@ -139,6 +141,187 @@ class PlayersService {
         httpStatus.NO_CONTENT,
         message,
         playerBody
+      )
+    } catch (error) {
+      logger.error(e)
+      return responseHandler.returnError(
+        httpStatus.BAD_REQUEST,
+        'Something went wrong!'
+      )
+    }
+  }
+
+  /**
+   * Upload Prize Winning Players
+   * @param {Object} req
+   * @returns {Array}
+   */
+  uploadPrizeWinningPlayers = async (req) => {
+    try {
+      let message = 'Successfully uploaded winning players.'
+      const filePath = req.file.path
+      const type = req.file.mimetype
+
+      let data = await parseFile(filePath, type)
+
+      if (!data) {
+        message =
+          'Failed to parse data from file! Please upload again with correct format.'
+        return responseHandler.returnError(httpStatus.BAD_REQUEST, message)
+      }
+
+      const tournamentId = req.body.tournamentId
+      const players = await this.playersPrizePayoutDao.findByWhere({
+        tournament_id: tournamentId,
+      })
+
+      data = data
+        .filter(
+          (d) =>
+            !players.some(
+              (p) => p.mobile_number === d.mobile_number || p.name === d.name
+            )
+        )
+        .map((e) => ({ ...e, tournament_id: tournamentId }))
+
+      if (!data.length) {
+        message = 'Players already exists.'
+        return responseHandler.returnError(httpStatus.BAD_REQUEST, message)
+      }
+
+      const result = await this.playersPrizePayoutDao.bulkCreate(data)
+
+      if (!result) {
+        message = 'Failed to upload players! Please try again.'
+        return responseHandler.returnError(httpStatus.BAD_REQUEST, message)
+      }
+
+      return responseHandler.returnSuccess(httpStatus.CREATED, message, result)
+    } catch (e) {
+      logger.error(e)
+      return responseHandler.returnError(
+        httpStatus.BAD_REQUEST,
+        'Something went wrong!'
+      )
+    }
+  }
+
+  /**
+   * Get Prize Winning Players
+   * @param {Number} tournamentId
+   * @returns {Array}
+   */
+  getPrizeWinningPlayers = async (tournamentId) => {
+    try {
+      let message = 'Successfully fetched players for tournament.'
+      const players = await this.playersPrizePayoutDao.findByWhere({
+        tournament_id: tournamentId,
+      })
+
+      if (!players) {
+        message = 'No players exist for this tournament!'
+        return responseHandler.returnError(httpStatus.BAD_REQUEST, message)
+      }
+
+      return responseHandler.returnSuccess(httpStatus.OK, message, players)
+    } catch (e) {
+      logger.error(e)
+      return responseHandler.returnError(
+        httpStatus.BAD_REQUEST,
+        'Something went wrong!'
+      )
+    }
+  }
+
+  /**
+   * update prize winning players
+   * @param {Number} playerId
+   * @param {body} playerBody
+   * @returns {Object}
+   */
+  updateWinningPlayerDetails = async (playerId, playerBody) => {
+    try {
+      let message = 'Successfully updated players.'
+
+      const data = await this.playersPrizePayoutDao.updateById(
+        playerBody,
+        playerId
+      )
+
+      if (!data.length) {
+        message = 'Players details failed to update.'
+        return responseHandler.returnError(httpStatus.BAD_REQUEST, message)
+      }
+      return responseHandler.returnSuccess(
+        httpStatus.NO_CONTENT,
+        message,
+        playerBody
+      )
+    } catch (error) {
+      logger.error(e)
+      return responseHandler.returnError(
+        httpStatus.BAD_REQUEST,
+        'Something went wrong!'
+      )
+    }
+  }
+
+  createJuspayPayout = async (tournamentId, user) => {
+    try {
+      let message
+      const players = await this.playersPrizePayoutDao.findByWhere({
+        tournament_id: tournamentId,
+      })
+      if (!players.some((p) => p.upi_id.length || p.amount > 0)) {
+        message =
+          'Amount should be greater than 0 and UPI Id should be available for all players!'
+        return responseHandler.returnError(httpStatus.BAD_REQUEST, message)
+      }
+
+      const random5char = Math.random().toString(36).substr(2, 5)
+      const data = {
+        orderId: `PAYOUT${moment().format('YYYYMM')}${random5char}`,
+        fulfillments: players.map((p) => ({
+          amount: p.amount,
+          beneficiaryDetails: {
+            details: {
+              name: p.name,
+              vpa: p.upi_id,
+            },
+            type: 'UPI_ID',
+          },
+        })),
+        amount: players.reduce((t, s) => t + s.amount, 0),
+        customerId: user.id,
+        customerPhone: user.phone_number,
+        customerEmail: user.email,
+        type: 'FULFILL_ONLY',
+        udf1: '',
+        udf2: '',
+        udf3: '',
+        udf4: '',
+        udf5: '',
+      }
+      let options = {
+        url: config.juspay.url,
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Basic ${btoa(config.juspay.apiKey)}`,
+          'x-merchantid': config.juspay.merchantId,
+        },
+        body: JSON.stringify(data),
+      }
+
+      message =
+        'Payout to all players have been inititated succesfully. You can check the status in the table.!'
+
+      const juspayResponse = await fetch(options)
+
+      return responseHandler.returnSuccess(
+        httpStatus.OK,
+        message,
+        juspayResponse
       )
     } catch (error) {
       logger.error(e)

@@ -16,9 +16,11 @@ router.post(
   tournamentValidator.createValidator,
   tournamentController.create
 )
-router.post('/create-lichess-tournament', 
+router.post(
+  '/create-lichess-tournament',
   auth(),
-  tournamentController.createLichessTournament);
+  tournamentController.createLichessTournament
+)
 router.get('/get-tournaments', tournamentController.getTournaments)
 router.get(
   '/get-tournament-list',
@@ -30,6 +32,13 @@ router.get(
   auth(),
   tournamentValidator.pairingValidator,
   tournamentController.createTournamentPairing
+)
+router.post(
+  '/upload-pairing',
+  auth(),
+  upload.single('file'),
+  tournamentValidator.uploadValidator,
+  tournamentController.uploadTournamentPairing
 )
 router.get(
   '/get-pairings',
