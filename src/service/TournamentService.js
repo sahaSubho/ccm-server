@@ -975,6 +975,79 @@ class TournamentService {
       return responseHandler.returnError(httpStatus.BAD_REQUEST, error_msg)
     }
   }
+
+  uploadWinners = async (req) => {
+    try {
+      let message = 'Successfully uploaded players.'
+      const filePath = req.file.path
+      const type = req.file.mimetype
+
+      let data = await parseFile(filePath, type)
+
+      data = data.map((d) => ({ ...d, created_by: userRoles.ORGANIZER }))
+
+      if (!data) {
+        message =
+          'Failed to parse data from file! Please upload again with correct format.'
+        return responseHandler.returnError(httpStatus.BAD_REQUEST, message)
+      }
+
+      const tournamentId = req.body.tournamentId
+      const tournament = await this.tournamentDao.findById(tournamentId)
+
+      let fide_ids = []
+      if (tournament.player_fide_ids) {
+        fide_ids = tournament.player_fide_ids.split(',').map((f) => Number(f))
+        data = data.filter((ele) => !fide_ids.includes(Number(ele.fide_id)))
+      }
+
+      if (!data.length) {
+        message = 'Players are already registered in this tournament.'
+        return responseHandler.returnError(httpStatus.BAD_REQUEST, message)
+      }
+
+      let players = await this.playersDao.findByWhere(
+        {
+          fide_id: data.map((d) => d.fide_id),
+        },
+        ['fide_id']
+      )
+
+      players = players.map((p) => p?.fide_id)
+
+      if (players.length > 0) {
+        data = data.filter((ele) => !players.includes(Number(ele.fide_id)))
+      }
+
+      const result = await this.playersDao.bulkCreate(data)
+
+      if (!result) {
+        message = 'Failed to upload players! Please try again.'
+        return responseHandler.returnError(httpStatus.BAD_REQUEST, message)
+      }
+
+      const ids = [
+        ...new Set(fide_ids),
+        ...new Set(players),
+        ...new Set(data.map((r) => Number(r.fide_id))),
+      ]
+
+      await this.tournamentDao.updateWhere(
+        {
+          player_fide_ids: ids.join(),
+        },
+        { id: tournamentId }
+      )
+
+      return responseHandler.returnSuccess(httpStatus.CREATED, message, data)
+    } catch (e) {
+      logger.error(e)
+      return responseHandler.returnError(
+        httpStatus.BAD_REQUEST,
+        'Something went wrong!'
+      )
+    }
+  }
 }
 
 module.exports = TournamentService

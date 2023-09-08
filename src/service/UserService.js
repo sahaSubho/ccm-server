@@ -13,6 +13,15 @@ class UserService {
     this.lichessDao = new LichessUserDao()
   }
 
+  updateLichessUserDetails = async (id, lichessUsername) => {
+    const updateUser = await this.userDao.updateWhere(
+      { lic_name: lichessUsername },
+      { id }
+    )
+
+    return updateUser
+  }
+
   /**
    * Create a user
    * @param {Object} userBody

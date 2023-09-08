@@ -157,6 +157,33 @@ class AuthController {
       next(e)
     }
   }
+
+  connectLichessToUser = async (req, res, next) => {
+    try {
+      const tokenDoc = await this.tokenService.verifyToken(
+        req.body.token,
+        tokenTypes.ACCESS
+      )
+      if (tokenDoc == null) {
+        res
+          .status(httpStatus.BAD_GATEWAY)
+          .send('Token is expired Please Login again!')
+      }
+
+      let lichess_username = req.body.lichess_username
+
+      const user = await this.userService.updateLichessUserDetails(tokenDoc.user_id, lichess_username)
+      
+      if (user == null) {
+        res.status(httpStatus.NOT_FOUND).send('User Not Found!')
+      } else {
+        res.status(httpStatus.OK).send({ data: user })
+      }
+    } catch (e) {
+      logger.error(e)
+      next(e)
+    }
+  }
 }
 
 module.exports = AuthController

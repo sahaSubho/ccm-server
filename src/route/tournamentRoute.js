@@ -59,6 +59,7 @@ router.get(
   '/get-static-prize-cats/:id',
   tournamentController.getStaticPrizeCategories
 )
+router.post('/upload', tournamentController.uploadWinners)
 router.post('/score-upload', tournamentController.updateScoring)
 router.get('/:id', tournamentController.getTournamentById)
 

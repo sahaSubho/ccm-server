@@ -172,6 +172,17 @@ class TournamentController {
     const { status, message, data } = prizeCats.response
     res.status(prizeCats.statusCode).send({ status, message, data })
   }
+
+  uploadWinners = async (req, res) => {
+    try {
+      const winners = await this.tournamentService.uploadWinners(req)
+      const { status, message, data } = winners.response
+      res.status(winners.statusCode).send({ status, message, data })
+    } catch (e) {
+      logger.error(e)
+      res.status(httpStatus.BAD_GATEWAY).send(e)
+    }
+  }
 }
 
 module.exports = TournamentController
