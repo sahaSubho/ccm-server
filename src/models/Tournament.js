@@ -37,7 +37,7 @@ module.exports = (sequelize, DataTypes) => {
       This is per category basis, needs to be
       moved to another table
       */
-      entry_fee: DataTypes.INTEGER,
+      entry_fee: DataTypes.JSONB,
       address: DataTypes.STRING,
       state: DataTypes.STRING,
       country: DataTypes.STRING,

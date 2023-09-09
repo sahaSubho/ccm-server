@@ -51,7 +51,14 @@ router.get(
   tournamentController.getPlayersRanking
 )
 router.post(
+  '/prize-categories',
+  auth(),
+  tournamentValidator.createPrizeValidator,
+  tournamentController.createPrizingCategories
+)
+router.post(
   '/prize-config',
+  auth(),
   tournamentValidator.prizeConfigValidator,
   tournamentController.updatePrizeCategories
 )
@@ -60,7 +67,9 @@ router.get(
   tournamentController.getStaticPrizeCategories
 )
 router.post('/upload', tournamentController.uploadWinners)
-router.post('/score-upload', tournamentController.updateScoring)
+router.post('/score-upload', auth(), tournamentController.updateScoring)
+router.get('/statistics', auth(), tournamentController.getStatistics)
+
 router.get('/:id', tournamentController.getTournamentById)
 
 module.exports = router

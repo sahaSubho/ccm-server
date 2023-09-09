@@ -44,7 +44,7 @@ module.exports = (sequelize, DataTypes) => {
     },
     {
       sequelize,
-      modelName: 'tournament_prize_mapping',
+      modelName: 'tournament_prize_mappings',
       underscored: true,
     }
   )

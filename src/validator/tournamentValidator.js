@@ -63,7 +63,7 @@ class TournamentValidator {
   async pairingValidator(req, res, next) {
     // create schema object
     const schema = Joi.object({
-      round: Joi.number().required(),
+      round: Joi.number().greater(0).required(),
       tournamentId: Joi.number().required(),
     })
 
@@ -122,6 +122,37 @@ class TournamentValidator {
     } else {
       // on success replace req.body with validated value and trigger next middleware function
       req = value
+      return next()
+    }
+  }
+
+  async createPrizeValidator(req, res, next) {
+    // create schema object
+    const schema = Joi.array().items(
+      Joi.object({
+        name: Joi.string().required(),
+        type: Joi.string().valid('age', 'rating').required(),
+        gender: Joi.string().valid('open', 'boys', 'girls').required(),
+        operator: Joi.number().valid(0, 1, 2).required(),
+        age: Joi.when('type', { is: 'age', then: Joi.required() }),
+        rating: Joi.when('type', { is: 'rating', then: Joi.required() }),
+      })
+    )
+
+    // validate request body against schema
+    const { error, value } = schema.validate(req.body, options)
+
+    if (error) {
+      // on fail return comma separated errors
+      const errorMessage = error.details
+        .map((details) => {
+          return details.message
+        })
+        .join(', ')
+      next(new ApiError(httpStatus.BAD_REQUEST, errorMessage))
+    } else {
+      // on success replace req.body with validated value and trigger next middleware function
+      req.body = value
       return next()
     }
   }

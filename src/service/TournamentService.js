@@ -546,6 +546,18 @@ class TournamentService {
         return responseHandler.returnError(httpStatus.BAD_REQUEST, message)
       }
 
+      const pairingData = await this.tournamentPairingsDao.getCountByWhere({
+        round: round,
+        tournament_id: tournamentId,
+      })
+
+      if (pairingData > 0) {
+        message = `The pairing of players already done for the ${this.getNumberWithOrdinal(
+          round
+        )} round.`
+        return responseHandler.returnError(httpStatus.BAD_REQUEST, message)
+      }
+
       let data = []
       if (round === 1) {
         const players = await this.playersDao.findByWhere({
@@ -570,7 +582,14 @@ class TournamentService {
       } else {
         let pairing = await this.tournamentPairingsDao.findByWhere({
           round: round - 1,
+          tournament_id: tournamentId,
         })
+        if (pairing.length > 0) {
+          message = `The pairing of players for the ${this.getNumberWithOrdinal(
+            round - 1
+          )} round is not done yet. Please generate paring of it.`
+          return responseHandler.returnError(httpStatus.BAD_REQUEST, message)
+        }
         const players = pairing
           .filter((p) => !p.parent_id)
           .map((e) => ({
@@ -591,7 +610,10 @@ class TournamentService {
           tournamentId
         )
 
-        data = whitePlayers.map((w, i) => [w, blackPlayers[i]])
+        data = whitePlayers.map((w, i) => ({
+          player: w,
+          opponent: blackPlayers[i],
+        }))
         const res = await this.tournamentPairingsDao.bulkCreate(whitePlayers)
         if (!res) {
           message = 'Failed to pair players! Please try again.'
@@ -972,7 +994,94 @@ class TournamentService {
     } catch (error) {
       console.log(error)
       message = 'Prize Category creation failed! Please Try again.'
-      return responseHandler.returnError(httpStatus.BAD_REQUEST, error_msg)
+      return responseHandler.returnError(httpStatus.BAD_REQUEST, message)
+    }
+  }
+
+  createPrizingCategories = async (payload) => {
+    try {
+      let message = 'Successfully created prize categories.'
+      const insertData = payload.map((a) => {
+        const data = { ...a }
+        if (a.type === 'age') {
+          data['age_operator'] = a.operator
+        } else {
+          data['rating_operator'] = a.operator
+        }
+        return data
+      })
+      const data = await this.prizeCategoryDao.bulkCreate(insertData)
+      if (!data) {
+        message = 'Tournament creation failed! Please Try again.'
+        return responseHandler.returnError(httpStatus.BAD_REQUEST, message)
+      }
+
+      return responseHandler.returnSuccess(httpStatus.CREATED, message, data)
+    } catch (error) {
+      logger.error(e)
+      return responseHandler.returnError(
+        httpStatus.BAD_REQUEST,
+        'Something went wrong!'
+      )
+    }
+  }
+
+  getStatistics = async (userId) => {
+    try {
+      const message = 'Successfully fetched statistical data.'
+      const tournaments = await this.tournamentDao.findByWhere({
+        created_by: userId,
+      })
+
+      const allPlayers = tournaments
+        .map((b) => b?.player_fide_ids?.split(',') || [])
+        .flat()
+      const uniquePlayers = [...new Set(allPlayers)]
+
+      const players = await this.playersDao.findByWhere({ uuid: allPlayers })
+      const revenue = tournaments.reduce((t, ta) => {
+        const total = players.reduce((a, b) => {
+          a += ta.entry_fee.find((e) => e.category === b.entry_fee_category).fee
+          return a
+        }, 0)
+        t += total
+        return t
+      }, 0)
+
+      const activeTournaments = tournaments.filter(
+        (t) => moment().diff(t.end_date, 'm') > 0
+      ).length
+
+      const tournamentDistribution = tournaments.reduce((a, b) => {
+        if (!a[b.tournament_type]) {
+          a[b.tournament_type] = 1
+        } else {
+          a[b.tournament_type] += 1
+        }
+        return a
+      }, {})
+
+      const distributionChart = Object.keys(tournamentDistribution).map(
+        (td) => ({
+          type: td,
+          value: tournamentDistribution[td],
+        })
+      )
+
+      const data = {
+        totalTournaments: tournaments.length,
+        totalPlayers: uniquePlayers.length,
+        totalRevenue: revenue,
+        activeTournaments: activeTournaments,
+        distributionChart: distributionChart,
+      }
+      return responseHandler.returnSuccess(httpStatus.OK, message, data)
+    } catch (e) {
+      logger.error(e)
+      return responseHandler.returnError(
+        httpStatus.BAD_REQUEST,
+        'Something went wrong!'
+      )
     }
   }
 

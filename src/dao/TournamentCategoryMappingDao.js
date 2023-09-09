@@ -1,7 +1,7 @@
 const SuperDao = require('./SuperDao')
 const models = require('../models')
 
-const TournamentCategoryMappings = models.tournament_prize_mapping
+const TournamentCategoryMappings = models.tournament_prize_mappings
 
 class TournamentPrizeCategoryMappingDao extends SuperDao {
   constructor() {

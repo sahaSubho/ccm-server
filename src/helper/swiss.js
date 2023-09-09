@@ -63,9 +63,11 @@ function swissOtherRoundPairings(players, opponents, round, tournament_id) {
     ...new Set([...players, ...opponents].map((i) => Number(i.player_score))),
   ].sort((a, b) => b - a)
   // Sort the players by their ratings.
+  console.log(points)
   players.sort(
     (a, b) =>
       Number(b.player_score) - Number(a.player_score) ||
+      b.player_rating - a.player_rating ||
       a.player_name.localeCompare(b.player_name)
   )
   opponents.sort(
@@ -75,7 +77,7 @@ function swissOtherRoundPairings(players, opponents, round, tournament_id) {
   )
 
   let tempPlayer = null
-  let type = null
+  let ptype = null
   let index = 0
 
   // Pair the players off.
@@ -87,57 +89,141 @@ function swissOtherRoundPairings(players, opponents, round, tournament_id) {
       (ele) => Number(ele.player_score) === score
     )
 
-    const maxvalue = Math.max(currentOpponents.length, currentPlayers.length)
-    // const minvalue = Math.min(currentOpponents.length, currentPlayers.length)
-
-    const oMedian = Math.floor(currentOpponents.length / 2)
-    const pMedian = Math.floor(currentPlayers.length / 2)
-
-    for (let i = 0; i < Math.round(maxvalue / 2); i++) {
-      const remainingPlayers = currentPlayers.filter(
-        (a) => !nextParing.flat().some((n) => n?.id === a.id)
-      )
-      const remainingOpponent = currentOpponents.filter(
-        (a) => !nextParing.flat().some((n) => n?.id === a.id)
-      )
-      if (remainingPlayers.length === 1 || remainingOpponent.length === 1) {
-        tempPlayer =
-          remainingPlayers.length === 1
-            ? remainingPlayers[0]
-            : remainingOpponent[0]
-        type = remainingPlayers.length === 1 ? 'opponent' : 'player'
-        const median = type === 'opponent' ? oMedian : pMedian
-        index = i === median ? median + i : i
-      } else if (
-        i >= currentOpponents.length / 2 ||
-        i >= currentPlayers.length / 2
-      ) {
-        const median = i >= currentOpponents.length / 2 ? pMedian : oMedian
-        const newPlayers =
-          i >= currentOpponents.length / 2 ? currentPlayers : currentOpponents
-        const j = index ? median + index : i
-        if ((i >= oMedian && i % 2 == 0) || (i >= pMedian && i % 2 == 0)) {
-          nextParing.push([newPlayers[j], newPlayers[median + i]])
-        } else {
-          nextParing.push([newPlayers[median + i], newPlayers[j]])
-        }
+    if (tempPlayer && ptype) {
+      let player
+      if (ptype === 'players') {
+        player = currentOpponents.length
+          ? currentOpponents.shift()
+          : currentPlayers.shift()
       } else {
-        nextParing.push([currentOpponents[oMedian + i], currentPlayers[i]])
-        nextParing.push([currentOpponents[i], currentPlayers[pMedian + i]])
+        player = currentPlayers.length
+          ? currentPlayers.shift()
+          : currentOpponents.shift()
       }
+      nextParing.push(tempPlayer, player)
+      tempPlayer = null
+      ptype = null
+    }
 
-      if (tempPlayer && type) {
-        const newPlayer = type === 'player' ? currentPlayers : currentOpponents
-        nextParing.push([tempPlayer, newPlayer[index]])
-        tempPlayer = null
-        type = null
+    const maxvalue = Math.max(currentOpponents.length, currentPlayers.length)
+    const minvalue = Math.min(currentOpponents.length, currentPlayers.length)
+
+    const oMedian = Math.round(currentOpponents.length / 2)
+    const pMedian = Math.round(currentPlayers.length / 2)
+
+    const data = {
+      playersA: [...currentPlayers].splice(0, pMedian), // [1,2,3,4]
+      playersB: [...currentPlayers].splice(pMedian), // [5,6,7]
+      opponentsA: [...currentOpponents].splice(0, oMedian), // [8,9,10,11,12]
+      opponentsB: [...currentOpponents].splice(oMedian), // [13,14,15,16]
+    }
+
+    // [[11,1],[8,5],[12,2],[9,6],[10,3]] => [4,7]
+    // [[11,1],[8,5],[12,2],[9,6],[13,3],[10,7]] => [4]
+    // [[12,1],[8,5],[13,2],[9,6],[14,3],[10,7],[15,4]] => [11]
+    // [[13,1],[8,5],[14,2],[9,6],[15,3],[10,7],[16,4]] => [11,12]
+    const distributionMapping = {
+      even: ['B', 'A'],
+      odd: ['A', 'B'],
+    }
+
+    for (let index = 0; index < minvalue; index++) {
+      if (index % 2 === 0) {
+        const opp = !data.opponentsB.length ? data.opponentsA : data.opponentsB
+        nextParing.push([opp.shift(), data.playersA.shift()])
+      } else {
+        const pl = !data.playersB.length ? data.playersA : data.playersB
+        nextParing.push([data.opponentsA.shift(), pl.shift()])
       }
     }
+    if (maxvalue !== minvalue) {
+      const type = minvalue % 2 === 0 ? 'even' : 'odd'
+      const playersType =
+        maxvalue === currentPlayers.length ? 'players' : 'opponents'
+      const count = Math.min(
+        data[`${playersType}A`].length,
+        data[`${playersType}B`].length
+      )
+      if (
+        !count &&
+        Math.max(
+          data[`${playersType}A`].length,
+          data[`${playersType}B`].length
+        ) === 2
+      ) {
+        const item = !data[`${playersType}A`].length
+          ? data[`${playersType}B`]
+          : data[`${playersType}A`]
+        nextParing.push(item)
+      } else {
+        let j = 0
+        while (j < count) {
+          if (j % 2 === 0 || (j === 0 && type === 'even')) {
+            const item = distributionMapping['even'].map((t) =>
+              data[`${playersType}${t}`].shift()
+            )
+            nextParing.push(item)
+          } else if (j % 2 !== 0 || (j === 0 && type === 'odd')) {
+            const item = distributionMapping['odd'].map((t) =>
+              data[`${playersType}${t}`].shift()
+            )
+            nextParing.push(item)
+          }
+          j++
+        }
+        tempPlayer = data[`${playersType}A`].length
+          ? data[`${playersType}A`].shift()
+          : data[`${playersType}B`].shift()
+        ptype = playersType
+      }
+    }
+
+    // for (let i = 0; i <= Math.floor(maxvalue / 2); i++) {
+    //   const remainingPlayers = currentPlayers.filter(
+    //     (a) => !nextParing.flat().some((n) => n?.id === a.id)
+    //   )
+    //   const remainingOpponent = currentOpponents.filter(
+    //     (a) => !nextParing.flat().some((n) => n?.id === a.id)
+    //   )
+    //   if (remainingPlayers.length === 0 || remainingOpponent.length === 0) {
+    //     tempPlayer =
+    //       remainingPlayers.length > remainingOpponent.length
+    //         ? remainingPlayers[0]
+    //         : remainingOpponent[0]
+    //     type = remainingPlayers.length === 1 ? 'opponent' : 'player'
+    //     const median = type === 'opponent' ? oMedian : pMedian
+    //     index = i === median ? median + i : i
+    //   } else if (
+    //     i >= currentOpponents.length / 2 ||
+    //     i >= currentPlayers.length / 2
+    //   ) {
+    //     const median = i >= currentOpponents.length / 2 ? pMedian : oMedian
+    //     const newPlayers =
+    //       i >= currentOpponents.length / 2 ? currentPlayers : currentOpponents
+    //     const j = index ? median + index : i
+    //     if ((i >= oMedian && i % 2 == 0) || (i >= pMedian && i % 2 == 0)) {
+    //       nextParing.push([newPlayers[j], newPlayers[median + i]])
+    //     } else {
+    //       nextParing.push([newPlayers[median + i], newPlayers[j]])
+    //     }
+    //   } else {
+    //     nextParing.push([currentOpponents[oMedian + i], currentPlayers[i]])
+    //     nextParing.push([currentOpponents[i], currentPlayers[pMedian + i]])
+    //   }
+
+    //   if (tempPlayer && type) {
+    //     const newPlayer = type === 'player' ? currentPlayers : currentOpponents
+    //     nextParing.push([tempPlayer, newPlayer[index]])
+    //     tempPlayer = null
+    //     type = null
+    //   }
+    // }
   })
   nextParing.forEach((p) => {
     whitePlayers.push(formatPlayerData(p[0], round, tournament_id))
     blackPlayers.push(formatPlayerData(p[1], round, tournament_id))
   })
+  console.log('nextPairing', nextParing.length)
 
   // Return the list of pairings.
   return { whitePlayers, blackPlayers }

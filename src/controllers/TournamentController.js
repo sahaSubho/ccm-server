@@ -183,6 +183,30 @@ class TournamentController {
       res.status(httpStatus.BAD_GATEWAY).send(e)
     }
   }
+
+  createPrizingCategories = async (req, res) => {
+    try {
+      const prizes = await this.tournamentService.createPrizingCategories(
+        req.body
+      )
+      const { status, message, data } = prizes.response
+      res.status(prizes.statusCode).send({ status, message, data })
+    } catch (e) {
+      logger.error(e)
+      res.status(httpStatus.BAD_GATEWAY).send(e)
+    }
+  }
+
+  getStatistics = async (req, res) => {
+    try {
+      const statistics = await this.tournamentService.getStatistics(req.user.id)
+      const { status, message, data } = statistics.response
+      res.status(statistics.statusCode).send({ status, message, data })
+    } catch (e) {
+      logger.error(e)
+      res.status(httpStatus.BAD_GATEWAY).send(e)
+    }
+  }
 }
 
 module.exports = TournamentController

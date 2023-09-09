@@ -1,4 +1,5 @@
 const httpStatus = require('http-status')
+const { v4: uuidv4 } = require('uuid')
 const PlayersDao = require('../dao/PlayersDao')
 const PlayersPrizePayoutDao = require('../dao/PlayersPrizePayoutDao')
 const TournamentDao = require('../dao/TournamentDao')
@@ -28,13 +29,26 @@ class PlayersService {
 
       let data = await parseFile(filePath, type)
 
-      data = data.map((d) => ({ ...d, created_by: userRoles.ORGANIZER }))
-
       if (!data) {
         message =
           'Failed to parse data from file! Please upload again with correct format.'
         return responseHandler.returnError(httpStatus.BAD_REQUEST, message)
       }
+
+      if (
+        data.length &&
+        !Object.keys(data[0]).includes('mobile_number', 'name', 'age')
+      ) {
+        message =
+          'Mobile Number, Name and Age is mandatory fields! Please upload again with correct format.'
+        return responseHandler.returnError(httpStatus.BAD_REQUEST, message)
+      }
+
+      data = data.map((d) => ({
+        ...d,
+        uuid: uuidv4(),
+        created_by: userRoles.ORGANIZER,
+      }))
 
       const tournamentId = req.body.tournamentId
       const tournament = await this.tournamentDao.findById(tournamentId)
@@ -42,7 +56,6 @@ class PlayersService {
       let fide_ids = []
       if (tournament.player_fide_ids) {
         fide_ids = tournament.player_fide_ids.split(',').map((f) => Number(f))
-        data = data.filter((ele) => !fide_ids.includes(Number(ele.fide_id)))
       }
 
       if (!data.length) {
@@ -50,17 +63,19 @@ class PlayersService {
         return responseHandler.returnError(httpStatus.BAD_REQUEST, message)
       }
 
-      let players = await this.playersDao.findByWhere(
-        {
-          fide_id: data.map((d) => d.fide_id),
-        },
-        ['fide_id']
-      )
+      let players = await this.playersDao.findByWhere({
+        mobile: data.map((d) => d.mobile_number),
+      })
 
       players = players.map((p) => p?.fide_id)
 
       if (players.length > 0) {
-        data = data.filter((ele) => !players.includes(Number(ele.fide_id)))
+        data = data.filter(
+          (ele) =>
+            !players.some(
+              (p) => p.mobile === ele.mobile_number && p.name === ele.name
+            )
+        )
       }
 
       const result = await this.playersDao.bulkCreate(data)
@@ -72,8 +87,7 @@ class PlayersService {
 
       const ids = [
         ...new Set(fide_ids),
-        ...new Set(players),
-        ...new Set(data.map((r) => Number(r.fide_id))),
+        ...new Set(data.map((r) => Number(r.uuid))),
       ]
 
       await this.tournamentDao.updateWhere(
