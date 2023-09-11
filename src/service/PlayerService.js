@@ -48,6 +48,9 @@ class PlayersService {
         ...d,
         uuid: uuidv4(),
         created_by: userRoles.ORGANIZER,
+        mobile: d.mobile_number,
+        upi_id: d.upi_address,
+        gender: d.gender,
       }))
 
       const tournamentId = req.body.tournamentId
@@ -55,19 +58,12 @@ class PlayersService {
 
       let fide_ids = []
       if (tournament.player_fide_ids) {
-        fide_ids = tournament.player_fide_ids.split(',').map((f) => Number(f))
-      }
-
-      if (!data.length) {
-        message = 'Players are already registered in this tournament.'
-        return responseHandler.returnError(httpStatus.BAD_REQUEST, message)
+        fide_ids = tournament.player_fide_ids.split(',')
       }
 
       let players = await this.playersDao.findByWhere({
         mobile: data.map((d) => d.mobile_number),
       })
-
-      players = players.map((p) => p?.fide_id)
 
       if (players.length > 0) {
         data = data.filter(
@@ -78,6 +74,11 @@ class PlayersService {
         )
       }
 
+      if (!data.length) {
+        message = 'Players are already registered in this tournament.'
+        return responseHandler.returnError(httpStatus.BAD_REQUEST, message)
+      }
+
       const result = await this.playersDao.bulkCreate(data)
 
       if (!result) {
@@ -85,10 +86,7 @@ class PlayersService {
         return responseHandler.returnError(httpStatus.BAD_REQUEST, message)
       }
 
-      const ids = [
-        ...new Set(fide_ids),
-        ...new Set(data.map((r) => Number(r.uuid))),
-      ]
+      const ids = [...new Set(fide_ids), ...new Set(data.map((r) => r.uuid))]
 
       await this.tournamentDao.updateWhere(
         {
@@ -123,7 +121,7 @@ class PlayersService {
       }
 
       const fide_ids = tournament.player_fide_ids.split(',')
-      const data = await this.playersDao.findByWhere({ fide_id: fide_ids })
+      const data = await this.playersDao.findByWhere({ uuid: fide_ids })
 
       return responseHandler.returnSuccess(httpStatus.OK, message, data)
     } catch (e) {

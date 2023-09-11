@@ -561,7 +561,7 @@ class TournamentService {
       let data = []
       if (round === 1) {
         const players = await this.playersDao.findByWhere({
-          fide_id: tournament.player_fide_ids.split(','),
+          uuid: tournament.player_fide_ids.split(','),
           is_active: true,
         })
         const { whitePlayers, blackPlayers } = swissFirstRoundPairing(
@@ -584,7 +584,8 @@ class TournamentService {
           round: round - 1,
           tournament_id: tournamentId,
         })
-        if (pairing.length > 0) {
+        console.log('pairing', pairing)
+        if (!pairing.length) {
           message = `The pairing of players for the ${this.getNumberWithOrdinal(
             round - 1
           )} round is not done yet. Please generate paring of it.`
@@ -1044,6 +1045,7 @@ class TournamentService {
           a += ta.entry_fee.find((e) => e.category === b.entry_fee_category).fee
           return a
         }, 0)
+
         t += total
         return t
       }, 0)

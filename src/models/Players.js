@@ -15,14 +15,13 @@ module.exports = (sequelize, DataTypes) => {
   Players.init(
     {
       name: DataTypes.STRING,
-      uuid: DataTypes.INTEGER,
+      uuid: DataTypes.STRING,
       fide_id: DataTypes.INTEGER,
       rating: DataTypes.INTEGER,
       age: DataTypes.INTEGER,
       gender: DataTypes.STRING,
       mobile: DataTypes.STRING,
       upi_id: DataTypes.STRING,
-      entry_fee_category: DataTypes.STRING,
       created_by: DataTypes.ENUM([userRoles.ORGANIZER, 'self']),
       is_active: {
         type: DataTypes.BOOLEAN,
