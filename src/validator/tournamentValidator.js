@@ -24,7 +24,15 @@ class TournamentValidator {
       state: Joi.string().required(),
       country: Joi.string().required(),
       time_control: Joi.string().required(),
-      entry_fee: Joi.number().required(),
+      entry_fee: Joi.array()
+        .items(
+          Joi.object({
+            category: Joi.string(),
+            fee: Joi.number(),
+          })
+        )
+        .min(1)
+        .required(),
       tournament_type: Joi.string().default('Swiss-System'),
       start_date: Joi.date().required(),
       end_date: Joi.date().greater(Joi.ref('start_date')).required(),
@@ -43,8 +51,9 @@ class TournamentValidator {
 
     const fileResult = Joi.array().items(fileSchema).validate(req.files)
 
-    // validate request body against schema
-    const { error, value } = schema.validate(req.body, options)
+    // validate request body against schema(
+    const body = { ...req.body, entry_fee: JSON.parse(req.body.entry_fee) }
+    const { error, value } = schema.validate(body, options)
 
     if (error || fileResult.error) {
       // on fail return comma separated errors

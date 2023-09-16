@@ -584,7 +584,6 @@ class TournamentService {
           round: round - 1,
           tournament_id: tournamentId,
         })
-        console.log('pairing', pairing)
         if (!pairing.length) {
           message = `The pairing of players for the ${this.getNumberWithOrdinal(
             round - 1
@@ -777,6 +776,7 @@ class TournamentService {
       let message = `Fetched players ranking after round ${round} successfully.`
       const exists = await this.tournamentPairingsDao.checkExist({
         round: round,
+        tournament_id: tournamentId,
       })
 
       if (!exists) {
@@ -824,8 +824,8 @@ class TournamentService {
               : [opponent]
           } else {
             p[c.player_fide_id] = p[c.player_fide_id]
-              ? [...p[c.player_fide_id], null]
-              : [null]
+              ? [...p[c.player_fide_id]]
+              : []
           }
         }
         return p
