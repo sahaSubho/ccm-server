@@ -59,6 +59,8 @@ function swissOtherRoundPairings(players, opponents, round, tournament_id) {
   const whitePlayers = []
   const blackPlayers = []
 
+  console.log('count', players.length, opponents.length)
+
   const points = [
     ...new Set([...players, ...opponents].map((i) => Number(i.player_score))),
   ].sort((a, b) => b - a)
@@ -89,6 +91,12 @@ function swissOtherRoundPairings(players, opponents, round, tournament_id) {
       (ele) => Number(ele.player_score) === score
     )
 
+    // console.log(
+    //   'count........................',
+    //   currentPlayers.length,
+    //   currentOpponents.length
+    // )
+
     if (tempPlayer && ptype) {
       let player
       if (ptype === 'players') {
@@ -100,11 +108,17 @@ function swissOtherRoundPairings(players, opponents, round, tournament_id) {
           ? currentPlayers.shift()
           : currentOpponents.shift()
       }
-      nextParing.push(tempPlayer, player)
+      // console.log('player', ptype, tempPlayer, player)
+      nextParing.push([tempPlayer, player])
       tempPlayer = null
       ptype = null
     }
 
+    // console.log(
+    //   'count2........................',
+    //   currentPlayers.length,
+    //   currentOpponents.length
+    // )
     const maxvalue = Math.max(currentOpponents.length, currentPlayers.length)
     const minvalue = Math.min(currentOpponents.length, currentPlayers.length)
 
@@ -127,6 +141,8 @@ function swissOtherRoundPairings(players, opponents, round, tournament_id) {
       odd: ['A', 'B'],
     }
 
+    // console.log('pairing..................', nextParing.length)
+
     for (let index = 0; index < minvalue; index++) {
       if (index % 2 === 0) {
         const opp = !data.opponentsB.length ? data.opponentsA : data.opponentsB
@@ -135,6 +151,12 @@ function swissOtherRoundPairings(players, opponents, round, tournament_id) {
         const pl = !data.playersB.length ? data.playersA : data.playersB
         nextParing.push([data.opponentsA.shift(), pl.shift()])
       }
+      // console.log(
+      //   'player',
+      //   JSON.stringify(data),
+      //   nextParing.length,
+      //   [...nextParing].slice(-1)
+      // )
     }
     if (maxvalue !== minvalue) {
       const type = minvalue % 2 === 0 ? 'even' : 'odd'
@@ -219,11 +241,12 @@ function swissOtherRoundPairings(players, opponents, round, tournament_id) {
     //   }
     // }
   })
+  // console.log('nextPairing', nextParing.length)
+
   nextParing.forEach((p) => {
     whitePlayers.push(formatPlayerData(p[0], round, tournament_id))
     blackPlayers.push(formatPlayerData(p[1], round, tournament_id))
   })
-  console.log('nextPairing', nextParing.length)
 
   // Return the list of pairings.
   return { whitePlayers, blackPlayers }

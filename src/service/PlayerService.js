@@ -74,7 +74,9 @@ class PlayersService {
         )
       }
 
-      if (!data.length) {
+      const playerUuids = players.map((p) => p.uuid)
+
+      if (playerUuids.every((id) => fide_ids.includes(id))) {
         message = 'Players are already registered in this tournament.'
         return responseHandler.returnError(httpStatus.BAD_REQUEST, message)
       }
@@ -86,7 +88,11 @@ class PlayersService {
         return responseHandler.returnError(httpStatus.BAD_REQUEST, message)
       }
 
-      const ids = [...new Set(fide_ids), ...new Set(data.map((r) => r.uuid))]
+      const ids = [
+        ...new Set(fide_ids),
+        ...new Set(playerUuids),
+        ...new Set(data.map((r) => r.uuid)),
+      ]
 
       await this.tournamentDao.updateWhere(
         {
