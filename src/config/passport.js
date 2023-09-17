@@ -43,6 +43,7 @@ const jwtVerify = async (req, payload, done) => {
       return done(null, false)
     }
     let user = await redisService.getUser(payload.sub)
+    console.log('redis user', user)
     if (user) {
       user = new User(user)
     }

@@ -7,5 +7,17 @@ if (redis.usePassword.toUpperCase() === 'YES') {
   client.auth(redis.password)
 }
 
-console.log('Redis Client loaded!!!')
+;(async () => {
+  await client.connect()
+})()
+
+console.log('Connecting to the Redis', client)
+
+client.on('ready', () => {
+  console.log('Connected!')
+})
+
+client.on('error', (err) => {
+  console.error(err)
+})
 module.exports = client

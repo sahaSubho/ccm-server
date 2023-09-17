@@ -37,7 +37,7 @@ class TokenService {
       config.jwt.secret,
       (err, decoded) => {
         if (err) {
-          console.log("Error = ", err);
+          console.log('Error = ', err)
           throw new Error('Token not found')
         } else {
           // if everything is good, save to request for use in other routes
@@ -155,7 +155,8 @@ class TokenService {
         expires: refreshTokenExpires.toDate(),
       },
     }
-    await this.redisService.createTokens(user.id, tokens)
+    const value = await this.redisService.createTokens(user.id, tokens)
+    console.log('redis create', value)
 
     return tokens
   }
