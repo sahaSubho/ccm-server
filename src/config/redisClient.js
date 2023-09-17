@@ -11,10 +11,8 @@ if (redis.usePassword.toUpperCase() === 'YES') {
   await client.connect()
 })()
 
-console.log('Connecting to the Redis', client)
-
 client.on('ready', () => {
-  console.log('Connected!')
+  console.log('Redis Connected!')
 })
 
 client.on('error', (err) => {

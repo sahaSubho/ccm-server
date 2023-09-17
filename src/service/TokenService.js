@@ -156,8 +156,6 @@ class TokenService {
       },
     }
     const value = await this.redisService.createTokens(user.id, tokens)
-    console.log('redis create', value)
-
     return tokens
   }
 }
