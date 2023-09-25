@@ -63,6 +63,8 @@ router.patch(
   playersController.withDrawPlayer
 )
 
+router.get('/details', playersController.getPlayersDetails)
+
 router.get('/:id', playersController.getPlayersByTournament)
 
 module.exports = router

@@ -10,6 +10,7 @@ const logger = require('../config/logger')
 const config = require('../config/config')
 const parseFile = require('../helper/parseFile')
 const { userRoles } = require('../config/constant')
+const { sequelize } = require('../models')
 
 class PlayersService {
   constructor() {
@@ -458,6 +459,55 @@ class PlayersService {
       )
     } catch (error) {
       logger.error(e)
+      return responseHandler.returnError(
+        httpStatus.BAD_REQUEST,
+        'Something went wrong!'
+      )
+    }
+  }
+
+  /**
+   * get player details
+   * @param {String} uuid
+   * @param {Number} tournamentId
+   * @returns {Object}
+   */
+  getPlayersDetails = async (uuid, tournamentId) => {
+    try {
+      let message = 'Successfully fetch player details.'
+
+      const player = await this.playersDao.findOneByWhere({ uuid: uuid })
+
+      if (!player) {
+        message = 'Failed to fetch player details.'
+        return responseHandler.returnError(httpStatus.BAD_REQUEST, message)
+      }
+
+      const tournaments = await this.tournamentPairingDao.findByWhere({
+        player_uuid: uuid,
+      })
+
+      let query = `select * from tournament_pairings where (parent_id in (select id from tournament_pairings where player_uuid='${uuid}') or 
+        id in (select parent_id from tournament_pairings where player_uuid='${uuid}'))`
+
+      if (tournamentId) query += ` and tournament_id=${tournamentId}`
+
+      query += 'order by tournament_id, round'
+
+      const data = await sequelize.query(query, {
+        type: sequelize.QueryTypes.SELECT,
+      })
+
+      const result = {
+        details: {
+          ...player.toJSON(),
+          tournaments,
+        },
+        opponents: data,
+      }
+      return responseHandler.returnSuccess(httpStatus.OK, message, result)
+    } catch (error) {
+      logger.error(error)
       return responseHandler.returnError(
         httpStatus.BAD_REQUEST,
         'Something went wrong!'

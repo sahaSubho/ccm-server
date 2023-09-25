@@ -104,6 +104,21 @@ class TournamentController {
       res.status(httpStatus.BAD_GATEWAY).send(e)
     }
   }
+
+  getPlayersDetails = async (req, res) => {
+    try {
+      const { uuid, tournamentId } = req.query
+      const player = await this.playerService.getPlayersDetails(
+        uuid,
+        tournamentId
+      )
+      const { status, message, data } = player.response
+      res.status(player.statusCode).send({ status, message, data })
+    } catch (e) {
+      logger.error(e)
+      res.status(httpStatus.BAD_GATEWAY).send(e)
+    }
+  }
 }
 
 module.exports = TournamentController

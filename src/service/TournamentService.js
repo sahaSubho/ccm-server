@@ -496,7 +496,7 @@ class TournamentService {
       if (end_date) {
         where['end_date'] = { [Op.lte]: moment(end_date).add(1, 'd') }
       }
-      if (type) {
+      if (type && type !== 'all') {
         where['tournament_type'] =
           type === 'offline' ? 'OTB' : { [Op.ne]: 'OTB' }
       }
@@ -1036,12 +1036,7 @@ class TournamentService {
         .flat()
       const uniquePlayers = [...new Set(allPlayers)]
       const players = await this.playersDao.findByWhere({ uuid: uniquePlayers })
-      console.log(
-        'players',
-        players.filter(
-          (p) => moment(p.createdAt).diff(moment().subtract(1, 'd'), 'd') === 0
-        )
-      )
+
       const yesterdayPlayers = players.filter(
         (p) => moment().diff(p.createdAt, 'd') === 1
       )?.length
@@ -1085,6 +1080,9 @@ class TournamentService {
         })
       )
 
+      const playersIncreament =
+        (todayPlayers - yesterdayPlayers) / (yesterdayPlayers || 1)
+
       const data = {
         totalTournaments: tournaments.length,
         totalPlayers: players.length,
@@ -1092,7 +1090,7 @@ class TournamentService {
         activeTournaments: activeTournaments,
         distributionChart: distributionChart,
         todayPlayers: todayPlayers,
-        playersIncreament: (todayPlayers - yesterdayPlayers) / yesterdayPlayers,
+        playersIncreament: playersIncreament,
       }
       return responseHandler.returnSuccess(httpStatus.OK, message, data)
     } catch (e) {
