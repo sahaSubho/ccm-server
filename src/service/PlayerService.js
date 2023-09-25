@@ -86,7 +86,10 @@ class PlayersService {
 
       const playerUuids = players.map((p) => p.uuid)
 
-      if (playerUuids.every((id) => fide_ids.includes(id))) {
+      if (
+        playerUuids.length &&
+        playerUuids.every((id) => fide_ids.includes(id))
+      ) {
         message = 'Players are already registered in this tournament.'
         return responseHandler.returnError(httpStatus.BAD_REQUEST, message)
       }
