@@ -12,7 +12,7 @@ const tournamentValidator = new TournamentValidator()
 router.post(
   '/create',
   auth(),
-  upload.array('files', 10),
+  upload.array('files', 2),
   tournamentValidator.createValidator,
   tournamentController.create
 )
@@ -66,10 +66,16 @@ router.get(
   '/get-static-prize-cats/:id',
   tournamentController.getStaticPrizeCategories
 )
-router.post('/upload', tournamentController.uploadWinners)
+router.post('/upload', auth(), tournamentController.uploadWinners)
 router.post('/score-upload', auth(), tournamentController.updateScoring)
 router.get('/statistics', auth(), tournamentController.getStatistics)
 
 router.get('/:id', tournamentController.getTournamentById)
+router.patch(
+  '/:id',
+  auth(),
+  upload.array('files', 2),
+  tournamentController.updateTournamentById
+)
 
 module.exports = router

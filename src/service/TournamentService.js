@@ -377,7 +377,7 @@ class TournamentService {
       }
 
       tournamentBody.created_by = req.user.id
-      tournamentBody.is_active = true
+      tournamentBody.is_active = false
 
       let data = await this.tournamentDao.create(tournamentBody)
 
@@ -483,17 +483,11 @@ class TournamentService {
    * Get Tournament List created by Organizer
    * @returns {Object}
    */
-  getTournamentsByUser = async (
-    userId,
-    limit = 8,
-    offset = 0,
-    start_date,
-    end_date
-  ) => {
+  getTournamentsByUser = async (userId, query) => {
     try {
+      const { limit = 8, offset = 0, start_date, end_date, type } = query
       let message = 'Fetched tournaments successfully.'
       const where = {
-        is_active: true,
         created_by: userId,
       }
       if (start_date) {
@@ -502,13 +496,16 @@ class TournamentService {
       if (end_date) {
         where['end_date'] = { [Op.lte]: moment(end_date).add(1, 'd') }
       }
+      if (type) {
+        where['tournament_type'] =
+          type === 'offline' ? 'OTB' : { [Op.ne]: 'OTB' }
+      }
 
-      let data = await this.tournamentDao.findByWhere(
+      let data = await this.tournamentDao.getDataTableData(
         where,
-        undefined,
-        ['end_date', 'asc'],
         limit,
-        offset
+        offset,
+        ['end_date', 'desc']
       )
       return responseHandler.returnSuccess(httpStatus.OK, message, data)
     } catch (e) {
@@ -594,13 +591,13 @@ class TournamentService {
           .filter((p) => !p.parent_id)
           .map((e) => ({
             ...e,
-            player_score: Number(e.player_score) + Number(e.result),
+            player_score: String(Number(e.player_score) + Number(e.result)),
           }))
         const opponents = pairing
           .filter((p) => p.parent_id)
           .map((e) => ({
             ...e,
-            player_score: Number(e.player_score) + Number(e.result),
+            player_score: String(Number(e.player_score) + Number(e.result)),
           }))
 
         const { whitePlayers, blackPlayers } = swissOtherRoundPairings(
@@ -1038,11 +1035,28 @@ class TournamentService {
         .map((b) => b?.player_fide_ids?.split(',') || [])
         .flat()
       const uniquePlayers = [...new Set(allPlayers)]
+      const players = await this.playersDao.findByWhere({ uuid: uniquePlayers })
+      console.log(
+        'players',
+        players.filter(
+          (p) => moment(p.createdAt).diff(moment().subtract(1, 'd'), 'd') === 0
+        )
+      )
+      const yesterdayPlayers = players.filter(
+        (p) => moment().diff(p.createdAt, 'd') === 1
+      )?.length
 
-      const players = await this.playersDao.findByWhere({ uuid: allPlayers })
+      const todayPlayers = players.filter(
+        (p) => moment(p.createdAt).diff(moment(), 'd') === 0
+      )?.length
+
+      console.log('..........', yesterdayPlayers, todayPlayers)
       const revenue = tournaments.reduce((t, ta) => {
         const total = players.reduce((a, b) => {
-          a += ta.entry_fee.find((e) => e.category === b.entry_fee_category).fee
+          if (ta?.player_fide_ids?.includes(b.uuid))
+            a +=
+              ta.entry_fee.find((e) => e.category === b.entry_fee_category)
+                ?.fee || 0
           return a
         }, 0)
 
@@ -1051,14 +1065,15 @@ class TournamentService {
       }, 0)
 
       const activeTournaments = tournaments.filter(
-        (t) => moment().diff(t.end_date, 'm') > 0
+        (t) => moment(t.end_date).diff(moment(), 'm') > 0
       ).length
 
       const tournamentDistribution = tournaments.reduce((a, b) => {
-        if (!a[b.tournament_type]) {
-          a[b.tournament_type] = 1
+        const type = b.tournament_type === 'OTB' ? 'Offline' : 'Online'
+        if (!a[type]) {
+          a[type] = 1
         } else {
-          a[b.tournament_type] += 1
+          a[type] += 1
         }
         return a
       }, {})
@@ -1072,10 +1087,12 @@ class TournamentService {
 
       const data = {
         totalTournaments: tournaments.length,
-        totalPlayers: uniquePlayers.length,
+        totalPlayers: players.length,
         totalRevenue: revenue,
         activeTournaments: activeTournaments,
         distributionChart: distributionChart,
+        todayPlayers: todayPlayers,
+        playersIncreament: (todayPlayers - yesterdayPlayers) / yesterdayPlayers,
       }
       return responseHandler.returnSuccess(httpStatus.OK, message, data)
     } catch (e) {
@@ -1151,6 +1168,52 @@ class TournamentService {
       )
 
       return responseHandler.returnSuccess(httpStatus.CREATED, message, data)
+    } catch (e) {
+      logger.error(e)
+      return responseHandler.returnError(
+        httpStatus.BAD_REQUEST,
+        'Something went wrong!'
+      )
+    }
+  }
+
+  /**
+   * Update tournament
+   * @param {Number} id
+   * @param {Object} tournamentBody
+   * @returns {Object}
+   */
+  updateTournamentById = async (id, tournamentBody, req) => {
+    try {
+      let message = 'Successfully updated tournament.'
+      if (req.user.role !== userRoles.ORGANIZER) {
+        message =
+          'Tournament creation is limited to organizers. Kindly sign up or log in as an organizer to continue.'
+        return responseHandler.returnError(httpStatus.BAD_REQUEST, message)
+      }
+      if (req?.files?.length) {
+        req.files.forEach((f) => {
+          if (f.path.includes('brochure')) {
+            tournamentBody.brochure = f.path
+          }
+          if (f.path.includes('image')) {
+            tournamentBody.display_pic = f.path
+          }
+        })
+      }
+
+      if (tournamentBody.is_active) {
+        message = 'Tournament has been successfully published.'
+        tournamentBody.is_active = true
+      }
+
+      let data = await this.tournamentDao.updateById(tournamentBody, id)
+
+      if (!data) {
+        message = 'Tournament updation failed! Please Try again.'
+        return responseHandler.returnError(httpStatus.BAD_REQUEST, message)
+      }
+      return responseHandler.returnSuccess(httpStatus.OK, message, data)
     } catch (e) {
       logger.error(e)
       return responseHandler.returnError(

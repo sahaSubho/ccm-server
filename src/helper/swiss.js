@@ -3,6 +3,7 @@ function formatPlayerData(player, round, tournament_id) {
     return {
       round,
       tournament_id,
+      player_uuid: player.uuid,
       player_fide_id: player.fide_id,
       player_name: player.name,
       player_rating: player.rating,
@@ -11,6 +12,7 @@ function formatPlayerData(player, round, tournament_id) {
   return {
     round,
     tournament_id,
+    player_uuid: player.player_uuid,
     player_fide_id: player.player_fide_id,
     player_name: player.player_name,
     player_rating: player.player_rating,
@@ -25,8 +27,6 @@ function swissFirstRoundPairing(players, tournament_id) {
 
   // Sort the players by their ratings.
   players.sort((a, b) => b.rating - a.rating || a.name.localeCompare(b.name))
-
-  console.log(players)
 
   // Pair the players off.
   const median = players.length / 2

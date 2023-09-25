@@ -1,14 +1,14 @@
 {
-  "name": "Node-Express-Mysql-Boilerplate",
+  "name": "circlechess_node_server",
   "version": "1.0.0",
-  "description": "Boilerplate for Node-Express with sequelize ORM",
+  "description": "Chessmaster node server",
   "main": "src/index.js",
   "scripts": {
     "dev": "cross-env NODE_ENV=development nodemon src/index.js",
     "start": "cross-env NODE_ENV=production node src/index.js",
     "test": "mocha './specs/**/*.spec.js' --watch"
   },
-  "author": "Kazi Naimul Hoque (Aoyan)",
+  "author": "CircleChess",
   "license": "MIT",
   "private": true,
   "dependencies": {

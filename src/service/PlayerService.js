@@ -1,8 +1,10 @@
 const httpStatus = require('http-status')
+const { Op } = require('sequelize')
 const { v4: uuidv4 } = require('uuid')
 const PlayersDao = require('../dao/PlayersDao')
 const PlayersPrizePayoutDao = require('../dao/PlayersPrizePayoutDao')
 const TournamentDao = require('../dao/TournamentDao')
+const TournamentPairingDao = require('../dao/TournamentPairingDao')
 const responseHandler = require('../helper/responseHandler')
 const logger = require('../config/logger')
 const config = require('../config/config')
@@ -13,6 +15,7 @@ class PlayersService {
   constructor() {
     this.playersDao = new PlayersDao()
     this.tournamentDao = new TournamentDao()
+    this.tournamentPairingDao = new TournamentPairingDao()
     this.playersPrizePayoutDao = new PlayersPrizePayoutDao()
   }
 
@@ -37,10 +40,10 @@ class PlayersService {
 
       if (
         data.length &&
-        !Object.keys(data[0]).includes('mobile_number', 'name', 'age')
+        !Object.keys(data[0]).includes('name', 'gender', 'age')
       ) {
         message =
-          'Mobile Number, Name and Age is mandatory fields! Please upload again with correct format.'
+          'Name, Gender and Age is mandatory fields! Please upload again with correct format.'
         return responseHandler.returnError(httpStatus.BAD_REQUEST, message)
       }
 
@@ -48,9 +51,8 @@ class PlayersService {
         ...d,
         uuid: uuidv4(),
         created_by: userRoles.ORGANIZER,
-        mobile: d.mobile_number,
-        upi_id: d.upi_address,
-        gender: d.gender,
+        mobile: d?.mobile_number || '',
+        upi_id: d?.upi_address || '',
       }))
 
       const tournamentId = req.body.tournamentId
@@ -62,7 +64,14 @@ class PlayersService {
       }
 
       let players = await this.playersDao.findByWhere({
-        mobile: data.map((d) => d.mobile_number),
+        [Op.or]: [
+          {
+            mobile: data.map((d) => d.mobile_number),
+          },
+          {
+            name: data.map((d) => d.name),
+          },
+        ],
       })
 
       if (players.length > 0) {
@@ -99,6 +108,76 @@ class PlayersService {
           player_fide_ids: ids.join(),
         },
         { id: tournamentId }
+      )
+
+      const finalData = await this.playersDao.findByWhere({ uuid: ids })
+
+      return responseHandler.returnSuccess(
+        httpStatus.CREATED,
+        message,
+        finalData
+      )
+    } catch (e) {
+      logger.error(e)
+      return responseHandler.returnError(
+        httpStatus.BAD_REQUEST,
+        'Something went wrong!'
+      )
+    }
+  }
+
+  /**
+   * Add player
+   * @param {Number} id
+   * @param {Object} body
+   * @returns {Object}
+   */
+  addPlayer = async (id, body) => {
+    try {
+      let message = 'Successfully added player.'
+
+      const data = {
+        ...body,
+        uuid: uuidv4(),
+        created_by: userRoles.ORGANIZER,
+      }
+      const tournament = await this.tournamentDao.findById(id)
+
+      let fide_ids = []
+      if (tournament.player_fide_ids) {
+        fide_ids = tournament.player_fide_ids.split(',')
+      }
+
+      let player = await this.playersDao.findOneByWhere({
+        [Op.or]: [
+          {
+            mobile: data.mobile || '',
+          },
+          {
+            name: data.name,
+          },
+        ],
+      })
+
+      if (player && fide_ids.includes(player.uuid)) {
+        message = 'Player is already registered in this tournament.'
+        return responseHandler.returnError(httpStatus.BAD_REQUEST, message)
+      }
+
+      const result = await this.playersDao.create(data)
+
+      if (!result) {
+        message = 'Failed to add player! Please try again.'
+        return responseHandler.returnError(httpStatus.BAD_REQUEST, message)
+      }
+
+      const ids = [...new Set([...fide_ids, data.uuid])]
+
+      await this.tournamentDao.updateWhere(
+        {
+          player_fide_ids: ids.join(),
+        },
+        { id: id }
       )
 
       return responseHandler.returnSuccess(httpStatus.CREATED, message, data)
@@ -340,6 +419,42 @@ class PlayersService {
         httpStatus.OK,
         message,
         juspayResponse
+      )
+    } catch (error) {
+      logger.error(e)
+      return responseHandler.returnError(
+        httpStatus.BAD_REQUEST,
+        'Something went wrong!'
+      )
+    }
+  }
+
+  /**
+   * withdraw player by tournament
+   * @param {Object} playerBody
+   * @returns {Object}
+   */
+  withDrawPlayer = async (playerBody) => {
+    try {
+      let message = 'Successfully withdrawn player from this round.'
+
+      const data = await this.tournamentPairingDao.updateWhere(
+        { is_withdrawn: true },
+        {
+          tournament_id: playerBody.tournamentId,
+          round: playerBody.round,
+          player_uuid: playerBody.uuid,
+        }
+      )
+
+      if (!data.length) {
+        message = 'Failed to withdraw player from this round.'
+        return responseHandler.returnError(httpStatus.BAD_REQUEST, message)
+      }
+      return responseHandler.returnSuccess(
+        httpStatus.NO_CONTENT,
+        message,
+        playerBody
       )
     } catch (error) {
       logger.error(e)

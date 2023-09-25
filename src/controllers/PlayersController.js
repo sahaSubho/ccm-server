@@ -59,9 +59,9 @@ class TournamentController {
 
   uploadPrizeWinningPlayers = async (req, res) => {
     try {
-      const user = await this.playerService.uploadPrizeWinningPlayers(req)
-      const { status, message, data } = user.response
-      res.status(user.statusCode).send({ status, message, data })
+      const players = await this.playerService.uploadPrizeWinningPlayers(req)
+      const { status, message, data } = players.response
+      res.status(players.statusCode).send({ status, message, data })
     } catch (e) {
       logger.error(e)
       res.status(httpStatus.BAD_GATEWAY).send(e)
@@ -76,6 +76,29 @@ class TournamentController {
       )
       const { status, message, data } = players.response
       res.status(players.statusCode).send({ status, message, data })
+    } catch (e) {
+      logger.error(e)
+      res.status(httpStatus.BAD_GATEWAY).send(e)
+    }
+  }
+
+  addPlayer = async (req, res) => {
+    try {
+      const { id } = req.params
+      const player = await this.playerService.addPlayer(id, req.body)
+      const { status, message, data } = player.response
+      res.status(player.statusCode).send({ status, message, data })
+    } catch (e) {
+      logger.error(e)
+      res.status(httpStatus.BAD_GATEWAY).send(e)
+    }
+  }
+
+  withDrawPlayer = async (req, res) => {
+    try {
+      const player = await this.playerService.withDrawPlayer(req.body)
+      const { status, message, data } = player.response
+      res.status(player.statusCode).send({ status, message, data })
     } catch (e) {
       logger.error(e)
       res.status(httpStatus.BAD_GATEWAY).send(e)

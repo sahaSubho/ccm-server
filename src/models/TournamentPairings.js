@@ -9,7 +9,7 @@ module.exports = (sequelize, DataTypes) => {
      */
     static associate(models) {
       // define association here
-      TournamentPairings.belongsTo(models.tournaments, {
+      TournamentPairings.belongsTo(models.cc_tournament_chessmasters, {
         foreignKey: 'tournament_id',
       })
     }
@@ -20,6 +20,10 @@ module.exports = (sequelize, DataTypes) => {
       parent_id: DataTypes.INTEGER,
       tournament_id: DataTypes.INTEGER,
       player_fide_id: DataTypes.INTEGER,
+      player_uuid: {
+        type: DataTypes.STRING,
+        allowNull: false,
+      },
       player_name: DataTypes.STRING,
       player_rating: DataTypes.INTEGER,
       player_score: {

@@ -133,14 +133,16 @@ class AuthController {
           .status(httpStatus.BAD_GATEWAY)
           .send('Token is expired Please Login again!')
       }
-      let lichess_username = '';  // to be populated from DB
+      let lichess_username = '' // to be populated from DB
       const user = await this.userService.getUserById(tokenDoc.user_id)
       if (user == null) {
         res.status(httpStatus.NOT_FOUND).send('User Not Found!')
       } else {
-        lichess_username = user.lic_name;
+        lichess_username = user.lic_name
         if (lichess_username) {
-          let lichessUser = await this.userService.getLichessUserById(lichess_username);
+          let lichessUser = await this.userService.getLichessUserById(
+            lichess_username
+          )
           if (lichessUser && lichessUser.lichess_token) {
             // the user has lichess account integrated
             // TODO: Here we should put an additional logic to validate the token
@@ -172,8 +174,11 @@ class AuthController {
 
       let lichess_username = req.body.lichess_username
 
-      const user = await this.userService.updateLichessUserDetails(tokenDoc.user_id, lichess_username)
-      
+      const user = await this.userService.updateLichessUserDetails(
+        tokenDoc.user_id,
+        lichess_username
+      )
+
       if (user == null) {
         res.status(httpStatus.NOT_FOUND).send('User Not Found!')
       } else {

@@ -61,13 +61,9 @@ class TournamentController {
 
   getTournamentsByUser = async (req, res) => {
     try {
-      const { limit, offset, start_date, end_date } = req.query
       const tournaments = await this.tournamentService.getTournamentsByUser(
         req.user.id,
-        limit,
-        offset,
-        start_date,
-        end_date
+        req.query
       )
       const { status, message, data } = tournaments.response
       res.status(tournaments.statusCode).send({ status, message, data })
@@ -202,6 +198,22 @@ class TournamentController {
       const statistics = await this.tournamentService.getStatistics(req.user.id)
       const { status, message, data } = statistics.response
       res.status(statistics.statusCode).send({ status, message, data })
+    } catch (e) {
+      logger.error(e)
+      res.status(httpStatus.BAD_GATEWAY).send(e)
+    }
+  }
+
+  updateTournamentById = async (req, res) => {
+    try {
+      const { id } = req.params
+      const user = await this.tournamentService.updateTournamentById(
+        id,
+        req.body,
+        req
+      )
+      const { status, message, data } = user.response
+      res.status(user.statusCode).send({ status, message, data })
     } catch (e) {
       logger.error(e)
       res.status(httpStatus.BAD_GATEWAY).send(e)

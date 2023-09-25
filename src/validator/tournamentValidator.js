@@ -23,6 +23,7 @@ class TournamentValidator {
       address: Joi.string().required(),
       state: Joi.string().required(),
       country: Joi.string().required(),
+      category: Joi.string().required(),
       time_control: Joi.string().required(),
       entry_fee: Joi.array()
         .items(
@@ -33,7 +34,7 @@ class TournamentValidator {
         )
         .min(1)
         .required(),
-      tournament_type: Joi.string().default('Swiss-System'),
+      tournament_type: Joi.string().default('OTB'),
       start_date: Joi.date().required(),
       end_date: Joi.date().greater(Joi.ref('start_date')).required(),
     })

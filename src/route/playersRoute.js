@@ -40,6 +40,29 @@ router.get(
   auth(),
   playersController.getPrizeWinningPlayers
 )
+
+router.post(
+  '/upload-prize-winning-players',
+  auth(),
+  upload.single('file'),
+  playerValidator.uploadValidator,
+  playersController.uploadPrizeWinningPlayers
+)
+
+router.post(
+  '/add-player/:id',
+  auth(),
+  playerValidator.addPlayer,
+  playersController.addPlayer
+)
+
+router.patch(
+  '/withdraw-player',
+  auth(),
+  playerValidator.withDrawPlayer,
+  playersController.withDrawPlayer
+)
+
 router.get('/:id', playersController.getPlayersByTournament)
 
 module.exports = router

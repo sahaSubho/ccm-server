@@ -23,6 +23,7 @@ module.exports = (sequelize, DataTypes) => {
       mobile: DataTypes.STRING,
       upi_id: DataTypes.STRING,
       created_by: DataTypes.ENUM([userRoles.ORGANIZER, 'self']),
+      entry_fee_category: DataTypes.STRING,
       is_active: {
         type: DataTypes.BOOLEAN,
         allowNull: false,

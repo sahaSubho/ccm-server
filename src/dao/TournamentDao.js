@@ -1,7 +1,7 @@
 const SuperDao = require('./SuperDao')
 const models = require('../models')
 
-const Tournament = models.tournaments
+const Tournament = models.cc_tournament_chessmasters
 const Users = models.users
 
 class TournamentDao extends SuperDao {

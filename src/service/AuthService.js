@@ -52,26 +52,35 @@ class AuthService {
   }
 
   logout = async (req, res) => {
-    const refreshTokenDoc = await this.tokenDao.findOne({
-      token: req.body.refresh_token,
-      type: tokenTypes.REFRESH,
-      blacklisted: false,
-    })
+    let refreshTokenDoc = await this.tokenDao.findOneByWhere(
+      { user_id: req.user.id, type: tokenTypes.REFRESH },
+      null,
+      ['expires', 'desc']
+    )
+    let accessTokenDoc = await this.tokenDao.findOneByWhere(
+      { user_id: req.user.id, type: tokenTypes.ACCESS },
+      null,
+      ['expires', 'desc']
+    )
     if (!refreshTokenDoc) {
       res.status(httpStatus.NOT_FOUND).send({ message: 'User Not found!' })
     }
+
+    refreshTokenDoc = refreshTokenDoc.toJSON()
+    accessTokenDoc = accessTokenDoc.toJSON()
+
     await this.tokenDao.remove({
-      token: req.body.refresh_token,
+      token: refreshTokenDoc.token,
       type: tokenTypes.REFRESH,
       blacklisted: false,
     })
     await this.tokenDao.remove({
-      token: req.body.access_token,
+      token: accessTokenDoc.token,
       type: tokenTypes.ACCESS,
       blacklisted: false,
     })
-    await this.redisService.removeToken(req.body.access_token, 'access_token')
-    await this.redisService.removeToken(req.body.refresh_token, 'refresh_token')
+    await this.redisService.removeToken(accessTokenDoc.token, 'access_token')
+    await this.redisService.removeToken(refreshTokenDoc.token, 'refresh_token')
   }
 }
 

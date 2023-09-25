@@ -3,18 +3,18 @@ const { Model } = require('sequelize')
 module.exports = (sequelize, DataTypes) => {
   class TournamentPrizeMapping extends Model {
     static associate(models) {
-        TournamentPrizeMapping.belongsTo(models.prize_category, {
-            foreignKey: 'category_id',
-        })
-        TournamentPrizeMapping.belongsTo(models.tournaments, {
-            foreignKey: 'tournament_id',
-        })
+      TournamentPrizeMapping.belongsTo(models.prize_category, {
+        foreignKey: 'category_id',
+      })
+      TournamentPrizeMapping.belongsTo(models.cc_tournament_chessmasters, {
+        foreignKey: 'tournament_id',
+      })
     }
   }
 
   TournamentPrizeMapping.init(
     {
-      // optional name, otherwise to be inherited 
+      // optional name, otherwise to be inherited
       // from the prize category table already
       name: DataTypes.STRING,
 

@@ -43,6 +43,7 @@ module.exports = (sequelize, DataTypes) => {
       country: DataTypes.STRING,
       brochure: DataTypes.STRING,
       display_pic: DataTypes.STRING,
+      category: DataTypes.STRING,
       player_fide_ids: {
         type: DataTypes.STRING(2000),
         allowNull: true,
@@ -60,7 +61,7 @@ module.exports = (sequelize, DataTypes) => {
     },
     {
       sequelize,
-      modelName: 'tournaments',
+      modelName: 'cc_tournament_chessmasters',
       underscored: true,
     }
   )

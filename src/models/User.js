@@ -11,7 +11,9 @@ module.exports = (sequelize, DataTypes) => {
     static associate(models) {
       // define association here
       User.hasMany(models.user_tokens, { foreignKey: 'user_id' })
-      User.hasMany(models.tournaments, { foreignKey: 'created_by' })
+      User.hasMany(models.cc_tournament_chessmasters, {
+        foreignKey: 'created_by',
+      })
     }
   }
 

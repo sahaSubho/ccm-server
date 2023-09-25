@@ -9,7 +9,7 @@ module.exports = (sequelize, DataTypes) => {
      */
     static associate(models) {
       // define association here
-      PlayersPrizePayouts.belongsTo(models.tournaments, {
+      PlayersPrizePayouts.belongsTo(models.cc_tournament_chessmasters, {
         foreignKey: 'tournament_id',
       })
     }
