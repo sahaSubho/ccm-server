@@ -447,23 +447,22 @@ class PlayersService {
     try {
       let message = 'Successfully withdrawn player from this tournament.'
 
-      const exists = await this.tournamentPairingsDao.checkExist({
-        round: round,
-        tournament_id: tournamentId,
-        player_uuid: playerBody.uuid,
-      })
-
-      if (!exists) {
-        const tournament = await this.tournamentDao.findById(id)
+      if (playerBody.round === 1) {
+        const tournament = await this.tournamentDao.findById(
+          playerBody.tournamentId
+        )
 
         let fide_ids = []
         if (tournament.player_fide_ids) {
           fide_ids = tournament.player_fide_ids.split(',')
           fide_ids = fide_ids.filter((id) => id !== playerBody.uuid)
         }
-        const data = await this.tournamentDao.updateById({
-          player_fide_ids: fide_ids.join(),
-        })
+        const data = await this.tournamentDao.updateById(
+          {
+            player_fide_ids: fide_ids.join(),
+          },
+          playerBody.tournamentId
+        )
 
         return responseHandler.returnSuccess(httpStatus.NO_CONTENT, message)
       }

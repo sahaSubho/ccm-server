@@ -592,15 +592,16 @@ class TournamentService {
             .filter((id) => !pairing.map((p) => p.player_uuid).includes(id)),
           is_active: true,
         })
-        newPlayers = newPlayers.map((player) => ({
-          round: round - 1,
-          tournament_id,
-          player_uuid: player.uuid,
-          player_fide_id: player.fide_id,
-          player_name: player.name,
-          player_rating: player.rating,
-          player_score: player.score || 0,
-        }))
+        if (newPlayers)
+          newPlayers = newPlayers.map((player) => ({
+            round: round - 1,
+            tournament_id: tournamentId,
+            player_uuid: player.uuid,
+            player_fide_id: player.fide_id,
+            player_name: player.name,
+            player_rating: player.rating,
+            player_score: player.score || 0,
+          }))
 
         if (!pairing.length) {
           message = `The pairing of players for the ${this.getNumberWithOrdinal(
