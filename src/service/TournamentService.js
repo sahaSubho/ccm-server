@@ -565,7 +565,10 @@ class TournamentService {
           players,
           tournamentId
         )
-        data = whitePlayers.map((w, i) => [w, blackPlayers[i]])
+        data = whitePlayers.map((w, i) => ({
+          player: w,
+          opponent: blackPlayers[i],
+        }))
         const res = await this.tournamentPairingsDao.bulkCreate(whitePlayers)
         if (!res) {
           message = 'Failed to pair players! Please try again.'

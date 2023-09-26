@@ -503,15 +503,22 @@ class PlayersService {
         return responseHandler.returnError(httpStatus.BAD_REQUEST, message)
       }
 
-      const tournaments = await this.tournamentPairingDao.findByWhere({
-        player_uuid: uuid,
-      })
-
       let query = `select * from tournament_pairings where (parent_id in (select id from tournament_pairings where player_uuid='${uuid}') or 
-        id in (select parent_id from tournament_pairings where player_uuid='${uuid}'))`
+      id in (select parent_id from tournament_pairings where player_uuid='${uuid}'))`
 
-      if (tournamentId) query += ` and tournament_id=${tournamentId}`
+      const where = {
+        player_uuid: uuid,
+      }
+      let tournamentName = ''
 
+      if (tournamentId) {
+        query += ` and tournament_id=${tournamentId}`
+        where['tournament_id'] = tournamentId
+        const tournament = await this.tournamentDao.findById(tournamentId)
+        tournamentName = tournament.name
+      }
+
+      const tournaments = await this.tournamentPairingDao.findByWhere(where)
       query += 'order by tournament_id, round'
 
       const data = await sequelize.query(query, {
@@ -519,11 +526,27 @@ class PlayersService {
       })
 
       const result = {
+        tournamentName,
         details: {
           ...player.toJSON(),
-          tournaments,
+          tournaments: tournaments.filter(
+            (t) =>
+              !(
+                t.result ===
+                  data.find((p) => p.parent_id === t.id || t.parent_id === p.id)
+                    ?.result && Number(t.result) === 0
+              )
+          ),
         },
-        opponents: data,
+        opponents: data.filter(
+          (t) =>
+            !(
+              t.result ===
+                tournaments.find(
+                  (p) => p.parent_id === t.id || t.parent_id === p.id
+                )?.result && Number(t.result) === 0
+            )
+        ),
       }
       return responseHandler.returnSuccess(httpStatus.OK, message, result)
     } catch (error) {
