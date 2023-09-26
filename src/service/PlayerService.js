@@ -440,7 +440,28 @@ class PlayersService {
    */
   withDrawPlayer = async (playerBody) => {
     try {
-      let message = 'Successfully withdrawn player from this round.'
+      let message = 'Successfully withdrawn player from this tournament.'
+
+      const exists = await this.tournamentPairingsDao.checkExist({
+        round: round,
+        tournament_id: tournamentId,
+        player_uuid: playerBody.uuid,
+      })
+
+      if (!exists) {
+        const tournament = await this.tournamentDao.findById(id)
+
+        let fide_ids = []
+        if (tournament.player_fide_ids) {
+          fide_ids = tournament.player_fide_ids.split(',')
+          fide_ids = fide_ids.filter((id) => id !== playerBody.uuid)
+        }
+        const data = await this.tournamentDao.updateById({
+          player_fide_ids: fide_ids.join(),
+        })
+
+        return responseHandler.returnSuccess(httpStatus.NO_CONTENT, message)
+      }
 
       const data = await this.tournamentPairingDao.updateWhere(
         { is_withdrawn: true },
@@ -452,15 +473,11 @@ class PlayersService {
       )
 
       if (!data.length) {
-        message = 'Failed to withdraw player from this round.'
+        message = 'Failed to withdraw player from this tournament.'
         return responseHandler.returnError(httpStatus.BAD_REQUEST, message)
       }
-      return responseHandler.returnSuccess(
-        httpStatus.NO_CONTENT,
-        message,
-        playerBody
-      )
-    } catch (error) {
+      return responseHandler.returnSuccess(httpStatus.NO_CONTENT, message)
+    } catch (e) {
       logger.error(e)
       return responseHandler.returnError(
         httpStatus.BAD_REQUEST,

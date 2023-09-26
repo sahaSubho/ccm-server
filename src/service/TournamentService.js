@@ -580,7 +580,25 @@ class TournamentService {
         let pairing = await this.tournamentPairingsDao.findByWhere({
           round: round - 1,
           tournament_id: tournamentId,
+          is_withdrawn: false,
         })
+
+        let newPlayers = await this.playersDao.findByWhere({
+          uuid: tournament.player_fide_ids
+            .split(',')
+            .filter((id) => !pairing.map((p) => p.player_uuid).includes(id)),
+          is_active: true,
+        })
+        newPlayers = newPlayers.map((player) => ({
+          round: round - 1,
+          tournament_id,
+          player_uuid: player.uuid,
+          player_fide_id: player.fide_id,
+          player_name: player.name,
+          player_rating: player.rating,
+          player_score: player.score || 0,
+        }))
+
         if (!pairing.length) {
           message = `The pairing of players for the ${this.getNumberWithOrdinal(
             round - 1
@@ -601,7 +619,7 @@ class TournamentService {
           }))
 
         const { whitePlayers, blackPlayers } = swissOtherRoundPairings(
-          players,
+          players.concat(newPlayers),
           opponents,
           round,
           tournamentId
