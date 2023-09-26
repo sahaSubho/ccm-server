@@ -168,21 +168,26 @@ class PlayersService {
         return responseHandler.returnError(httpStatus.BAD_REQUEST, message)
       }
 
-      const result = await this.playersDao.create(data)
-
-      if (!result) {
-        message = 'Failed to add player! Please try again.'
-        return responseHandler.returnError(httpStatus.BAD_REQUEST, message)
+      let ids = fide_ids
+      if (!player) {
+        await this.playersDao.create(data)
+        ids.push(data.uuid)
+      } else {
+        ids.push(player.uuid)
       }
 
-      const ids = [...new Set([...fide_ids, data.uuid])]
+      ids = [...new Set(ids)]
 
-      await this.tournamentDao.updateWhere(
+      const result = await this.tournamentDao.updateWhere(
         {
           player_fide_ids: ids.join(),
         },
         { id: id }
       )
+      if (!result) {
+        message = 'Failed to add player! Please try again.'
+        return responseHandler.returnError(httpStatus.BAD_REQUEST, message)
+      }
 
       return responseHandler.returnSuccess(httpStatus.CREATED, message, data)
     } catch (e) {
