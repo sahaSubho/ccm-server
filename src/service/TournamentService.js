@@ -460,7 +460,11 @@ class TournamentService {
         return acc
       }, {})
 
-      let currentRound = roundDetails.map((r) => r.round).pop() || 1
+      let currentRound =
+        roundDetails
+          .map((r) => r.round)
+          .sort()
+          .pop() || 1
 
       if (scored.some((s) => s.round === currentRound)) {
         currentRound += 1
@@ -583,7 +587,6 @@ class TournamentService {
         let pairing = await this.tournamentPairingsDao.findByWhere({
           round: round - 1,
           tournament_id: tournamentId,
-          is_withdrawn: false,
         })
 
         let newPlayers = await this.playersDao.findByWhere({
@@ -610,16 +613,16 @@ class TournamentService {
           return responseHandler.returnError(httpStatus.BAD_REQUEST, message)
         }
         const players = pairing
-          .filter((p) => !p.parent_id)
+          .filter((p) => !p.parent_id && !p.is_withdrawn)
           .map((e) => ({
             ...e,
-            player_score: String(Number(e.player_score) + Number(e.result)),
+            player_score: Number(e.player_score) + Number(e.result),
           }))
         const opponents = pairing
-          .filter((p) => p.parent_id)
+          .filter((p) => p.parent_id && !p.is_withdrawn)
           .map((e) => ({
             ...e,
-            player_score: String(Number(e.player_score) + Number(e.result)),
+            player_score: Number(e.player_score) + Number(e.result),
           }))
 
         const { whitePlayers, blackPlayers } = swissOtherRoundPairings(
@@ -630,8 +633,11 @@ class TournamentService {
         )
 
         data = whitePlayers.map((w, i) => ({
-          player: w,
-          opponent: blackPlayers[i],
+          player: { ...w, player_score: String(w.player_score) },
+          opponent: {
+            ...blackPlayers[i],
+            player_score: String(blackPlayers[i].player_score),
+          },
         }))
         const res = await this.tournamentPairingsDao.bulkCreate(whitePlayers)
         if (!res) {
