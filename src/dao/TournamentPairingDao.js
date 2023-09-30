@@ -28,6 +28,18 @@ class TournamentPairingsDao extends SuperDao {
       raw: true,
     })
   }
+
+  async findSumByGroup(groupBy, column, where) {
+    return TournamentPairings.findAll({
+      attributes: [
+        groupBy,
+        [sequelize.fn('sum', sequelize.col(column)), 'sum'],
+      ],
+      group: [groupBy],
+      where: where,
+      raw: true,
+    })
+  }
 }
 
 module.exports = TournamentPairingsDao

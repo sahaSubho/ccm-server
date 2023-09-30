@@ -11,6 +11,7 @@ const config = require('../config/config')
 const parseFile = require('../helper/parseFile')
 const { userRoles } = require('../config/constant')
 const { sequelize } = require('../models')
+const moment = require('moment')
 
 class PlayersService {
   constructor() {
@@ -41,10 +42,10 @@ class PlayersService {
 
       if (
         data.length &&
-        !Object.keys(data[0]).includes('name', 'gender', 'age')
+        !Object.keys(data[0]).includes('name', 'gender', 'birth_year')
       ) {
         message =
-          'Name, Gender and Age is mandatory fields! Please upload again with correct format.'
+          'Name, Gender and Birth Year is mandatory fields! Please upload again with correct format.'
         return responseHandler.returnError(httpStatus.BAD_REQUEST, message)
       }
 
@@ -52,6 +53,7 @@ class PlayersService {
         ...d,
         uuid: uuidv4(),
         created_by: userRoles.ORGANIZER,
+        age: moment().year() - Number(d.birth_year),
         mobile: d?.mobile_number || '',
         upi_id: d?.upi_address || '',
       }))
@@ -215,9 +217,22 @@ class PlayersService {
       }
 
       const fide_ids = tournament.player_fide_ids.split(',')
-      const data = await this.playersDao.findByWhere({ uuid: fide_ids })
+      let withDrawnIds = []
+      if (tournament.withdrawn_uuid) {
+        withDrawnIds = tournament.withdrawn_uuid.split(',')
+      }
+      const data = await this.playersDao.findByWhere({
+        uuid: fide_ids.concat(withDrawnIds),
+      })
 
-      return responseHandler.returnSuccess(httpStatus.OK, message, data)
+      const result = data
+        .map((p) => ({
+          ...p,
+          isWithDrawn: withDrawnIds.includes(p.uuid),
+        }))
+        .sort((a, b) => (b.isWithDrawn ? -1 : 1))
+
+      return responseHandler.returnSuccess(httpStatus.OK, message, result)
     } catch (e) {
       logger.error(e)
       return responseHandler.returnError(
@@ -447,28 +462,36 @@ class PlayersService {
     try {
       let message = 'Successfully withdrawn player from this tournament.'
 
-      if (playerBody.round === 1) {
-        const tournament = await this.tournamentDao.findById(
-          playerBody.tournamentId
-        )
+      const tournament = await this.tournamentDao.findById(
+        playerBody.tournamentId
+      )
 
-        let fide_ids = []
-        if (tournament.player_fide_ids) {
-          fide_ids = tournament.player_fide_ids.split(',')
+      if (tournament.player_fide_ids) {
+        let fide_ids = tournament.player_fide_ids.split(',')
+        let withDrawn_ids = []
+        if (tournament.withdrawn_uuid)
+          withDrawn_ids = tournament.withdrawn_uuid.split(',')
+
+        if (playerBody.is_withdrawn) {
           fide_ids = fide_ids.filter((id) => id !== playerBody.uuid)
+          withDrawn_ids.push(playerBody.uuid)
+        } else {
+          message = 'Successfully added player again for this tournament.'
+          fide_ids.push(playerBody.uuid)
+          withDrawn_ids = withDrawn_ids.filter((id) => id !== playerBody.uuid)
         }
-        const data = await this.tournamentDao.updateById(
+
+        await this.tournamentDao.updateById(
           {
             player_fide_ids: fide_ids.join(),
+            withdrawn_uuid: withDrawn_ids.join(),
           },
           playerBody.tournamentId
         )
-
-        return responseHandler.returnSuccess(httpStatus.NO_CONTENT, message)
       }
 
       const data = await this.tournamentPairingDao.updateWhere(
-        { is_withdrawn: true },
+        { is_withdrawn: playerBody.is_withdrawn },
         {
           tournament_id: playerBody.tournamentId,
           round: playerBody.round,
@@ -480,7 +503,7 @@ class PlayersService {
         message = 'Failed to withdraw player from this tournament.'
         return responseHandler.returnError(httpStatus.BAD_REQUEST, message)
       }
-      return responseHandler.returnSuccess(httpStatus.NO_CONTENT, message)
+      return responseHandler.returnSuccess(httpStatus.OK, message)
     } catch (e) {
       logger.error(e)
       return responseHandler.returnError(

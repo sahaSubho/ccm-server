@@ -135,9 +135,10 @@ class TournamentController {
 
   updateScoring = async (req, res) => {
     try {
-      const { round } = req.query
+      const { round, tournamentId } = req.query
       const pairing = await this.tournamentService.updateScoring(
         round,
+        tournamentId,
         req.body
       )
       const { status, message, data } = pairing.response

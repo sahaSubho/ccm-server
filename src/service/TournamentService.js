@@ -460,16 +460,18 @@ class TournamentService {
         return acc
       }, {})
 
-      let currentRound =
-        roundDetails
-          .map((r) => r.round)
-          .sort()
-          .pop() || 1
+      let currentRound = data.current_round || 0
+      if (!data.current_round) {
+        currentRound =
+          roundDetails
+            .map((r) => r.round)
+            .sort()
+            .pop() || 0
 
-      if (scored.some((s) => s.round === currentRound)) {
-        currentRound += 1
+        if (scored.some((s) => s.round === currentRound)) {
+          currentRound += 1
+        }
       }
-
       data.setDataValue('pairings', pairings)
       data.setDataValue('currentRound', currentRound)
 
@@ -489,10 +491,13 @@ class TournamentService {
    */
   getTournamentsByUser = async (userId, query) => {
     try {
-      const { limit = 8, offset = 0, start_date, end_date, type } = query
+      const { limit = 8, offset = 0, start_date, end_date, type, ids } = query
       let message = 'Fetched tournaments successfully.'
       const where = {
         created_by: userId,
+      }
+      if (ids) {
+        where['id'] = ids.split(',')
       }
       if (start_date) {
         where['start_date'] = { [Op.gte]: moment(start_date) }
@@ -650,6 +655,11 @@ class TournamentService {
         }))
         await this.tournamentPairingsDao.bulkCreate(newOpponents)
       }
+
+      await this.tournamentDao.updateById(
+        { current_round: Number(round) },
+        tournamentId
+      )
 
       return responseHandler.returnSuccess(httpStatus.OK, message, data)
     } catch (e) {
@@ -885,7 +895,7 @@ class TournamentService {
     }
   }
 
-  updateScoring = async (round, scores) => {
+  updateScoring = async (round, tournamentId, scores) => {
     try {
       let message = `Updated scores of matches for Round ${round} successfully.`
 

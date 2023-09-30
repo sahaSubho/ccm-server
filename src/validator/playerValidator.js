@@ -84,6 +84,7 @@ class PlayerValidator {
   async withDrawPlayer(req, res, next) {
     // create schema object
     const schema = Joi.object({
+      is_withdrawn: Joi.bool().required(),
       tournamentId: Joi.number().required(),
       round: Joi.number().required(),
       uuid: Joi.string().required(),

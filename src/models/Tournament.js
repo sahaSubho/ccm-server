@@ -45,9 +45,14 @@ module.exports = (sequelize, DataTypes) => {
       display_pic: DataTypes.STRING,
       category: DataTypes.STRING,
       player_fide_ids: {
-        type: DataTypes.STRING(2000),
+        type: DataTypes.STRING(20000),
         allowNull: true,
       },
+      withdrawn_uuid: {
+        type: DataTypes.STRING(20000),
+        allowNull: true,
+      },
+      current_round: DataTypes.INTEGER,
       /*
       Net cash inflow expected from the tournament
        */
