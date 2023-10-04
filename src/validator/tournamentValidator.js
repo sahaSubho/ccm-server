@@ -23,7 +23,7 @@ class TournamentValidator {
       address: Joi.string().required(),
       state: Joi.string().required(),
       country: Joi.string().required(),
-      category: Joi.string().required(),
+      category: Joi.string().default('Open'),
       time_control: Joi.string().required(),
       entry_fee: Joi.array()
         .items(
