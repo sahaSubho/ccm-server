@@ -8,7 +8,7 @@ function formatPlayerData(player, round, tournament_id) {
       player_uuid: player.uuid,
       player_fide_id: player.fide_id,
       player_name: player.name,
-      player_rating: player.rating,
+      player_rating: player.rating || 0,
       player_score: player.score || 0,
     }
   return {
