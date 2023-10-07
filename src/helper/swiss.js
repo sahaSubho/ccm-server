@@ -361,12 +361,12 @@ async function javaFoFirstRoundPairing(
       `001 ` +
       `${(i + 1).toString().padStart(4, ' ')}` +
       ` m${''.padStart(3, ' ')} ` +
-      `${p.player_name.padEnd(33, ' ')} ` +
-      `${p.player_rating.toString().padStart(4, ' ')} ` +
+      `${p?.player_name.padEnd(33, ' ')} ` +
+      `${p?.player_rating?.toString().padStart(4, ' ')} ` +
       `${'IND'.padStart(3, ' ')} ` +
-      `${p.player_fide_id.toString().padStart(11, ' ')} ` +
+      `${p?.player_fide_id?.toString().padStart(11, ' ')} ` +
       `${''.padEnd(10, ' ')} ` +
-      `${p.player_score.toString().padStart(4, ' ')} ` +
+      `${p?.player_score?.toString().padStart(4, ' ')} ` +
       `${ranks[p.player_uuid].toString().padStart(4, ' ')}`
     matches[p.player_uuid].forEach((match) => {
       ans += `  ${match.padStart(8, ' ')}`
