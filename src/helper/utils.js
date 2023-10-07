@@ -1,4 +1,4 @@
-import moment from 'moment'
+const moment = require('moment')
 
 function backtrack_lcs_substr(C, X, Y, i, j) {
   if (i === 0 || j === 0) {
@@ -168,11 +168,11 @@ function trn_matching_common_table(new_obj, row) {
   var t1 = new_obj
   var t2 = row
   console.log(2)
-  if (!match_strings(t1.derived_state, t2.derived_state, 1)) {
+  if (!match_strings(t1.state, t2.derived_state, 1)) {
     return false
   }
   console.log(3)
-  if (!match_strings(t1.derived_city, t2.derived_city, 1)) {
+  if (!match_strings(t1.city, t2.derived_city, 1)) {
     return false
   }
   var name_match_stringent = false
@@ -216,3 +216,5 @@ function trn_matching_common_table(new_obj, row) {
     // if name is matching and dates are not matching, it may be a mistake - so match them
     return dates_within_error_range(t1, t2)
 }
+
+module.exports = trn_matching_common_table

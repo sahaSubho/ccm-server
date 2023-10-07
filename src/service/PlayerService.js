@@ -48,18 +48,17 @@ class PlayersService {
           'Name, Gender and Birth Year is mandatory fields! Please upload again with correct format.'
         return responseHandler.returnError(httpStatus.BAD_REQUEST, message)
       }
+      const tournamentId = req.body.tournamentId
+      const tournament = await this.tournamentDao.findById(tournamentId)
 
       data = data.map((d) => ({
         ...d,
         uuid: uuidv4(),
         created_by: userRoles.ORGANIZER,
-        age: moment().year() - Number(d.birth_year),
+        age: moment(tournament.start_date).year() - Number(d.birth_year),
         mobile: d?.mobile_number || '',
         upi_id: d?.upi_address || '',
       }))
-
-      const tournamentId = req.body.tournamentId
-      const tournament = await this.tournamentDao.findById(tournamentId)
 
       let fide_ids = []
       if (tournament.player_fide_ids) {

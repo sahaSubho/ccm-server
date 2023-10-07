@@ -1,5 +1,6 @@
 const httpStatus = require('http-status')
 const { Op } = require('sequelize')
+const { v4: uuidv4 } = require('uuid')
 const moment = require('moment')
 const TournamentDao = require('../dao/TournamentDao')
 const PlayersDao = require('../dao/PlayersDao')
@@ -11,17 +12,23 @@ const { userRoles } = require('../config/constant')
 const {
   swissFirstRoundPairing,
   swissOtherRoundPairings,
+  javaFoFirstRoundPairing,
 } = require('../helper/swiss')
 const calculateTB1TB2TB3 = require('../helper/tieBreakerCalculation')
 const UserService = require('./UserService')
 const PrizeCategoryDao = require('../dao/PrizeCategoryDao')
+const CcTournamentDao = require('../dao/CcTournamentDao')
+const TournamentRegistrationDao = require('../dao/TournamentRegistrationDao')
 const TournamentPrizeCategoryMappingDao = require('../dao/TournamentCategoryMappingDao')
 const parseFile = require('../helper/parseFile')
+const trn_matching_common_table = require('../helper/utils')
 
 class TournamentService {
   constructor() {
     this.tournamentDao = new TournamentDao()
     this.prizeCategoryDao = new PrizeCategoryDao()
+    this.ccTournamentDao = new CcTournamentDao()
+    this.tournamentRegistrationDao = new TournamentRegistrationDao()
     this.tournamentPrizeMappingDao = new TournamentPrizeCategoryMappingDao()
     this.playersDao = new PlayersDao()
     this.tournamentPairingsDao = new TournamentPairingsDao()
@@ -565,32 +572,40 @@ class TournamentService {
       }
 
       let data = []
-      if (round === 1) {
-        const players = await this.playersDao.findByWhere({
-          uuid: tournament.player_fide_ids.split(','),
-          is_active: true,
-        })
-        const { whitePlayers, blackPlayers } = swissFirstRoundPairing(
-          players,
-          tournamentId
-        )
-        data = whitePlayers.map((w, i) => ({
-          player: w,
-          opponent: blackPlayers[i],
-        }))
-        const res = await this.tournamentPairingsDao.bulkCreate(whitePlayers)
-        if (!res) {
-          message = 'Failed to pair players! Please try again.'
-          return responseHandler.returnError(httpStatus.BAD_REQUEST, message)
-        }
-        const opponents = blackPlayers.map((b, i) => ({
-          ...b,
-          parent_id: res[i].id,
-        }))
-        await this.tournamentPairingsDao.bulkCreate(opponents)
-      } else {
+      const fide_ids = tournament.player_fide_ids.split(',')
+      let withDrawnIds = []
+      if (tournament.withdrawn_uuid) {
+        withDrawnIds = tournament.withdrawn_uuid.split(',')
+      }
+      let players = await this.playersDao.findByWhere({
+        uuid: fide_ids.concat(withDrawnIds),
+        is_active: true,
+      })
+      let white = []
+      let black = []
+
+      // const { whitePlayers, blackPlayers } = swissFirstRoundPairing(
+      //   players,
+      //   tournamentId
+      // )
+      // const { whitePlayers, blackPlayers  = await javaFoFirstRoundPairing(players, round, tournament)
+      // data = whitePlayers.map((w, i) => ({
+      //   player: w,
+      //   opponent: blackPlayers[i],
+      // }))
+      // const res = await this.tournamentPairingsDao.bulkCreate(whitePlayers)
+      // if (!res) {
+      //   message = 'Failed to pair players! Please try again.'
+      //   return responseHandler.returnError(httpStatus.BAD_REQUEST, message)
+      // }
+      // const opponents = blackPlayers.map((b, i) => ({
+      //   ...b,
+      //   parent_id: res[i].id,
+      // }))
+      // await this.tournamentPairingsDao.bulkCreate(opponents)
+      if (round > 1) {
         let pairing = await this.tournamentPairingsDao.findByWhere({
-          round: round - 1,
+          round: { [Op.lt]: round },
           tournament_id: tournamentId,
         })
 
@@ -617,49 +632,55 @@ class TournamentService {
           )} round is not done yet. Please generate paring of it.`
           return responseHandler.returnError(httpStatus.BAD_REQUEST, message)
         }
-        const players = pairing
-          .filter((p) => !p.parent_id && !p.is_withdrawn)
+        players = players.concat(newPlayers)
+        white = pairing
+          .filter((p) => !p.parent_id)
           .map((e) => ({
             ...e,
             player_score: Number(e.player_score) + Number(e.result),
           }))
-        const opponents = pairing
-          .filter((p) => p.parent_id && !p.is_withdrawn)
+        black = pairing
+          .filter((p) => p.parent_id)
           .map((e) => ({
             ...e,
             player_score: Number(e.player_score) + Number(e.result),
           }))
-
-        const { whitePlayers, blackPlayers } = swissOtherRoundPairings(
-          players.concat(newPlayers),
-          opponents,
-          round,
-          tournamentId
-        )
-
-        data = whitePlayers.map((w, i) => ({
-          player: { ...w, player_score: String(w.player_score) },
-          opponent: {
-            ...blackPlayers[i],
-            player_score: String(blackPlayers[i].player_score),
-          },
-        }))
-        const res = await this.tournamentPairingsDao.bulkCreate(whitePlayers)
-        if (!res) {
-          message = 'Failed to pair players! Please try again.'
-          return responseHandler.returnError(httpStatus.BAD_REQUEST, message)
-        }
-        const newOpponents = blackPlayers.map((b, i) => ({
-          ...b,
-          parent_id: res[i].id,
-        }))
-        await this.tournamentPairingsDao.bulkCreate(newOpponents)
       }
+      //   const { whitePlayers, blackPlayers } = swissOtherRoundPairings(
+      //     players.concat(newPlayers),
+      //     opponents,
+      //     round,
+      //     tournamentId
+      //   )
+
+      const { whitePlayers, blackPlayers } = await javaFoFirstRoundPairing(
+        players,
+        round,
+        tournament,
+        white,
+        black
+      )
+
+      const res = await this.tournamentPairingsDao.bulkCreate(whitePlayers)
+      if (!res) {
+        message = 'Failed to pair players! Please try again.'
+        return responseHandler.returnError(httpStatus.BAD_REQUEST, message)
+      }
+      const newOpponents = blackPlayers.map((b, i) => ({
+        ...b,
+        parent_id: res[i].id,
+      }))
+      const oppRes = await this.tournamentPairingsDao.bulkCreate(newOpponents)
 
       await this.tournamentDao.updateById(
         { current_round: Number(round) },
         tournamentId
       )
+
+      data = res.map((w, i) => ({
+        player: w,
+        opponent: oppRes[i] || null,
+      }))
 
       return responseHandler.returnSuccess(httpStatus.OK, message, data)
     } catch (e) {
