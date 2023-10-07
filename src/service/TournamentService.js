@@ -17,8 +17,6 @@ const {
 const calculateTB1TB2TB3 = require('../helper/tieBreakerCalculation')
 const UserService = require('./UserService')
 const PrizeCategoryDao = require('../dao/PrizeCategoryDao')
-const CcTournamentDao = require('../dao/CcTournamentDao')
-const TournamentRegistrationDao = require('../dao/TournamentRegistrationDao')
 const TournamentPrizeCategoryMappingDao = require('../dao/TournamentCategoryMappingDao')
 const parseFile = require('../helper/parseFile')
 const trn_matching_common_table = require('../helper/utils')
@@ -27,8 +25,6 @@ class TournamentService {
   constructor() {
     this.tournamentDao = new TournamentDao()
     this.prizeCategoryDao = new PrizeCategoryDao()
-    this.ccTournamentDao = new CcTournamentDao()
-    this.tournamentRegistrationDao = new TournamentRegistrationDao()
     this.tournamentPrizeMappingDao = new TournamentPrizeCategoryMappingDao()
     this.playersDao = new PlayersDao()
     this.tournamentPairingsDao = new TournamentPairingsDao()
