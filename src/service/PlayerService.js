@@ -153,16 +153,20 @@ class PlayersService {
         fide_ids = tournament.player_fide_ids.split(',')
       }
 
-      let player = await this.playersDao.findOneByWhere({
-        [Op.or]: [
-          {
-            mobile: data.mobile || '',
-          },
-          {
-            name: data.name,
-          },
-        ],
-      })
+      let player = await this.playersDao.findOneByWhere(
+        !data.mobile
+          ? { name: data.name }
+          : {
+              [Op.or]: [
+                {
+                  mobile: data.mobile,
+                },
+                {
+                  name: data.name,
+                },
+              ],
+            }
+      )
 
       if (player && fide_ids.includes(player.uuid)) {
         message = 'Player is already registered in this tournament.'
