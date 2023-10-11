@@ -549,6 +549,11 @@ class TournamentService {
 
       const tournament = await this.tournamentDao.findById(tournamentId)
 
+      if (round > tournament.rounds) {
+        message = 'Pairing already done for all rounds in the tournament.'
+        return responseHandler.returnError(httpStatus.BAD_REQUEST, message)
+      }
+
       if (!tournament.player_fide_ids) {
         message =
           'The pairing process cannot be initiated as there are no players available for matching. Please upload player information first.'
