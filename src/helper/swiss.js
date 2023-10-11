@@ -310,33 +310,32 @@ async function javaFoFirstRoundPairing(
         const player = whitePlayers[i]
         const opp = blackPlayers[i]
 
-        console.log(
-          player?.round,
-          indexes[player.player_uuid],
-          indexes[opp?.player_uuid]
-        )
-
         if (player && !opp) {
-          matches[player.player_uuid].push(`${''.padEnd(4, ' ')} -  `)
+          matches[player.player_uuid][index - 1] = `${''.padEnd(4, ' ')} -  `
         } else if (!player && opp) {
-          matches[opp.player_uuid].push(`${''.padEnd(4, ' ')} -  `)
+          matches[opp.player_uuid][index - 1] = `${''.padEnd(4, ' ')} -  `
         } else if (player.is_withdrawn) {
-          matches[opp.player_uuid].push(`0000 - Z`)
+          matches[opp.player_uuid][index - 1] = `0000 - Z`
         } else if (opp.is_withdrawn) {
-          matches[player.player_uuid].push(`0000 - Z`)
+          matches[player.player_uuid][index - 1] = `0000 - Z`
         } else if (
           Number(player.result) === 0.5 ||
           Number(opp.result) === 0.5
         ) {
-          matches[player.player_uuid].push(`${indexes[opp.player_uuid]} w =`)
-          matches[opp.player_uuid].push(`${indexes[player.player_uuid]} b =`)
+          matches[player.player_uuid][index - 1] = `${
+            indexes[opp.player_uuid]
+          } w =`
+          matches[opp.player_uuid][index - 1] = `${
+            indexes[player.player_uuid]
+          } b =`
         } else {
-          matches[player.player_uuid].push(
-            `${indexes[opp.player_uuid]} w ${Number(player.result)}`
-          )
-          matches[opp.player_uuid].push(
-            `${indexes[player.player_uuid]} b ${Number(opp.result)}`
-          )
+          matches[player.player_uuid][index - 1] = `${
+            indexes[opp.player_uuid]
+          } w ${Number(player.result)}`
+
+          matches[opp.player_uuid][index - 1] = `${
+            indexes[player.player_uuid]
+          } b ${Number(opp.result)}`
         }
       }
     }
@@ -354,6 +353,11 @@ async function javaFoFirstRoundPairing(
       is_withdrawn: !!lastRoundPlayers?.find((x) => x.player_uuid === p.uuid)
         ?.is_withdrawn,
     }))
+  if (sorted.some((p) => p.is_withdrawn)) {
+    result += `XXZ ${sorted
+      .filter((p) => p.is_withdrawn)
+      .map((x) => ` ${x.key}`)}\n`
+  }
   for (let i = 0; i < sorted.length; i++) {
     let p = sorted[i]
     // refer trf_format.txt file
@@ -361,16 +365,18 @@ async function javaFoFirstRoundPairing(
       `001 ` +
       `${(i + 1).toString().padStart(4, ' ')}` +
       ` m${''.padStart(3, ' ')} ` +
-      `${p?.player_name.padEnd(33, ' ')} ` +
-      `${p?.player_rating?.toString().padStart(4, ' ')} ` +
+      `${p?.player_name?.slice(0, 33)?.padEnd(33, ' ')} ` +
+      `${p?.player_rating?.toString()?.slice(0, 4)?.padStart(4, ' ')} ` +
       `${'IND'.padStart(3, ' ')} ` +
-      `${p?.player_fide_id?.toString().padStart(11, ' ')} ` +
+      `${p?.player_fide_id?.toString().slice(0, 11).padStart(11, ' ')} ` +
       `${''.padEnd(10, ' ')} ` +
       `${p?.player_score?.toString().padStart(4, ' ')} ` +
       `${ranks[p.player_uuid].toString().padStart(4, ' ')}`
-    matches[p.player_uuid].forEach((match) => {
-      ans += `  ${match.padStart(8, ' ')}`
-    })
+    ;[...Array(matches[p.player_uuid]?.length).keys()]
+      .map((x) => matches[p.player_uuid][x] || '')
+      ?.forEach((match) => {
+        ans += `  ${match.padStart(8, ' ')}`
+      })
     result += ans + `\n`
   }
   const pairings = await pair(result, sorted)

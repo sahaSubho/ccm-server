@@ -20,7 +20,7 @@ router.post(
 )
 router.post('/login', userValidator.userLoginValidator, authController.login)
 router.post('/refresh-token', authController.refreshTokens)
-router.post('/get-user', authController.getUserDetails)
+router.post('/get-user', auth(), authController.getUserDetails)
 router.post(
   '/get-lichess-account',
   auth(),

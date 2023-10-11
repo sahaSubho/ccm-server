@@ -54,8 +54,6 @@ const pair = (input, players) => {
                 }
               }
             })
-            // fs.unlinkSync(trfFilePath)
-            // fs.unlinkSync(outputFilePath)
             resolve({ whitePlayers, blackPlayers })
           } else {
             reject(err)
