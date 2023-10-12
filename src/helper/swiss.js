@@ -268,8 +268,8 @@ async function javaFoFirstRoundPairing(
     `042  ${tournament.start_date}\n` +
     `052  ${tournament.end_date}\n` +
     `062  ${numberOfPlayers}\n` +
-    `092 Individual: Swiss-System\n` +
-    `XXR ${tournament.rounds}\n`
+    `092  Individual: Swiss-System\n` +
+    `XXR  ${tournament.rounds}\n`
   const lastRoundPlayers = white
     .concat(black)
     .filter((p) => p?.round === round - 1)

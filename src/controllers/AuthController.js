@@ -102,19 +102,20 @@ class AuthController {
 
   getUserDetails = async (req, res, next) => {
     try {
-      const tokenDoc = await this.tokenService.verifyToken(
-        req.body.token,
-        tokenTypes.ACCESS
-      )
-      if (tokenDoc == null) {
-        res
-          .status(httpStatus.BAD_GATEWAY)
-          .send('Token is expired Please Login again!')
-      }
-      const user = await this.userService.getUserById(tokenDoc.user_id)
-      if (user == null) {
-        res.status(httpStatus.BAD_GATEWAY).send('User Not Found!')
-      }
+      const user = req.user
+      // const tokenDoc = await this.tokenService.verifyToken(
+      //   req.body.token,
+      //   tokenTypes.ACCESS
+      // )
+      // if (tokenDoc == null) {
+      //   res
+      //     .status(httpStatus.BAD_GATEWAY)
+      //     .send('Token is expired Please Login again!')
+      // }
+      // const user = await this.userService.getUserById(tokenDoc.user_id)
+      // if (user == null) {
+      //   res.status(httpStatus.BAD_GATEWAY).send('User Not Found!')
+      // }
       res.send({ data: user })
     } catch (e) {
       logger.error(e)

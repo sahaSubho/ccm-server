@@ -610,12 +610,12 @@ class TournamentService {
           tournament_id: tournamentId,
         })
 
-        let newPlayers = await this.playersDao.findByWhere({
-          uuid: tournament.player_fide_ids
-            .split(',')
-            .filter((id) => !pairing.map((p) => p.player_uuid).includes(id)),
-          is_active: true,
-        })
+        // let newPlayers = await this.playersDao.findByWhere({
+        //   uuid: tournament.player_fide_ids
+        //     .split(',')
+        //     .filter((id) => !pairing.map((p) => p.player_uuid).includes(id)),
+        //   is_active: true,
+        // })
         // if (newPlayers)
         //   newPlayers = newPlayers.map((player) => ({
         //     round: round - 1,
@@ -633,7 +633,7 @@ class TournamentService {
           )} round is not done yet. Please generate paring of it.`
           return responseHandler.returnError(httpStatus.BAD_REQUEST, message)
         }
-        players = players.concat(newPlayers)
+        // players = players.concat(newPlayers)
         white = pairing
           .filter((p) => !p.parent_id)
           .map((e) => ({
