@@ -924,6 +924,12 @@ class TournamentService {
   updateScoring = async (round, tournamentId, scores) => {
     try {
       let message = `Updated scores of matches for Round ${round} successfully.`
+      const tournament = await this.tournamentDao.findById(tournamentId)
+
+      if (tournament.current_round > round) {
+        message = `Scores of round ${round} can't be updated since it is already completed!`
+        return responseHandler.returnError(httpStatus.BAD_REQUEST, message)
+      }
 
       const promises = scores.map(
         async (s) =>
