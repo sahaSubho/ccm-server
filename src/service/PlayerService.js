@@ -52,7 +52,10 @@ class PlayersService {
       const tournament = await this.tournamentDao.findById(tournamentId)
 
       data = data.map((d) => ({
-        ...d,
+        name: d.name,
+        fide_id: Number(d?.fide_id) || null,
+        rating: Number(d.rating) || 0,
+        gender: d?.gender,
         uuid: uuidv4(),
         created_by: userRoles.ORGANIZER,
         age: moment(tournament.start_date).year() - Number(d.birth_year),
