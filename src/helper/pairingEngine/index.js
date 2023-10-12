@@ -20,9 +20,9 @@ const pair = (input, players) => {
       outputFilePath,
     ])
 
-    // javafoCommand.stdout.on('data', (data) => {
-    //   throw new Error(`JaVaFo output: ${data}`)
-    // })
+    javafoCommand.stdout.on('data', (data) => {
+      console.log(`JaVaFo output: ${data}`)
+    })
 
     javafoCommand.stderr.on('data', (data) => {
       reject(data)

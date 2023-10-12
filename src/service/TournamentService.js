@@ -582,6 +582,10 @@ class TournamentService {
         uuid: fide_ids.concat(withDrawnIds),
         is_active: true,
       })
+      players = players.map((p) => ({
+        ...p,
+        is_withdrawn: withDrawnIds.includes(p.uuid),
+      }))
       let white = []
       let black = []
 

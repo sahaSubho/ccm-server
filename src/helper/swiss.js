@@ -262,7 +262,7 @@ async function javaFoFirstRoundPairing(
   white = [],
   black = []
 ) {
-  const numberOfPlayers = tournament.player_fide_ids.split(',').length
+  const numberOfPlayers = players.length
   const tournamentDetails =
     `012  ${tournament.name}\n` +
     `042  ${tournament.start_date}\n` +
@@ -273,14 +273,16 @@ async function javaFoFirstRoundPairing(
   const lastRoundPlayers = white
     .concat(black)
     .filter((p) => p?.round === round - 1)
-  let stats = players.map((p, i) => ({
+  const formatedPlayers = players.map((p, i) => ({
     ...formatPlayerData(p, 1, tournament.id),
     is_withdrawn: !!p.is_withdrawn,
+    key: i + 1,
     round: round,
     player_score:
       lastRoundPlayers?.find((x) => x.player_uuid === p.uuid)?.player_score ||
       0,
   }))
+  let stats = [...formatedPlayers]
   stats.sort((a, b) => {
     if (a.player_score === b.player_score) {
       return b.player_rating - a.player_rating
@@ -341,22 +343,12 @@ async function javaFoFirstRoundPairing(
     }
   }
   let result = tournamentDetails
-  const sorted = players
-    .sort((a, b) => b.rating - a.rating)
-    .map((p, i) => ({
-      ...formatPlayerData(p, 1, tournament.id),
-      round: round,
-      key: i + 1,
-      player_score:
-        lastRoundPlayers?.find((x) => x.player_uuid === p.uuid)?.player_score ||
-        0,
-      is_withdrawn: !!lastRoundPlayers?.find((x) => x.player_uuid === p.uuid)
-        ?.is_withdrawn,
-    }))
+  const sorted = formatedPlayers.sort((a, b) => b.rating - a.rating)
   if (sorted.some((p) => p.is_withdrawn)) {
-    result += `XXZ ${sorted
+    result += `XXZ  ${sorted
       .filter((p) => p.is_withdrawn)
-      .map((x) => ` ${x.key}`)}\n`
+      .map((x) => x.key)
+      .join(' ')}\n`
   }
   for (let i = 0; i < sorted.length; i++) {
     let p = sorted[i]
