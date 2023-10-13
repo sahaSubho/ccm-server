@@ -34,7 +34,7 @@ class PlayersService {
 
       let data = await parseFile(filePath, type)
 
-      if (!data) {
+      if (!data.length) {
         message =
           'Failed to parse data from file! Please upload again with correct format.'
         return responseHandler.returnError(httpStatus.BAD_REQUEST, message)
@@ -42,7 +42,9 @@ class PlayersService {
 
       if (
         data.length &&
-        !Object.keys(data[0]).includes('name', 'gender', 'birth_year')
+        !['name', 'gender', 'birth_year'].every((x) =>
+          Object.keys(data[0]).includes(x)
+        )
       ) {
         message =
           'Name, Gender and Birth Year is mandatory fields! Please upload again with correct format.'
@@ -55,7 +57,7 @@ class PlayersService {
         name: d.name,
         fide_id: Number(d?.fide_id) || null,
         rating: Number(d.rating) || 0,
-        gender: d?.gender,
+        gender: d.gender,
         uuid: uuidv4(),
         created_by: userRoles.ORGANIZER,
         age: moment(tournament.start_date).year() - Number(d.birth_year),
@@ -68,16 +70,28 @@ class PlayersService {
         fide_ids = tournament.player_fide_ids.split(',')
       }
 
-      let players = await this.playersDao.findByWhere({
-        [Op.or]: [
-          {
-            mobile: data.map((d) => d.mobile_number),
-          },
-          {
-            name: data.map((d) => d.name),
-          },
-        ],
-      })
+      const where = [{ name: data.map((d) => d.name) }]
+      if (Object.keys(data[0]).includes('mobile_number')) {
+        where.push({ mobile: data.map((d) => d.mobile_number) })
+      }
+      if (Object.keys(data[0]).includes('fide_id')) {
+        where.push({ fide_id: data.map((d) => d.fide_id) })
+      }
+
+      let players = await this.playersDao.findByWhere(
+        !data.map((d) => d.mobile_number).length
+          ? { name: data.map((d) => d.name) }
+          : {
+              [Op.or]: [
+                {
+                  mobile: data.map((d) => d.mobile_number),
+                },
+                {
+                  name: data.map((d) => d.name),
+                },
+              ],
+            }
+      )
 
       if (players.length > 0) {
         data = data.filter(
