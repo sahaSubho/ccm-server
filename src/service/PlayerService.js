@@ -78,31 +78,46 @@ class PlayersService {
         where.push({ fide_id: data.map((d) => d.fide_id) })
       }
 
-      let players = await this.playersDao.findByWhere(
-        !data.map((d) => d.mobile_number).length
-          ? { name: data.map((d) => d.name) }
-          : {
-              [Op.or]: [
-                {
-                  mobile: data.map((d) => d.mobile_number),
-                },
-                {
-                  name: data.map((d) => d.name),
-                },
-              ],
-            }
-      )
+      let players = await this.playersDao.findByWhere({
+        [Op.or]: where,
+      })
 
+      let common = []
       if (players.length > 0) {
+        data.forEach((p, i) => {
+          const res = players.filter(
+            (ele) =>
+              p.mobile === ele.mobile ||
+              p.name === ele.name ||
+              p.fide_id === ele.fide_id
+          )
+          let MostMatchedPlayer = {}
+          let prevCount = 0
+          res.forEach((r) => {
+            let count = 0
+            Object.keys(p).forEach((k) => {
+              if (r[k] === p[k]) {
+                count += 1
+              }
+            })
+            if (count > 0 && count > prevCount) {
+              MostMatchedPlayer = r
+            }
+          })
+          common.push(MostMatchedPlayer)
+        })
         data = data.filter(
           (ele) =>
             !players.some(
-              (p) => p.mobile === ele.mobile_number && p.name === ele.name
+              (p) =>
+                p.mobile === ele.mobile ||
+                p.name === ele.name ||
+                p.fide_id === ele.fide_id
             )
         )
       }
 
-      const playerUuids = players.map((p) => p.uuid)
+      const playerUuids = common.map((p) => p.uuid)
 
       if (
         playerUuids.length &&
@@ -112,11 +127,14 @@ class PlayersService {
         return responseHandler.returnError(httpStatus.BAD_REQUEST, message)
       }
 
-      const result = await this.playersDao.bulkCreate(data)
+      let result
+      if (data.length) {
+        result = await this.playersDao.bulkCreate(data)
 
-      if (!result) {
-        message = 'Failed to upload players! Please try again.'
-        return responseHandler.returnError(httpStatus.BAD_REQUEST, message)
+        if (!result) {
+          message = 'Failed to upload players! Please try again.'
+          return responseHandler.returnError(httpStatus.BAD_REQUEST, message)
+        }
       }
 
       const ids = [
