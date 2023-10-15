@@ -1254,11 +1254,36 @@ class TournamentService {
   updateTournamentById = async (id, tournamentBody, req) => {
     try {
       let message = 'Successfully updated tournament.'
-      if (req.user.role !== userRoles.ORGANIZER) {
-        message =
-          'Tournament creation is limited to organizers. Kindly sign up or log in as an organizer to continue.'
+      const tournament = await this.tournamentDao.findById(id)
+      if (req.user.id !== tournament.created_by) {
+        message = `Tournament belongs to different organizer. Please login as same organizer to ${
+          tournamentBody.is_active ? 'publish' : 'update'
+        }.`
         return responseHandler.returnError(httpStatus.BAD_REQUEST, message)
       }
+
+      if (tournamentBody.is_active) {
+        message = 'Tournament has been successfully published.'
+        if (config.circlechess.publish) {
+          try {
+            const res = await fetch.post(
+              `${config.circlechess.endpoint}/tournaments/save_chessmaster_tournament`,
+              { tournament_id: id }
+            )
+          } catch (error) {
+            message = 'Failed to publish tournament.Please try again'
+            return responseHandler.returnError(httpStatus.BAD_REQUEST, message)
+          }
+        } else {
+          tournamentBody.is_active = true
+          let data = await this.tournamentDao.updateById(tournamentBody, id)
+          if (!data) {
+            message = 'Failed to publish tournament.Please try again'
+            return responseHandler.returnError(httpStatus.BAD_REQUEST, message)
+          }
+        }
+      }
+
       if (req?.files?.length) {
         req.files.forEach((f) => {
           if (f.path.includes('brochure')) {
@@ -1270,17 +1295,13 @@ class TournamentService {
         })
       }
 
-      if (tournamentBody.is_active) {
-        message = 'Tournament has been successfully published.'
-        tournamentBody.is_active = true
-      }
-
       let data = await this.tournamentDao.updateById(tournamentBody, id)
 
       if (!data) {
         message = 'Tournament updation failed! Please Try again.'
         return responseHandler.returnError(httpStatus.BAD_REQUEST, message)
       }
+
       return responseHandler.returnSuccess(httpStatus.OK, message, data)
     } catch (e) {
       logger.error(e)

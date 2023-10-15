@@ -40,6 +40,8 @@ const envValidation = Joi.object()
     JUSPAY_ENV: Joi.string(),
     JUSPAY_API_KEY: Joi.string(),
     JUSPAY_MERCHANT_ID: Joi.string(),
+    PUBLISH_TRN_TO_CIRCLECHESS: Joi.bool().required(),
+    CIRCLECHESS_API_URL: Joi.string().required(),
   })
   .unknown()
 
@@ -87,5 +89,9 @@ module.exports = {
         : 'https://sandbox.juspay.in/payout/',
     apiKey: envVar.JUSPAY_API_KEY,
     merchantId: envVar.JUSPAY_MERCHANT_ID,
+  },
+  circlechess: {
+    endpoint: envVar.CIRCLECHESS_API_URL,
+    publish: envVar.PUBLISH_TRN_TO_CIRCLECHESS,
   },
 }
