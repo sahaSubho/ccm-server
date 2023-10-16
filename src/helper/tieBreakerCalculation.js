@@ -40,9 +40,10 @@ function calculateTB1TB2TB3(players) {
 
     // Calculate TB1 - Sum of Opponent Scores excluding the lowest opponent score
     const tb1 =
-      tb2 - modifiedOppScores.length > 0
+      tb2 -
+      (modifiedOppScores.length > 0
         ? modifiedOppScores[modifiedOppScores.length - 1]
-        : 0
+        : 0)
     tiebreaks[uuid].TB1 = tb1
 
     // Step 4: Calculate TB3 - Sonneborn-Berger score
