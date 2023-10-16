@@ -3,16 +3,16 @@ function calculateTB1TB2TB3(players) {
   const tiebreaks = {}
 
   // Calculate opponent scores for each player
-  Object.keys(players).forEach((fide_id) => {
-    const oppScores = players[fide_id].reduce((p, c, i) => {
+  Object.keys(players).forEach((uuid) => {
+    const oppScores = players[uuid].reduce((p, c, i) => {
       let score = 0
       let isDraw = false
       const player = Object.values(players)
         .flat()
-        .find((p) => p.player_fide_id === Number(fide_id))
+        .find((p) => p.player_uuid === Number(uuid))
       if (!c) {
         if (player.scores) {
-          const n = players[fide_id].length
+          const n = players[uuid].length
           const r = i + 1
           const current = player.scores[i]
           score =
@@ -22,7 +22,7 @@ function calculateTB1TB2TB3(players) {
         score = c.scores.reduce((a, b) => a + Number(b.result), 0)
         if (
           player?.scores[i]?.result === c?.scores[i]?.result &&
-          Number(player.scores[i].result) < 1
+          Number(player?.scores[i]?.result) === 0.5
         ) {
           isDraw = true
         }
@@ -36,21 +36,21 @@ function calculateTB1TB2TB3(players) {
     modifiedOppScores.sort((a, b) => b - a)
     // Calculate TB2 - Sum of Opponent Scores
     const tb2 = modifiedOppScores.reduce((acc, score) => acc + score, 0)
-    tiebreaks[fide_id] = { TB1: 0, TB2: tb2, TB3: 0 }
+    tiebreaks[uuid] = { TB1: 0, TB2: tb2, TB3: 0 }
 
     // Calculate TB1 - Sum of Opponent Scores excluding the lowest opponent score
     const tb1 =
       tb2 - modifiedOppScores.length > 0
         ? modifiedOppScores[modifiedOppScores.length - 1]
         : 0
-    tiebreaks[fide_id].TB1 = tb1
+    tiebreaks[uuid].TB1 = tb1
 
     // Step 4: Calculate TB3 - Sonneborn-Berger score
     const tb3 =
       oppScores.filter((p) => !p.isDraw).reduce((acc, p) => acc + p.score, 0) +
       0.5 *
         oppScores.filter((p) => p.isDraw).reduce((acc, p) => acc + p.score, 0)
-    tiebreaks[fide_id].TB3 = tb3
+    tiebreaks[uuid].TB3 = tb3
   })
 
   return tiebreaks

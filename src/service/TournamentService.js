@@ -859,9 +859,9 @@ class TournamentService {
       const playersMapping = data.reduce((p, c) => {
         const opponent = {
           id: c.id,
-          player_fide_id: c.player_fide_id,
+          player_uuid: c.player_uuid,
           scores: data
-            .filter((d) => d.player_fide_id === c.player_fide_id)
+            .filter((d) => d.player_uuid === c.player_uuid)
             .map((o) => ({
               round: o.round,
               score: o.player_score,
@@ -872,21 +872,19 @@ class TournamentService {
           const player = data.find(
             (d) => d.id === c.parent_id && d.round === c.round
           )
-          p[player.player_fide_id] = p[player.player_fide_id]
-            ? [...p[player.player_fide_id], opponent]
+          p[player.player_uuid] = p[player.player_uuid]
+            ? [...p[player.player_uuid], opponent]
             : [opponent]
         } else {
           const player = data.find(
             (d) => d.parent_id === c.id && d.round === c.round
           )
           if (player) {
-            p[player.player_fide_id] = p[player.player_fide_id]
-              ? [...p[player.player_fide_id], opponent]
+            p[player.player_uuid] = p[player.player_uuid]
+              ? [...p[player.player_uuid], opponent]
               : [opponent]
           } else {
-            p[c.player_fide_id] = p[c.player_fide_id]
-              ? [...p[c.player_fide_id]]
-              : []
+            p[c.player_uuid] = p[c.player_uuid] ? [...p[c.player_uuid]] : []
           }
         }
         return p
@@ -897,8 +895,8 @@ class TournamentService {
         .filter((d) => d.round === round)
         .map((e) => ({
           ...e,
-          ...tieBreakerResult[e.player_fide_id],
-          tieSum: Object.values(tieBreakerResult[e.player_fide_id]).reduce(
+          ...tieBreakerResult[e.player_uuid],
+          tieSum: Object.values(tieBreakerResult[e.player_uuid]).reduce(
             (a, b) => a + b,
             0
           ),
