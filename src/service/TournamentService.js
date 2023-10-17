@@ -455,13 +455,13 @@ class TournamentService {
         }
       )
 
-      let currentRound = data.current_round || 0
+      let currentRound = data.current_round || 1
       if (!data.current_round) {
         currentRound =
           roundDetails
             .map((r) => r.round)
             .sort()
-            .pop() || 0
+            .pop() || 1
 
         if (scored.some((s) => s.round === currentRound)) {
           currentRound += 1
@@ -471,7 +471,7 @@ class TournamentService {
       const pairings = [...Array(data.rounds).keys()].reduce((acc, curr) => {
         acc[curr + 1] = {
           paired: roundDetails.map((r) => r.round).includes(curr + 1),
-          scored: currentRound > curr + 1,
+          scored: currentRound >= curr + 1,
         }
         return acc
       }, {})

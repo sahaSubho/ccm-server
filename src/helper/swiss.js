@@ -305,6 +305,7 @@ async function javaFoFirstRoundPairing(
     }, {})
   if (white.length && black.length) {
     ranks = ranking
+    let maxRank = Math.max(...Object.values(ranks))
     for (let index = 1; index < round; index++) {
       const whitePlayers = white.filter((p) => p.round === index)
       const blackPlayers = black.filter((p) => p.round === index)
@@ -365,7 +366,7 @@ async function javaFoFirstRoundPairing(
       `${p?.player_fide_id?.toString().slice(0, 11).padStart(11, ' ')} ` +
       `${''.padEnd(10, ' ')} ` +
       `${p?.player_score?.toString().padStart(4, ' ')} ` +
-      `${ranks[p.player_uuid].toString().padStart(4, ' ')}`
+      `${(ranks[p.player_uuid] || maxRank++)?.toString().padStart(4, ' ')}`
     ;[...Array(matches[p.player_uuid]?.length).keys()]
       .map((x) => matches[p.player_uuid][x] || '')
       ?.forEach((match) => {
