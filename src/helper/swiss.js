@@ -260,7 +260,8 @@ async function javaFoFirstRoundPairing(
   round,
   tournament,
   white = [],
-  black = []
+  black = [],
+  ranking
 ) {
   const numberOfPlayers = players.length
   const tournamentDetails =
@@ -303,6 +304,7 @@ async function javaFoFirstRoundPairing(
       return a
     }, {})
   if (white.length && black.length) {
+    ranks = ranking
     for (let index = 1; index < round; index++) {
       const whitePlayers = white.filter((p) => p.round === index)
       const blackPlayers = black.filter((p) => p.round === index)
@@ -372,7 +374,7 @@ async function javaFoFirstRoundPairing(
     result += ans + `\n`
   }
   const pairings = await pair(result, sorted)
-  return pairings
+  // return pairings
 }
 
 module.exports = {

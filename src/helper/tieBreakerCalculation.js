@@ -58,4 +58,60 @@ function calculateTB1TB2TB3(players) {
 }
 // Example usage:
 
-module.exports = calculateTB1TB2TB3
+function getTieBreaks(data, round) {
+  const playersMapping = data.reduce((p, c) => {
+    const opponent = {
+      id: c.id,
+      player_uuid: c.player_uuid,
+      scores: data
+        .filter((d) => d.player_uuid === c.player_uuid)
+        .map((o) => ({
+          round: o.round,
+          score: o.player_score,
+          result: o.result,
+        })),
+    }
+    if (c.parent_id) {
+      const player = data.find(
+        (d) => d.id === c.parent_id && d.round === c.round
+      )
+      p[player.player_uuid] = p[player.player_uuid]
+        ? [...p[player.player_uuid], opponent]
+        : [opponent]
+    } else {
+      const player = data.find(
+        (d) => d.parent_id === c.id && d.round === c.round
+      )
+      if (player) {
+        p[player.player_uuid] = p[player.player_uuid]
+          ? [...p[player.player_uuid], opponent]
+          : [opponent]
+      } else {
+        p[c.player_uuid] = p[c.player_uuid] ? [...p[c.player_uuid]] : []
+      }
+    }
+    return p
+  }, {})
+
+  const tieBreakerResult = calculateTB1TB2TB3(playersMapping)
+  const players = data
+    .filter((d) => d.round === round)
+    .map((e) => ({
+      ...e,
+      ...tieBreakerResult[e.player_uuid],
+      tieSum: Object.values(tieBreakerResult[e.player_uuid]).reduce(
+        (a, b) => a + b,
+        0
+      ),
+      point: Number(e.player_score) + Number(e.result),
+    }))
+    .sort(
+      (a, b) =>
+        b.point - a.point ||
+        b.tieSum - a.tieSum ||
+        b.player_rating - a.player_rating
+    )
+  return players
+}
+
+module.exports = getTieBreaks

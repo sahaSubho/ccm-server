@@ -14,7 +14,7 @@ const {
   swissOtherRoundPairings,
   javaFoFirstRoundPairing,
 } = require('../helper/swiss')
-const calculateTB1TB2TB3 = require('../helper/tieBreakerCalculation')
+const getTieBreaks = require('../helper/tieBreakerCalculation')
 const UserService = require('./UserService')
 const PrizeCategoryDao = require('../dao/PrizeCategoryDao')
 const TournamentPrizeCategoryMappingDao = require('../dao/TournamentCategoryMappingDao')
@@ -446,7 +446,7 @@ class TournamentService {
         'round',
         { tournament_id: id }
       )
-      const scored = await this.tournamentPairingsDao.findCountByGroup(
+      const scored = await this.tournamentPairingsDao.findSumByGroup(
         'round',
         'result',
         {
@@ -454,14 +454,6 @@ class TournamentService {
           result: { [Op.gt]: 0 },
         }
       )
-
-      const pairings = [...Array(data.rounds).keys()].reduce((acc, curr) => {
-        acc[curr + 1] = {
-          paired: roundDetails.map((r) => r.round).includes(curr + 1),
-          scored: scored.some((s) => s.round === curr + 1),
-        }
-        return acc
-      }, {})
 
       let currentRound = data.current_round || 0
       if (!data.current_round) {
@@ -475,6 +467,15 @@ class TournamentService {
           currentRound += 1
         }
       }
+
+      const pairings = [...Array(data.rounds).keys()].reduce((acc, curr) => {
+        acc[curr + 1] = {
+          paired: roundDetails.map((r) => r.round).includes(curr + 1),
+          scored: currentRound > curr + 1,
+        }
+        return acc
+      }, {})
+
       data.setDataValue('pairings', pairings)
       data.setDataValue('currentRound', currentRound)
 
@@ -588,48 +589,20 @@ class TournamentService {
       }))
       let white = []
       let black = []
+      let ranking = {}
 
-      // const { whitePlayers, blackPlayers } = swissFirstRoundPairing(
-      //   players,
-      //   tournamentId
-      // )
-      // const { whitePlayers, blackPlayers  = await javaFoFirstRoundPairing(players, round, tournament)
-      // data = whitePlayers.map((w, i) => ({
-      //   player: w,
-      //   opponent: blackPlayers[i],
-      // }))
-      // const res = await this.tournamentPairingsDao.bulkCreate(whitePlayers)
-      // if (!res) {
-      //   message = 'Failed to pair players! Please try again.'
-      //   return responseHandler.returnError(httpStatus.BAD_REQUEST, message)
-      // }
-      // const opponents = blackPlayers.map((b, i) => ({
-      //   ...b,
-      //   parent_id: res[i].id,
-      // }))
-      // await this.tournamentPairingsDao.bulkCreate(opponents)
       if (round > 1) {
-        let pairing = await this.tournamentPairingsDao.findByWhere({
+        const pairing = await this.tournamentPairingsDao.findByWhere({
           round: { [Op.lt]: round },
           tournament_id: tournamentId,
         })
 
-        // let newPlayers = await this.playersDao.findByWhere({
-        //   uuid: tournament.player_fide_ids
-        //     .split(',')
-        //     .filter((id) => !pairing.map((p) => p.player_uuid).includes(id)),
-        //   is_active: true,
-        // })
-        // if (newPlayers)
-        //   newPlayers = newPlayers.map((player) => ({
-        //     round: round - 1,
-        //     tournament_id: tournamentId,
-        //     player_uuid: player.uuid,
-        //     player_fide_id: player.fide_id,
-        //     player_name: player.name,
-        //     player_rating: player.rating,
-        //     player_score: player.score || 0,
-        //   }))
+        const playersRanking = getTieBreaks(pairing, round - 1)
+
+        ranking = playersRanking.reduce((a, b, i) => {
+          a[b.player_uuid] = i + 1
+          return a
+        }, {})
 
         if (!pairing.length) {
           message = `The pairing of players for the ${this.getNumberWithOrdinal(
@@ -663,7 +636,8 @@ class TournamentService {
         round,
         tournament,
         white,
-        black
+        black,
+        ranking
       )
 
       const res = await this.tournamentPairingsDao.bulkCreate(whitePlayers)
@@ -855,59 +829,7 @@ class TournamentService {
         message = `No players found for Round ${round}! Please try again.`
         return responseHandler.returnError(httpStatus.BAD_REQUEST, message)
       }
-
-      const playersMapping = data.reduce((p, c) => {
-        const opponent = {
-          id: c.id,
-          player_uuid: c.player_uuid,
-          scores: data
-            .filter((d) => d.player_uuid === c.player_uuid)
-            .map((o) => ({
-              round: o.round,
-              score: o.player_score,
-              result: o.result,
-            })),
-        }
-        if (c.parent_id) {
-          const player = data.find(
-            (d) => d.id === c.parent_id && d.round === c.round
-          )
-          p[player.player_uuid] = p[player.player_uuid]
-            ? [...p[player.player_uuid], opponent]
-            : [opponent]
-        } else {
-          const player = data.find(
-            (d) => d.parent_id === c.id && d.round === c.round
-          )
-          if (player) {
-            p[player.player_uuid] = p[player.player_uuid]
-              ? [...p[player.player_uuid], opponent]
-              : [opponent]
-          } else {
-            p[c.player_uuid] = p[c.player_uuid] ? [...p[c.player_uuid]] : []
-          }
-        }
-        return p
-      }, {})
-
-      const tieBreakerResult = calculateTB1TB2TB3(playersMapping)
-      const players = data
-        .filter((d) => d.round === round)
-        .map((e) => ({
-          ...e,
-          ...tieBreakerResult[e.player_uuid],
-          tieSum: Object.values(tieBreakerResult[e.player_uuid]).reduce(
-            (a, b) => a + b,
-            0
-          ),
-          point: Number(e.player_score) + Number(e.result),
-        }))
-        .sort(
-          (a, b) =>
-            b.point - a.point ||
-            b.tieSum - a.tieSum ||
-            b.player_rating - a.player_rating
-        )
+      const players = getTieBreaks(data, round)
 
       return responseHandler.returnSuccess(httpStatus.OK, message, players)
     } catch (e) {
