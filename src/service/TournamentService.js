@@ -455,13 +455,13 @@ class TournamentService {
         }
       )
 
-      let currentRound = data.current_round || 1
+      let currentRound = data.current_round || 0
       if (!data.current_round) {
         currentRound =
           roundDetails
             .map((r) => r.round)
             .sort()
-            .pop() || 1
+            .pop() || 0
 
         if (scored.some((s) => s.round === currentRound)) {
           currentRound += 1

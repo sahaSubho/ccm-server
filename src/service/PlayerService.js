@@ -87,9 +87,9 @@ class PlayersService {
         data.forEach((p, i) => {
           const res = players.filter(
             (ele) =>
-              p.mobile === ele.mobile ||
               p.name === ele.name ||
-              p.fide_id === ele.fide_id
+              (p.mobile?.length && p.mobile === ele.mobile) ||
+              (p.fide_id && p.fide_id === ele.fide_id)
           )
           let MostMatchedPlayer = {}
           let prevCount = 0
