@@ -374,7 +374,7 @@ async function javaFoFirstRoundPairing(
     result += ans + `\n`
   }
   const pairings = await pair(result, sorted)
-  // return pairings
+  return pairings
 }
 
 module.exports = {
