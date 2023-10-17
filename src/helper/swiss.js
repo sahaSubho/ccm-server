@@ -305,7 +305,6 @@ async function javaFoFirstRoundPairing(
     }, {})
   if (white.length && black.length) {
     ranks = ranking
-    let maxRank = Math.max(...Object.values(ranks))
     for (let index = 1; index < round; index++) {
       const whitePlayers = white.filter((p) => p.round === index)
       const blackPlayers = black.filter((p) => p.round === index)
@@ -345,6 +344,7 @@ async function javaFoFirstRoundPairing(
       }
     }
   }
+  let maxRank = Math.max(...Object.values(ranks))
   let result = tournamentDetails
   const sorted = formatedPlayers.sort((a, b) => b.rating - a.rating)
   if (sorted.some((p) => p.is_withdrawn)) {
