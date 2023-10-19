@@ -455,6 +455,10 @@ class TournamentService {
         }
       )
 
+      let playerCount = (data?.player_fide_ids || '')?.split(',').length
+
+      const maxScore = playerCount ? Math.round(playerCount / 2) : playerCount
+
       let currentRound = data.current_round || 0
       if (!data.current_round) {
         currentRound =
@@ -471,7 +475,9 @@ class TournamentService {
       const pairings = [...Array(data.rounds).keys()].reduce((acc, curr) => {
         acc[curr + 1] = {
           paired: roundDetails.map((r) => r.round).includes(curr + 1),
-          scored: currentRound >= curr + 1,
+          scored:
+            Number(scored.find((s) => s.round === curr + 1)?.sum || 0) ===
+            maxScore,
         }
         return acc
       }, {})
