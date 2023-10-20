@@ -304,7 +304,7 @@ async function javaFoFirstRoundPairing(
       return a
     }, {})
   if (white.length && black.length) {
-    ranks = ranking
+    // ranks = ranking
     for (let index = 1; index < round; index++) {
       const whitePlayers = white.filter((p) => p.round === index)
       const blackPlayers = black.filter((p) => p.round === index)
@@ -315,9 +315,9 @@ async function javaFoFirstRoundPairing(
         const opp = blackPlayers[i]
 
         if (player && !opp) {
-          matches[player.player_uuid][index - 1] = `${''.padEnd(4, ' ')} -  `
+          matches[player.player_uuid][index - 1] = `${''.padEnd(1, ' ')} -  `
         } else if (!player && opp) {
-          matches[opp.player_uuid][index - 1] = `${''.padEnd(4, ' ')} -  `
+          matches[opp.player_uuid][index - 1] = `${''.padEnd(1, ' ')} -  `
         } else if (player.is_withdrawn) {
           matches[opp.player_uuid][index - 1] = `0000 - Z`
         } else if (opp.is_withdrawn) {
@@ -346,7 +346,9 @@ async function javaFoFirstRoundPairing(
   }
   let maxRank = Math.max(...Object.values(ranks))
   let result = tournamentDetails
-  const sorted = formatedPlayers.sort((a, b) => b.rating - a.rating)
+  const sorted = formatedPlayers.sort(
+    (a, b) => b.player_rating - a.player_rating
+  )
   if (sorted.some((p) => p.is_withdrawn)) {
     result += `XXZ  ${sorted
       .filter((p) => p.is_withdrawn)

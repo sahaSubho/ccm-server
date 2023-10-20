@@ -88,10 +88,10 @@ class PlayersService {
           const res = players.filter(
             (ele) =>
               p.name === ele.name ||
-              (p.mobile?.length && p.mobile === ele.mobile) ||
-              (p.fide_id && p.fide_id === ele.fide_id)
+              ((p.mobile || p.mobile?.length) && p.mobile === ele.mobile) ||
+              ((p.fide_id?.length || p.fide_id) && p.fide_id === ele.fide_id)
           )
-          let MostMatchedPlayer = {}
+          let MostMatchedPlayer = null
           let prevCount = 0
           res.forEach((r) => {
             let count = 0
@@ -103,16 +103,17 @@ class PlayersService {
             if (count > 0 && count > prevCount) {
               MostMatchedPlayer = r
             }
+            prevCount = count
           })
-          common.push(MostMatchedPlayer)
+          if (MostMatchedPlayer) common.push(MostMatchedPlayer)
         })
         data = data.filter(
           (ele) =>
             !players.some(
               (p) =>
-                p.mobile === ele.mobile ||
                 p.name === ele.name ||
-                p.fide_id === ele.fide_id
+                ((p.mobile || p.mobile?.length) && p.mobile === ele.mobile) ||
+                ((p.fide_id?.length || p.fide_id) && p.fide_id === ele.fide_id)
             )
         )
       }
@@ -120,6 +121,7 @@ class PlayersService {
       const playerUuids = common.map((p) => p.uuid)
 
       if (
+        !data.length &&
         playerUuids.length &&
         playerUuids.every((id) => fide_ids.includes(id))
       ) {
@@ -141,7 +143,7 @@ class PlayersService {
         ...new Set(fide_ids),
         ...new Set(playerUuids),
         ...new Set(data.map((r) => r.uuid)),
-      ]
+      ].filter((id) => !id || !id.length)
 
       await this.tournamentDao.updateWhere(
         {
