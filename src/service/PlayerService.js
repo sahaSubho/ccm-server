@@ -53,6 +53,14 @@ class PlayersService {
       const tournamentId = req.body.tournamentId
       const tournament = await this.tournamentDao.findById(tournamentId)
 
+      const where = [{ name: data.map((d) => d.name) }]
+      if (Object.keys(data[0]).includes('mobile_number')) {
+        where.push({ mobile: data.map((d) => d.mobile_number) })
+      }
+      if (Object.keys(data[0]).includes('fide_id')) {
+        where.push({ fide_id: data.map((d) => d.fide_id) })
+      }
+
       data = data.map((d) => ({
         name: d.name,
         fide_id: Number(d?.fide_id) || null,
@@ -70,54 +78,43 @@ class PlayersService {
         fide_ids = tournament.player_fide_ids.split(',')
       }
 
-      const where = [{ name: data.map((d) => d.name) }]
-      if (Object.keys(data[0]).includes('mobile_number')) {
-        where.push({ mobile: data.map((d) => d.mobile_number) })
-      }
-      if (Object.keys(data[0]).includes('fide_id')) {
-        where.push({ fide_id: data.map((d) => d.fide_id) })
-      }
-
       let players = await this.playersDao.findByWhere({
         [Op.or]: where,
       })
 
       let common = []
+      let newPlayers = []
       if (players.length > 0) {
         data.forEach((p, i) => {
-          const res = players.filter(
-            (ele) =>
-              p.name === ele.name ||
-              ((p.mobile || p.mobile?.length) && p.mobile === ele.mobile) ||
-              ((p.fide_id?.length || p.fide_id) && p.fide_id === ele.fide_id)
-          )
           let MostMatchedPlayer = null
-          let prevCount = 0
-          res.forEach((r) => {
-            let count = 0
-            Object.keys(p).forEach((k) => {
-              if (r[k] === p[k]) {
-                count += 1
+          let j = 0
+          while (j < players.length) {
+            const r = players[j]
+            if (r['mobile'] === p['mobile']) {
+              if (p.name === r.name) {
+                MostMatchedPlayer = r
               }
-            })
-            if (count > 0 && count > prevCount) {
-              MostMatchedPlayer = r
+              break
             }
-            prevCount = count
-          })
-          if (MostMatchedPlayer) common.push(MostMatchedPlayer)
+            if (r['fide_id'] === p['fide_id']) {
+              MostMatchedPlayer = r
+              break
+            }
+            if (p.name === r.name && p.age === r.age) {
+              MostMatchedPlayer = r
+              break
+            }
+            j += 1
+          }
+          if (MostMatchedPlayer) {
+            common.push(MostMatchedPlayer)
+          } else {
+            newPlayers.push(p)
+          }
         })
-        data = data.filter(
-          (ele) =>
-            !players.some(
-              (p) =>
-                p.name === ele.name ||
-                ((p.mobile || p.mobile?.length) && p.mobile === ele.mobile) ||
-                ((p.fide_id?.length || p.fide_id) && p.fide_id === ele.fide_id)
-            )
-        )
       }
 
+      data = newPlayers
       const playerUuids = common.map((p) => p.uuid)
 
       if (
@@ -190,20 +187,38 @@ class PlayersService {
         fide_ids = tournament.player_fide_ids.split(',')
       }
 
-      let player = await this.playersDao.findOneByWhere(
-        !data.mobile
-          ? { name: data.name }
-          : {
-              [Op.or]: [
-                {
-                  mobile: data.mobile,
-                },
-                {
-                  name: data.name,
-                },
-              ],
-            }
-      )
+      const where = [{ name: data.name }]
+      if (Object.keys(data).includes('mobile')) {
+        where.push({ mobile: data.mobile })
+      }
+      if (Object.keys(data).includes('fide_id')) {
+        where.push({ fide_id: data.fide_id })
+      }
+
+      let players = await this.playersDao.findByWhere({
+        [Op.or]: where,
+      })
+
+      let player = null
+      let i = 0
+      while (i < players.length) {
+        const r = players[i]
+        if (r['mobile'] === data['mobile']) {
+          if (data.name === r.name) {
+            player = r
+          }
+          break
+        }
+        if (r['fide_id'] === data['fide_id']) {
+          player = r
+          break
+        }
+        if (data.name === r.name && data.age === r.age) {
+          player = r
+          break
+        }
+        i += 1
+      }
 
       if (player && fide_ids.includes(player.uuid)) {
         message = 'Player is already registered in this tournament.'
