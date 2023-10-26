@@ -28,7 +28,7 @@ class PlayersService {
    */
   uploadPlayers = async (req) => {
     try {
-      let message = 'Successfully uploaded players.'
+      let message
       const filePath = req.file.path
       const type = req.file.mimetype
 
@@ -55,10 +55,10 @@ class PlayersService {
 
       const where = [{ name: data.map((d) => d.name) }]
       if (Object.keys(data[0]).includes('mobile_number')) {
-        where.push({ mobile: data.map((d) => d.mobile_number) })
+        where.push({ mobile: data.map((d) => String(d.mobile_number)) })
       }
       if (Object.keys(data[0]).includes('fide_id')) {
-        where.push({ fide_id: data.map((d) => d.fide_id) })
+        where.push({ fide_id: data.map((d) => Number(d.fide_id)) })
       }
 
       data = data.map((d) => ({
@@ -84,6 +84,7 @@ class PlayersService {
 
       let common = []
       let newPlayers = []
+      let invalidPlayer = []
       if (players.length > 0) {
         data.forEach((p, i) => {
           let MostMatchedPlayer = null
@@ -93,11 +94,17 @@ class PlayersService {
             if (r['mobile'] === p['mobile']) {
               if (p.name === r.name) {
                 MostMatchedPlayer = r
+              } else if (!!p['fide_id'] && r.fide_id === p.fide_id) {
+                invalidPlayer.push(p.name)
               }
               break
             }
-            if (r['fide_id'] === p['fide_id']) {
-              MostMatchedPlayer = r
+            if (!!p['fide_id'] && r['fide_id'] === p['fide_id']) {
+              if (p.name === r.name) {
+                MostMatchedPlayer = r
+              } else {
+                invalidPlayer.push(p.name)
+              }
               break
             }
             if (p.name === r.name && p.age === r.age) {
@@ -108,7 +115,7 @@ class PlayersService {
           }
           if (MostMatchedPlayer) {
             common.push(MostMatchedPlayer)
-          } else {
+          } else if (!invalidPlayer.includes(p.name)) {
             newPlayers.push(p)
           }
         })
@@ -126,9 +133,8 @@ class PlayersService {
         return responseHandler.returnError(httpStatus.BAD_REQUEST, message)
       }
 
-      let result
       if (data.length) {
-        result = await this.playersDao.bulkCreate(data)
+        const result = await this.playersDao.bulkCreate(data)
 
         if (!result) {
           message = 'Failed to upload players! Please try again.'
@@ -140,7 +146,7 @@ class PlayersService {
         ...new Set(fide_ids),
         ...new Set(playerUuids),
         ...new Set(data.map((r) => r.uuid)),
-      ].filter((id) => !id || !id.length)
+      ].filter((id) => id || id.length)
 
       await this.tournamentDao.updateWhere(
         {
@@ -148,6 +154,11 @@ class PlayersService {
         },
         { id: tournamentId }
       )
+
+      message = `Successfully uploaded ${ids.length} players`
+      if (invalidPlayer.length) {
+        message += ` except players with names ${invalidPlayer.join()} due to incorrect Fide Id.`
+      }
 
       const finalData = await this.playersDao.findByWhere({ uuid: ids })
 
@@ -189,10 +200,10 @@ class PlayersService {
 
       const where = [{ name: data.name }]
       if (Object.keys(data).includes('mobile')) {
-        where.push({ mobile: data.mobile })
+        where.push({ mobile: String(data.mobile) })
       }
       if (Object.keys(data).includes('fide_id')) {
-        where.push({ fide_id: data.fide_id })
+        where.push({ fide_id: Number(data.fide_id) })
       }
 
       let players = await this.playersDao.findByWhere({
@@ -200,17 +211,24 @@ class PlayersService {
       })
 
       let player = null
+      let invalidPlayer = false
       let i = 0
       while (i < players.length) {
         const r = players[i]
         if (r['mobile'] === data['mobile']) {
           if (data.name === r.name) {
             player = r
+          } else if (!!p['fide_id'] && r.fide_id === p.fide_id) {
+            invalidPlayer = true
           }
           break
         }
-        if (r['fide_id'] === data['fide_id']) {
-          player = r
+        if (!!data['fide_id'] && r['fide_id'] === Number(data['fide_id'])) {
+          if (data.name === r.name) {
+            player = r
+          } else {
+            invalidPlayer = true
+          }
           break
         }
         if (data.name === r.name && data.age === r.age) {
@@ -218,6 +236,10 @@ class PlayersService {
           break
         }
         i += 1
+      }
+      if (invalidPlayer) {
+        message = 'Player already exists with same Fide Id.'
+        return responseHandler.returnError(httpStatus.BAD_REQUEST, message)
       }
 
       if (player && fide_ids.includes(player.uuid)) {

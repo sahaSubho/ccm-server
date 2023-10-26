@@ -77,5 +77,11 @@ router.patch(
   upload.array('files', 2),
   tournamentController.updateTournamentById
 )
+router.post(
+  '/upload-image',
+  auth(),
+  upload.single('file'),
+  tournamentController.uploadBrochureImage
+)
 
 module.exports = router
