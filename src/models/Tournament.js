@@ -61,6 +61,7 @@ module.exports = (sequelize, DataTypes) => {
         allowNull: true,
         defaultValue: 100000,
       },
+      brochure_details: DataTypes.JSONB,
       created_by: DataTypes.INTEGER,
       is_active: DataTypes.BOOLEAN,
     },

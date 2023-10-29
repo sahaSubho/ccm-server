@@ -1210,15 +1210,51 @@ class TournamentService {
         }
       }
 
+      if (tournamentBody.is_brochure) {
+        tournamentBody = JSON.parse(JSON.stringify(tournamentBody))
+
+        if (tournamentBody.logos) {
+          tournamentBody.logos = JSON.parse(tournamentBody.logos)
+        }
+      }
+
       if (req?.files?.length) {
         req.files.forEach((f) => {
           if (f.path.includes('brochure')) {
             tournamentBody.brochure = f.path
           }
           if (f.path.includes('image')) {
-            tournamentBody.display_pic = f.path
+            if (tournamentBody.is_brochure) {
+              if (tournamentBody.logos) {
+                const index = tournamentBody.logos.findIndex(
+                  (l) => l === f.originalname
+                )
+                tournamentBody.logos[index] = f.path
+              } else if (
+                Object.values(tournamentBody).includes(f.originalname)
+              ) {
+                const index = Object.values(tournamentBody).findIndex(
+                  (l) => l === f.originalname
+                )
+                const key = Object.keys(tournamentBody)[index]
+                tournamentBody[key] = f.path
+              }
+            } else tournamentBody.display_pic = f.path
           }
         })
+      }
+
+      if (tournamentBody.is_brochure) {
+        const templateId = tournamentBody.template
+        delete tournamentBody.is_brochure
+        delete tournamentBody.template
+        const data = {
+          brochure_details: {
+            ...tournament.brochure_details,
+            [templateId]: tournamentBody,
+          },
+        }
+        tournamentBody = data
       }
 
       let data = await this.tournamentDao.updateById(tournamentBody, id)
