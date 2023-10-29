@@ -39,6 +39,7 @@ module.exports = (sequelize, DataTypes) => {
       */
       entry_fee: DataTypes.JSONB,
       address: DataTypes.STRING,
+      city: DataTypes.STRING,
       state: DataTypes.STRING,
       country: DataTypes.STRING,
       brochure: DataTypes.STRING,
