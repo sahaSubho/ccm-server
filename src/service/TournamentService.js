@@ -1195,12 +1195,15 @@ class TournamentService {
           try {
             let options = {
               method: 'POST',
-              body: { tournament_id: id },
+              body: JSON.stringify({ tournament_id: id }),
             }
             const res = await fetch(
               `${config.circlechess.endpoint}/tournaments/save_chessmaster_tournament`,
               options
             )
+            if (!res.ok) {
+              throw new Error(`HTTP error! status: ${res.status}`)
+            }
             const data = await sequelize.query(
               `Select id from cc_tournaments where dbkey=${id}`,
               {
@@ -1208,6 +1211,7 @@ class TournamentService {
               }
             )
             if (data) tournamentBody.cct_id = data[0]?.id
+            return responseHandler.returnSuccess(httpStatus.OK, message, data)
           } catch (error) {
             message = 'Failed to publish tournament.Please try again'
             return responseHandler.returnError(httpStatus.BAD_REQUEST, message)
@@ -1219,6 +1223,7 @@ class TournamentService {
             message = 'Failed to publish tournament.Please try again'
             return responseHandler.returnError(httpStatus.BAD_REQUEST, message)
           }
+          return responseHandler.returnSuccess(httpStatus.OK, message, data)
         }
       }
 
