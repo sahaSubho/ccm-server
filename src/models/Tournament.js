@@ -62,6 +62,7 @@ module.exports = (sequelize, DataTypes) => {
         defaultValue: 100000,
       },
       brochure_details: DataTypes.JSONB,
+      cct_id: DataTypes.INTEGER,
       created_by: DataTypes.INTEGER,
       is_active: DataTypes.BOOLEAN,
     },

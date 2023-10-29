@@ -8,6 +8,7 @@ const TournamentPairingsDao = require('../dao/TournamentPairingDao')
 const responseHandler = require('../helper/responseHandler')
 const logger = require('../config/logger')
 const config = require('../config/config')
+const { sequelize } = require('../models')
 const { userRoles } = require('../config/constant')
 const {
   swissFirstRoundPairing,
@@ -356,7 +357,7 @@ class TournamentService {
   }
 
   /**
-   * Create a user
+   * Create a tournament
    * @param {Object} tournamentBody
    * @returns {Object}
    */
@@ -1196,6 +1197,13 @@ class TournamentService {
               `${config.circlechess.endpoint}/tournaments/save_chessmaster_tournament`,
               { tournament_id: id }
             )
+            const data = await sequelize.query(
+              `Select id from cc_tournaments where dbkey=${id}`,
+              {
+                type: sequelize.QueryTypes.SELECT,
+              }
+            )
+            if (data) tournamentBody.cct_id = data[0]?.id
           } catch (error) {
             message = 'Failed to publish tournament.Please try again'
             return responseHandler.returnError(httpStatus.BAD_REQUEST, message)
