@@ -1193,9 +1193,13 @@ class TournamentService {
         message = 'Tournament has been successfully published.'
         if (config.circlechess.publish) {
           try {
-            const res = await fetch.post(
+            let options = {
+              method: 'POST',
+              body: { tournament_id: id },
+            }
+            const res = await fetch(
               `${config.circlechess.endpoint}/tournaments/save_chessmaster_tournament`,
-              { tournament_id: id }
+              options
             )
             const data = await sequelize.query(
               `Select id from cc_tournaments where dbkey=${id}`,
