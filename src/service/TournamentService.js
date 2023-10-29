@@ -1211,20 +1211,19 @@ class TournamentService {
               }
             )
             if (data) tournamentBody.cct_id = data[0]?.id
-            return responseHandler.returnSuccess(httpStatus.OK, message, data)
           } catch (error) {
             message = 'Failed to publish tournament.Please try again'
             return responseHandler.returnError(httpStatus.BAD_REQUEST, message)
           }
         } else {
           tournamentBody.is_active = true
-          let data = await this.tournamentDao.updateById(tournamentBody, id)
-          if (!data) {
-            message = 'Failed to publish tournament.Please try again'
-            return responseHandler.returnError(httpStatus.BAD_REQUEST, message)
-          }
-          return responseHandler.returnSuccess(httpStatus.OK, message, data)
         }
+        let data = await this.tournamentDao.updateById(tournamentBody, id)
+        if (!data) {
+          message = 'Failed to publish tournament.Please try again'
+          return responseHandler.returnError(httpStatus.BAD_REQUEST, message)
+        }
+        return responseHandler.returnSuccess(httpStatus.OK, message, data)
       }
 
       if (tournamentBody.is_brochure) {
