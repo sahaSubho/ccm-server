@@ -301,7 +301,7 @@ async function javaFoFirstRoundPairing(
   })
 
   let indexes = players
-    .sort((a, b) => b.rating - a.rating)
+    .sort((a, b) => b.rating - a.rating || a.name.localeCompare(b.name))
     .reduce((a, b, i) => {
       a[b.uuid] = i + 1
       return a
@@ -350,7 +350,9 @@ async function javaFoFirstRoundPairing(
   let maxRank = Math.max(...Object.values(ranks))
   let result = tournamentDetails
   const sorted = formatedPlayers.sort(
-    (a, b) => b.player_rating - a.player_rating
+    (a, b) =>
+      b.player_rating - a.player_rating ||
+      a.player_name.localeCompare(b.player_name)
   )
   if (sorted.some((p) => p.is_withdrawn)) {
     result += `XXZ  ${sorted
