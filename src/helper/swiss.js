@@ -286,6 +286,9 @@ async function javaFoFirstRoundPairing(
   let stats = [...formatedPlayers]
   stats.sort((a, b) => {
     if (a.player_score === b.player_score) {
+      if (b.player_rating === a.player_rating) {
+        return a.player_name.localeCompare(b.player_name)
+      }
       return b.player_rating - a.player_rating
     }
     return b.player_score - a.player_score
@@ -304,7 +307,7 @@ async function javaFoFirstRoundPairing(
       return a
     }, {})
   if (white.length && black.length) {
-    // ranks = ranking
+    ranks = ranking
     for (let index = 1; index < round; index++) {
       const whitePlayers = white.filter((p) => p.round === index)
       const blackPlayers = black.filter((p) => p.round === index)
