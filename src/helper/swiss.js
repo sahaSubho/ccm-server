@@ -349,11 +349,13 @@ async function javaFoFirstRoundPairing(
   }
   let maxRank = Math.max(...Object.values(ranks))
   let result = tournamentDetails
-  const sorted = formatedPlayers.sort(
-    (a, b) =>
-      b.player_rating - a.player_rating ||
-      a.player_name.localeCompare(b.player_name)
-  )
+  const sorted = formatedPlayers
+    .sort(
+      (a, b) =>
+        b.player_rating - a.player_rating ||
+        a.player_name.localeCompare(b.player_name)
+    )
+    .map((e, i) => ({ ...e, key: i + 1 }))
   if (sorted.some((p) => p.is_withdrawn)) {
     result += `XXZ  ${sorted
       .filter((p) => p.is_withdrawn)
@@ -365,7 +367,7 @@ async function javaFoFirstRoundPairing(
     // refer trf_format.txt file
     let ans =
       `001 ` +
-      `${(i + 1).toString().padStart(4, ' ')}` +
+      `${p.key.toString().padStart(4, ' ')}` +
       ` m${''.padStart(3, ' ')} ` +
       `${p?.player_name?.slice(0, 33)?.padEnd(33, ' ')} ` +
       `${p?.player_rating?.toString()?.slice(0, 4)?.padStart(4, ' ')} ` +
