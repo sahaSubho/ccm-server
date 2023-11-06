@@ -83,7 +83,7 @@ class PlayersService {
       })
 
       let common = []
-      let newPlayers = []
+      let newPlayers = data
       let invalidPlayer = []
       if (players.length > 0) {
         data.forEach((p, i) => {
@@ -91,7 +91,7 @@ class PlayersService {
           let j = 0
           while (j < players.length) {
             const r = players[j]
-            if (r['mobile'] === p['mobile']) {
+            if (!!p['mobile']?.length && r['mobile'] === p['mobile']) {
               if (p.name === r.name) {
                 MostMatchedPlayer = r
               } else if (!!p['fide_id'] && r.fide_id === p.fide_id) {
