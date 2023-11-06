@@ -83,7 +83,7 @@ class PlayersService {
       })
 
       let common = []
-      let newPlayers = data
+      let newPlayers = []
       let invalidPlayer = []
       if (players.length > 0) {
         data.forEach((p, i) => {
@@ -119,6 +119,8 @@ class PlayersService {
             newPlayers.push(p)
           }
         })
+      } else {
+        newPlayers = data
       }
 
       data = newPlayers
