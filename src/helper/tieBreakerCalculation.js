@@ -105,12 +105,24 @@ function getTieBreaks(data, round) {
       ),
       point: Number(e.player_score) + Number(e.result),
     }))
-    .sort(
-      (a, b) =>
-        b.point - a.point ||
-        b.tieSum - a.tieSum ||
-        b.player_rating - a.player_rating
-    )
+    .sort((a, b) => {
+      if (b.point === a.point) {
+        if (b.TB1 === a.TB1) {
+          if (b.TB2 === a.TB2) {
+            if (b.TB3 === a.TB3) {
+              return (
+                b.player_rating - a.player_rating ||
+                a.player_name.localeCompare(b.player_name)
+              )
+            }
+            return b.TB3 - a.TB3
+          }
+          return b.TB2 - a.TB2
+        }
+        return b.TB1 - a.TB1
+      }
+      return b.point - a.point
+    })
   return players
 }
 

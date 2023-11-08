@@ -455,10 +455,15 @@ class TournamentService {
           result: { [Op.gt]: 0 },
         }
       )
+      const playerCountMap = await this.tournamentPairingsDao.findCountByGroup(
+        'round',
+        'result',
+        {
+          tournament_id: id,
+        }
+      )
 
-      let playerCount = (data?.player_fide_ids || '')?.split(',').length
-
-      const maxScore = playerCount ? Math.round(playerCount / 2) : playerCount
+      // const maxScore = playerCount ? Math.round(playerCount / 2) : playerCount
 
       let currentRound = data.current_round || 0
       if (!data.current_round) {
@@ -477,8 +482,11 @@ class TournamentService {
         acc[curr + 1] = {
           paired: roundDetails.map((r) => r.round).includes(curr + 1),
           scored:
-            Number(scored.find((s) => s.round === curr + 1)?.sum || 0) ===
-            maxScore,
+            Number(scored?.find((s) => s.round === curr + 1)?.sum || 0) ===
+            Math.round(
+              Number(playerCountMap?.find((s) => s.round === curr + 1)?.count) /
+                2
+            ),
         }
         return acc
       }, {})
