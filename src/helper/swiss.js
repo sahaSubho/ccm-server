@@ -317,9 +317,9 @@ async function javaFoFirstRoundPairing(
         const opp = blackPlayers[i]
 
         if (player && !opp) {
-          matches[player.player_uuid][index - 1] = `${''.padEnd(1, ' ')} -  `
+          matches[player.player_uuid][index - 1] = `${''.padEnd(1, ' ')} - U`
         } else if (!player && opp) {
-          matches[opp.player_uuid][index - 1] = `${''.padEnd(1, ' ')} -  `
+          matches[opp.player_uuid][index - 1] = `${''.padEnd(1, ' ')} - U`
         } else if (player.is_withdrawn) {
           matches[opp.player_uuid][index - 1] = `0000 - Z`
         } else if (opp.is_withdrawn) {
@@ -379,7 +379,7 @@ async function javaFoFirstRoundPairing(
       `${'IND'.padStart(3, ' ')} ` +
       `${p?.player_fide_id?.toString().slice(0, 11).padStart(11, ' ')} ` +
       `${''.padEnd(10, ' ')} ` +
-      `${p?.player_score?.toString().padStart(4, ' ')} ` +
+      `${p?.player_score?.toFixed(1).padStart(4, ' ')} ` +
       `${ranks[p.player_uuid]?.toString().padStart(4, ' ')}`
     ;[...Array(matches[p.player_uuid]?.length).keys()]
       .map((x) => matches[p.player_uuid][x] || '')
