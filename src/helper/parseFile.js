@@ -14,10 +14,10 @@ const parseFile = async (filePath, type) => {
         .pipe(csv())
         .on('data', (data) =>
           results.push(
-            Object.keys(data).reduce((a, b) => {
+            Object.keys(data).reduce((a, b, i) => {
               a = {
                 ...a,
-                [b.replace(' ', '_').toLowerCase()]: data[b],
+                [(b || `item${i}`).replace(' ', '_').toLowerCase()]: data[b],
               }
               return a
             }, {})
@@ -57,7 +57,8 @@ const parseFile = async (filePath, type) => {
                 row.values.reduce((a, b, i) => {
                   a = {
                     ...a,
-                    [data[i].replace(' ', '_').toLowerCase()]: b,
+                    [(data[i] || `item${i}`).replace(' ', '_').toLowerCase()]:
+                      b,
                   }
                   return a
                 }, {})
@@ -75,7 +76,7 @@ const parseFile = async (filePath, type) => {
           )
         })
     })
-
+  // json dtata
   return new Promise((resolve, reject) => {
     fs.readFile(filePath, 'utf8', (err, data) => {
       if (err) {
@@ -83,10 +84,10 @@ const parseFile = async (filePath, type) => {
       } else {
         try {
           const jsonData = JSON.parse(data).reduce((acc, curr) => {
-            const obj = Object.keys(curr).reduce((a, b) => {
+            const obj = Object.keys(curr).reduce((a, b, i) => {
               a = {
                 ...a,
-                [b.replace(' ', '_').toLowerCase()]: curr[b],
+                [(b || `item${i}`).replace(' ', '_').toLowerCase()]: curr[b],
               }
               return a
             }, {})
