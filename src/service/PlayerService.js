@@ -309,6 +309,7 @@ class PlayersService {
           ...p,
           isWithDrawn: withDrawnIds.includes(p.uuid),
         }))
+        .sort((a, b) => b.rating - a.rating || a.name.localeCompare(b.name))
         .sort((a, b) => (b.isWithDrawn ? -1 : 1))
 
       return responseHandler.returnSuccess(httpStatus.OK, message, result)
