@@ -21,6 +21,15 @@ class PlayersService {
     this.playersPrizePayoutDao = new PlayersPrizePayoutDao()
   }
 
+  parseGender = (gender) => {
+    if (['male', 'm', 'boys', 'boy'].includes(gender.toLowerCase())) {
+      return 'M'
+    }
+    if (['female', 'f', 'girls', 'girl'].includes(gender.toLowerCase())) {
+      return 'F'
+    }
+    return ''
+  }
   /**
    * Upload players
    * @param {Object} req
@@ -65,7 +74,7 @@ class PlayersService {
         name: d.name,
         fide_id: Number(d?.fide_id) || null,
         rating: Number(d.rating) || 0,
-        gender: d.gender,
+        gender: parseGender(d.gender),
         uuid: uuidv4(),
         created_by: userRoles.ORGANIZER,
         age: moment(tournament.start_date).year() - Number(d.birth_year),
