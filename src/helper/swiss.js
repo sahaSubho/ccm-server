@@ -388,6 +388,7 @@ async function javaFoFirstRoundPairing(
       })
     result += ans + `\n`
   }
+  result += 'XXC white'
   const pairings = await pair(result, sorted)
   return pairings
 }
