@@ -2,6 +2,7 @@ const httpStatus = require('http-status')
 const { Op } = require('sequelize')
 const { v4: uuidv4 } = require('uuid')
 const moment = require('moment')
+const sharp = require('sharp')
 const TournamentDao = require('../dao/TournamentDao')
 const PlayersDao = require('../dao/PlayersDao')
 const TournamentPairingsDao = require('../dao/TournamentPairingDao')
@@ -1234,6 +1235,7 @@ class TournamentService {
         return responseHandler.returnSuccess(httpStatus.OK, message, data)
       }
 
+      console.log(tournamentBody)
       if (tournamentBody.is_brochure) {
         tournamentBody = JSON.parse(JSON.stringify(tournamentBody))
 
@@ -1243,17 +1245,38 @@ class TournamentService {
       }
 
       if (req?.files?.length) {
-        req.files.forEach((f) => {
+        const promises = req.files.map(async (f) => {
           if (f.path.includes('brochure')) {
             tournamentBody.brochure = f.path
           }
           if (f.path.includes('image')) {
             if (tournamentBody.is_brochure) {
+              const image = sharp(f.path)
+              const meta = await image.metadata()
+              const { format } = meta
+
+              const config = {
+                jpeg: { quality: 50 },
+                webp: { quality: 50 },
+                png: { compressionLevel: 5 },
+              }
+
+              const extn = f.filename.slice(f.filename.lastIndexOf('.'))
+
+              const newPath = f.path.replace(`${extn}`, `-compressed${extn}`)
+
+              const re = await image[format](config[format]).toFile(
+                newPath,
+                (err, info) => {
+                  console.log('err', err, info)
+                }
+              )
+              console.log(tournamentBody, f.originalname)
               if (tournamentBody.logos) {
                 const index = tournamentBody.logos.findIndex(
                   (l) => l === f.originalname
                 )
-                tournamentBody.logos[index] = f.path
+                tournamentBody.logos[index] = newPath
               } else if (
                 Object.values(tournamentBody).includes(f.originalname)
               ) {
@@ -1261,13 +1284,16 @@ class TournamentService {
                   (l) => l === f.originalname
                 )
                 const key = Object.keys(tournamentBody)[index]
-                tournamentBody[key] = f.path
+                tournamentBody[key] = newPath
+                console.log(f, index, key, tournamentBody)
               }
             } else tournamentBody.display_pic = f.path
           }
         })
+        await Promise.all(promises)
       }
 
+      let body = tournamentBody
       if (tournamentBody.is_brochure) {
         const templateId = tournamentBody.template
         delete tournamentBody.is_brochure
@@ -1278,10 +1304,12 @@ class TournamentService {
             [templateId]: tournamentBody,
           },
         }
-        tournamentBody = data
+        body = data
       }
 
-      let data = await this.tournamentDao.updateById(tournamentBody, id)
+      console.log('body', body)
+
+      let data = await this.tournamentDao.updateById(body, id)
 
       if (!data) {
         message = 'Tournament updation failed! Please Try again.'
