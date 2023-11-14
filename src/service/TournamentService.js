@@ -1235,7 +1235,6 @@ class TournamentService {
         return responseHandler.returnSuccess(httpStatus.OK, message, data)
       }
 
-      console.log(tournamentBody)
       if (tournamentBody.is_brochure) {
         tournamentBody = JSON.parse(JSON.stringify(tournamentBody))
 
@@ -1271,7 +1270,6 @@ class TournamentService {
                   console.log('err', err, info)
                 }
               )
-              console.log(tournamentBody, f.originalname)
               if (tournamentBody.logos) {
                 const index = tournamentBody.logos.findIndex(
                   (l) => l === f.originalname
@@ -1285,7 +1283,6 @@ class TournamentService {
                 )
                 const key = Object.keys(tournamentBody)[index]
                 tournamentBody[key] = newPath
-                console.log(f, index, key, tournamentBody)
               }
             } else tournamentBody.display_pic = f.path
           }
@@ -1296,8 +1293,10 @@ class TournamentService {
       let body = tournamentBody
       if (tournamentBody.is_brochure) {
         const templateId = tournamentBody.template
+        const brochure = tournamentBody?.brochure
         delete tournamentBody.is_brochure
         delete tournamentBody.template
+        delete tournamentBody?.brochure
         const data = {
           brochure_details: {
             ...tournament.brochure_details,
@@ -1305,9 +1304,10 @@ class TournamentService {
           },
         }
         body = data
+        if (brochure) {
+          body.brochure = brochure
+        }
       }
-
-      console.log('body', body)
 
       let data = await this.tournamentDao.updateById(body, id)
 
