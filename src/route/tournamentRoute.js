@@ -74,7 +74,7 @@ router.get('/:id', tournamentController.getTournamentById)
 router.patch(
   '/:id',
   auth(),
-  upload.array('files', 2),
+  upload.array('files', 10),
   tournamentController.updateTournamentById
 )
 router.post(
