@@ -12,6 +12,7 @@ const parseFile = require('../helper/parseFile')
 const { userRoles } = require('../config/constant')
 const { sequelize } = require('../models')
 const moment = require('moment')
+const { sortByInitialRankings } = require('../helper/swiss')
 
 class PlayersService {
   constructor() {
@@ -80,6 +81,7 @@ class PlayersService {
         age: moment(tournament.start_date).year() - Number(d.birth_year),
         mobile: d?.mobile_number || '',
         upi_id: d?.upi_address || '',
+        title: d?.title || '',
       }))
 
       let fide_ids = []
@@ -176,7 +178,7 @@ class PlayersService {
       return responseHandler.returnSuccess(
         httpStatus.CREATED,
         message,
-        finalData
+        sortByInitialRankings(finalData)
       )
     } catch (e) {
       logger.error(e)
@@ -313,12 +315,11 @@ class PlayersService {
         uuid: fide_ids.concat(withDrawnIds),
       })
 
-      const result = data
+      const result = sortByInitialRankings(data)
         .map((p) => ({
           ...p,
           isWithDrawn: withDrawnIds.includes(p.uuid),
         }))
-        .sort((a, b) => b.rating - a.rating || a.name.localeCompare(b.name))
         .sort((a, b) => (b.isWithDrawn ? -1 : 1))
 
       return responseHandler.returnSuccess(httpStatus.OK, message, result)

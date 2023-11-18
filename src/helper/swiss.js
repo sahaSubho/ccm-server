@@ -1,11 +1,12 @@
 const pair = require('./pairingEngine')
 
-function formatPlayerData(player, round, tournament_id) {
+function formatPlayerData(player, round = 1, tournament_id = undefined) {
   if (round === 1)
     return {
       round,
       tournament_id,
       player_uuid: player.uuid,
+      player_title: player.title || '',
       player_fide_id: player.fide_id || 0,
       player_name: player.name,
       player_rating: player.rating || 0,
@@ -283,28 +284,18 @@ async function javaFoFirstRoundPairing(
       lastRoundPlayers?.find((x) => x.player_uuid === p.uuid)?.player_score ||
       0,
   }))
-  let stats = [...formatedPlayers]
-  stats.sort((a, b) => {
-    if (a.player_score === b.player_score) {
-      if (b.player_rating === a.player_rating) {
-        return a.player_name.localeCompare(b.player_name)
-      }
-      return b.player_rating - a.player_rating
-    }
-    return b.player_score - a.player_score
-  })
+  let stats = sortByInitialRankings(players)
   let matches = {}
   let ranks = {}
   stats.forEach((b, i) => {
-    ranks[b.player_uuid] = i + 1
-    matches[b.player_uuid] = []
+    ranks[b.uuid] = i + 1
+    matches[b.uuid] = []
   })
-  let indexes = players
-    .sort((a, b) => b.rating - a.rating || a.name.localeCompare(b.name))
-    .reduce((a, b, i) => {
-      a[b.uuid] = i + 1
-      return a
-    }, {})
+  let indexes = stats.reduce((a, b, i) => {
+    a[b.uuid] = i + 1
+    return a
+  }, {})
+
   if (white.length && black.length) {
     ranks = ranking
     for (let index = 1; index < round; index++) {
@@ -354,13 +345,10 @@ async function javaFoFirstRoundPairing(
     })
   }
   let result = tournamentDetails
-  let sorted = formatedPlayers
-    .sort(
-      (a, b) =>
-        b.player_rating - a.player_rating ||
-        a.player_name.localeCompare(b.player_name)
-    )
-    .map((e, i) => ({ ...e, key: i + 1 }))
+  let sorted = stats.map((e, i) => ({
+    ...formatPlayerData(e, 1, tournament.id),
+    key: i + 1,
+  }))
   if (sorted.some((p) => p.is_withdrawn)) {
     result += `XXZ  ${sorted
       .filter((p) => p.is_withdrawn)
@@ -373,7 +361,7 @@ async function javaFoFirstRoundPairing(
     let ans =
       `001 ` +
       `${p.key.toString().padStart(4, ' ')}` +
-      ` m${''.padStart(3, ' ')} ` +
+      ` m${p?.player_title.padStart(3, ' ')} ` +
       `${p?.player_name?.slice(0, 33)?.padEnd(33, ' ')} ` +
       `${p?.player_rating?.toString()?.slice(0, 4)?.padStart(4, ' ')} ` +
       `${'IND'.padStart(3, ' ')} ` +
@@ -393,8 +381,46 @@ async function javaFoFirstRoundPairing(
   return pairings
 }
 
+const orderTitles = [
+  'GM',
+  'WGM',
+  'IM',
+  'WIM',
+  'SG',
+  'FM',
+  'WFM',
+  'AGM',
+  'IGM',
+  'DGM',
+  'CM',
+  'WCM',
+  'AIM',
+  'AFM',
+  'ACM',
+  'GCM',
+]
+
+const sortByInitialRankings = (players) => {
+  return players.sort((a, b) => {
+    if (b.rating === a.rating) {
+      if (b?.title?.length && a?.title?.length) {
+        return (
+          orderTitles.indexOf(a.title.toUpperCase()) -
+            orderTitles.indexOf(b.title.toUpperCase()) ||
+          a.name.localeCompare(b.name)
+        )
+      } else if (b?.title?.length || a?.title?.length) {
+        return b.title.length - a.title.length
+      }
+      return a.name.localeCompare(b.name)
+    }
+    return b.rating - a.rating
+  })
+}
+
 module.exports = {
   swissFirstRoundPairing,
   swissOtherRoundPairings,
   javaFoFirstRoundPairing,
+  sortByInitialRankings,
 }
