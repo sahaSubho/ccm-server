@@ -275,7 +275,8 @@ async function javaFoFirstRoundPairing(
   const lastRoundPlayers = white
     .concat(black)
     .filter((p) => p?.round === round - 1)
-  const formatedPlayers = players.map((p, i) => ({
+  let stats = sortByInitialRankings(players)
+  const formatedPlayers = stats.map((p, i) => ({
     ...formatPlayerData(p, 1, tournament.id),
     is_withdrawn: !!p.is_withdrawn,
     key: i + 1,
@@ -284,7 +285,6 @@ async function javaFoFirstRoundPairing(
       lastRoundPlayers?.find((x) => x.player_uuid === p.uuid)?.player_score ||
       0,
   }))
-  let stats = sortByInitialRankings(players)
   let matches = {}
   let ranks = {}
   stats.forEach((b, i) => {
@@ -345,23 +345,14 @@ async function javaFoFirstRoundPairing(
     })
   }
   let result = tournamentDetails
-  let sorted = stats.map((e, i) => ({
-    ...formatPlayerData(e, 1, tournament.id),
-    is_withdrawn: !!e.is_withdrawn,
-    key: i + 1,
-    round: round,
-    player_score:
-      lastRoundPlayers?.find((x) => x.player_uuid === e.uuid)?.player_score ||
-      0,
-  }))
-  if (sorted.some((p) => p.is_withdrawn)) {
-    result += `XXZ  ${sorted
+  if (formatedPlayers.some((p) => p.is_withdrawn)) {
+    result += `XXZ  ${formatedPlayers
       .filter((p) => p.is_withdrawn)
       .map((x) => x.key)
       .join(' ')}\n`
   }
-  for (let i = 0; i < sorted.length; i++) {
-    let p = sorted[i]
+  for (let i = 0; i < formatedPlayers.length; i++) {
+    let p = formatedPlayers[i]
     // refer trf_format.txt file
     let ans =
       `001 ` +
@@ -382,7 +373,7 @@ async function javaFoFirstRoundPairing(
     result += ans + `\n`
   }
   result += 'XXC white1'
-  const pairings = await pair(result, sorted)
+  const pairings = await pair(result, formatedPlayers)
   return pairings
 }
 
@@ -415,7 +406,7 @@ const sortByInitialRankings = (players) => {
           a.name.localeCompare(b.name)
         )
       } else if (b?.title?.length || a?.title?.length) {
-        return b?.title?.length - a?.title?.length
+        return b.title.length - a.title.length
       }
       return a.name.localeCompare(b.name)
     }
