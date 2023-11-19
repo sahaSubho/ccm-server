@@ -23,10 +23,14 @@ class PlayersService {
   }
 
   parseGender = (gender) => {
-    if (['male', 'm', 'boys', 'boy'].includes(gender.toLowerCase())) {
+    if (['male', 'm', 'b', 'boys', 'boy'].includes(gender.toLowerCase())) {
       return 'M'
     }
-    if (['female', 'f', 'girls', 'girl'].includes(gender.toLowerCase())) {
+    if (
+      ['female', 'f', 'w', 'girls', 'girl', 'women'].includes(
+        gender.toLowerCase()
+      )
+    ) {
       return 'F'
     }
     return ''
@@ -201,6 +205,7 @@ class PlayersService {
 
       const data = {
         ...body,
+        title: body.title || '',
         uuid: uuidv4(),
         created_by: userRoles.ORGANIZER,
       }

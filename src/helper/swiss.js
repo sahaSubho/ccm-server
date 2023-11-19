@@ -347,7 +347,12 @@ async function javaFoFirstRoundPairing(
   let result = tournamentDetails
   let sorted = stats.map((e, i) => ({
     ...formatPlayerData(e, 1, tournament.id),
+    is_withdrawn: !!e.is_withdrawn,
     key: i + 1,
+    round: round,
+    player_score:
+      lastRoundPlayers?.find((x) => x.player_uuid === e.uuid)?.player_score ||
+      0,
   }))
   if (sorted.some((p) => p.is_withdrawn)) {
     result += `XXZ  ${sorted
@@ -410,7 +415,7 @@ const sortByInitialRankings = (players) => {
           a.name.localeCompare(b.name)
         )
       } else if (b?.title?.length || a?.title?.length) {
-        return b.title.length - a.title.length
+        return b?.title?.length - a?.title?.length
       }
       return a.name.localeCompare(b.name)
     }
