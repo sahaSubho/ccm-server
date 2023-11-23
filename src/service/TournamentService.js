@@ -409,7 +409,12 @@ class TournamentService {
     try {
       let message = 'Fetched tournaments successfully.'
       let data = await this.tournamentDao.findByWhere(
-        { is_active: true },
+        {
+          is_active: true,
+          cct_id: {
+            [Op.ne]: null,
+          },
+        },
         undefined,
         ['end_date', 'asc'],
         limit,
