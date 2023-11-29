@@ -10,7 +10,7 @@ const options = {
 }
 
 class TournamentValidator {
-  async createValidator(req, res, next) {
+  static createValidator(req, res, next) {
     // create schema object
     const schema = Joi.object({
       name: Joi.string().required(),
@@ -70,7 +70,8 @@ class TournamentValidator {
       return next()
     }
   }
-  async pairingValidator(req, res, next) {
+
+  static pairingValidator(req, res, next) {
     // create schema object
     const schema = Joi.object({
       round: Joi.number().greater(0).required(),
@@ -94,12 +95,13 @@ class TournamentValidator {
       return next()
     }
   }
-  async prizeConfigValidator(req, res, next) {
+
+  static prizeConfigValidator(req, res, next) {
     // TODO: update with the appropriate validation logic
     return next()
   }
 
-  async uploadValidator(req, res, next) {
+  static uploadValidator(req, res, next) {
     // create schema object
     const schema = Joi.object({
       body: Joi.object({
@@ -131,21 +133,60 @@ class TournamentValidator {
       next(new ApiError(httpStatus.BAD_REQUEST, errorMessage))
     } else {
       // on success replace req.body with validated value and trigger next middleware function
+      // eslint-disable-next-line no-param-reassign
       req = value
       return next()
     }
   }
 
-  async createPrizeValidator(req, res, next) {
+  static createPrizeValidator(req, res, next) {
     // create schema object
     const schema = Joi.array().items(
       Joi.object({
         name: Joi.string().required(),
         type: Joi.string().valid('age', 'rating').required(),
-        gender: Joi.string().valid('open', 'boys', 'girls').required(),
-        operator: Joi.number().valid(0, 1, 2).required(),
-        age: Joi.when('type', { is: 'age', then: Joi.required() }),
-        rating: Joi.when('type', { is: 'rating', then: Joi.required() }),
+        gender: Joi.string().valid('M', 'F').required(),
+        operator: Joi.number().valid(-1, 0, 1).required(),
+        value: Joi.required(),
+      })
+    )
+
+    // validate request body against schema
+    const { error, value } = schema.validate(req.body, options)
+
+    if (error) {
+      // on fail return comma separated errors
+      const errorMessage = error.details
+        .map((details) => {
+          return details.message
+        })
+        .join(', ')
+      next(new ApiError(httpStatus.BAD_REQUEST, errorMessage))
+    } else {
+      // on success replace req.body with validated value and trigger next middleware function
+      req.body = value
+      return next()
+    }
+  }
+
+  static saveTournamentPrizeValidator(req, res, next) {
+    // create schema object
+    const schema = Joi.array().items(
+      Joi.object({
+        name: Joi.string().required(),
+        tournament_id: Joi.number().required(),
+        category_id: Joi.number(),
+        prizes: Joi.array()
+          .items(
+            Joi.object({
+              title: Joi.string().required(),
+              amount: Joi.number(),
+              trophy: Joi.boolean(),
+              medal: Joi.boolean(),
+            })
+          )
+          .min(1)
+          .required(),
       })
     )
 

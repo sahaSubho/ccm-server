@@ -8,6 +8,9 @@
     "start": "cross-env NODE_ENV=production node src/index.js",
     "test": "mocha './specs/**/*.spec.js' --watch"
   },
+  "engines": {
+    "node": ">=14.0.0"
+  },
   "author": "CircleChess",
   "license": "MIT",
   "private": true,

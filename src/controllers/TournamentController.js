@@ -151,8 +151,9 @@ class TournamentController {
 
   updatePrizeCategories = async (req, res) => {
     try {
+      const { id } = req.params
       const prizeCategories =
-        await this.tournamentService.updatePrizingCategories(req.body, req)
+        await this.tournamentService.updatePrizingCategories(id, req.body)
       const { status, message, data } = prizeCategories.response
       res.status(prizeCategories.statusCode).send({ status, message, data })
     } catch (e) {

@@ -7,7 +7,7 @@ const router = express.Router()
 const auth = require('../middlewares/auth')
 
 const tournamentController = new TournamentController()
-const tournamentValidator = new TournamentValidator()
+const tournamentValidator = TournamentValidator
 
 router.post(
   '/create',
@@ -57,9 +57,9 @@ router.post(
   tournamentController.createPrizingCategories
 )
 router.post(
-  '/prize-config',
+  '/prize-config/:id',
   auth(),
-  tournamentValidator.prizeConfigValidator,
+  tournamentValidator.saveTournamentPrizeValidator,
   tournamentController.updatePrizeCategories
 )
 router.get(

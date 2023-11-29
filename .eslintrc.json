@@ -6,7 +6,7 @@
     "plugin:node/recommended"
   ],
   "parserOptions": {
-    "ecmaVersion": 2017,
+    "ecmaVersion": 2023,
     "requireForBlockBody": true
   },
   "parser": "@babel/eslint-parser",
@@ -21,16 +21,7 @@
     "no-console": 0,
     "indent": 0,
     "linebreak-style": 0,
-    "prettier/prettier": [
-      "error",
-      {
-        "trailingComma": "all",
-        "singleQuote": true,
-        "printWidth": 100,
-        "tabWidth": 4,
-        "semi": true
-      }
-    ]
+    "camelcase":"off"
   },
   "plugins": ["prettier"]
 }
