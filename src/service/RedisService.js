@@ -75,6 +75,41 @@ class RedisService {
     }
     return false
   }
+
+  /**
+   * Get Value
+   * @param {String} key
+   * @returns {String}
+   */
+  getValue = async (key) => {
+    const value = await this.redisHelper.get(key)
+    if (value != null) {
+      return value
+    }
+    return false
+  }
+
+  /**
+   * Set Value
+   * @param {Object} key
+   * @returns {boolean}
+   */
+  setValue = async (key, value) => {
+    const setValue = await this.redisHelper.set(key, value)
+    if (!setValue) {
+      return true
+    }
+    return false
+  }
+
+  /**
+   * Remove Key
+   * @param {Object} key
+   * @returns {boolean}
+   */
+  removeKey = async (key) => {
+    return this.redisHelper.del(key)
+  }
 }
 
 module.exports = RedisService

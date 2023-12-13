@@ -29,9 +29,6 @@ module.exports = {
     })
     await queryInterface.addColumn('prize_categories', 'operator', {
       type: Sequelize.INTEGER,
-      validate: {
-        isIn: [[-1, 0, 1]],
-      },
       allowNull: false,
     })
     await queryInterface.addColumn('prize_categories', 'value', {

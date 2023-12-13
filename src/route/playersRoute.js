@@ -7,7 +7,7 @@ const router = express.Router()
 const auth = require('../middlewares/auth')
 
 const playersController = new PlayersController()
-const playerValidator = new PlayerValidator()
+const playerValidator = PlayerValidator
 
 router.post(
   '/upload',
@@ -47,6 +47,13 @@ router.post(
   upload.single('file'),
   playerValidator.uploadValidator,
   playersController.uploadPrizeWinningPlayers
+)
+
+router.post(
+  '/distribute-prizes',
+  auth(),
+  playerValidator.distriubtePrizes,
+  playersController.distriubtePrizes
 )
 
 router.post(

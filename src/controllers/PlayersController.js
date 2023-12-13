@@ -2,7 +2,7 @@ const httpStatus = require('http-status')
 const PlayerService = require('../service/PlayerService')
 const logger = require('../config/logger')
 
-class TournamentController {
+class PlayerController {
   constructor() {
     this.playerService = new PlayerService()
   }
@@ -105,6 +105,20 @@ class TournamentController {
     }
   }
 
+  distriubtePrizes = async (req, res) => {
+    try {
+      const payout = await this.playerService.createJuspayPayout(
+        req.body.tournamentId,
+        req.user
+      )
+      const { status, message, data } = payout.response
+      res.status(payout.statusCode).send({ status, message, data })
+    } catch (e) {
+      logger.error(e)
+      res.status(httpStatus.BAD_GATEWAY).send(e)
+    }
+  }
+
   getPlayersDetails = async (req, res) => {
     try {
       const { uuid, tournamentId } = req.query
@@ -121,4 +135,4 @@ class TournamentController {
   }
 }
 
-module.exports = TournamentController
+module.exports = PlayerController

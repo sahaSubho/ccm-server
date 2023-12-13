@@ -1,18 +1,18 @@
 const httpStatus = require('http-status')
 const { Op } = require('sequelize')
 const { v4: uuidv4 } = require('uuid')
+const moment = require('moment')
 const PlayersDao = require('../dao/PlayersDao')
 const PlayersPrizePayoutDao = require('../dao/PlayersPrizePayoutDao')
 const TournamentDao = require('../dao/TournamentDao')
 const TournamentPairingDao = require('../dao/TournamentPairingDao')
 const responseHandler = require('../helper/responseHandler')
 const logger = require('../config/logger')
-const config = require('../config/config')
 const parseFile = require('../helper/parseFile')
 const { userRoles } = require('../config/constant')
 const { sequelize } = require('../models')
-const moment = require('moment')
 const { sortByInitialRankings } = require('../helper/swiss')
+const JuspayService = require('./JuspayService')
 
 class PlayersService {
   constructor() {
@@ -20,9 +20,10 @@ class PlayersService {
     this.tournamentDao = new TournamentDao()
     this.tournamentPairingDao = new TournamentPairingDao()
     this.playersPrizePayoutDao = new PlayersPrizePayoutDao()
+    this.juspayService = new JuspayService()
   }
 
-  parseGender = (gender) => {
+  static parseGender = (gender) => {
     if (['male', 'm', 'b', 'boys', 'boy'].includes(gender.toLowerCase())) {
       return 'M'
     }
@@ -35,6 +36,7 @@ class PlayersService {
     }
     return ''
   }
+
   /**
    * Upload players
    * @param {Object} req
@@ -56,65 +58,81 @@ class PlayersService {
 
       if (
         data.length &&
-        !['name', 'gender', 'birth_year'].every((x) =>
-          Object.keys(data[0]).includes(x)
-        )
+        !['name', 'gender', 'birth_year'].every((x) => {
+          return Object.keys(data[0]).includes(x)
+        })
       ) {
         message =
           'Name, Gender and Birth Year is mandatory fields! Please upload again with correct format.'
         return responseHandler.returnError(httpStatus.BAD_REQUEST, message)
       }
-      const tournamentId = req.body.tournamentId
+      const { tournamentId } = req.body
       const tournament = await this.tournamentDao.findById(tournamentId)
 
-      const where = [{ name: data.map((d) => d.name) }]
+      const where = [
+        {
+          name: data.map((d) => {
+            return d.name
+          }),
+        },
+      ]
       if (Object.keys(data[0]).includes('mobile_number')) {
-        where.push({ mobile: data.map((d) => String(d.mobile_number)) })
+        where.push({
+          mobile: data.map((d) => {
+            return String(d.mobile_number)
+          }),
+        })
       }
       if (Object.keys(data[0]).includes('fide_id')) {
-        where.push({ fide_id: data.map((d) => Number(d.fide_id)) })
+        where.push({
+          fide_id: data.map((d) => {
+            return Number(d.fide_id)
+          }),
+        })
       }
 
-      data = data.map((d) => ({
-        name: d.name,
-        fide_id: Number(d?.fide_id) || null,
-        rating: Number(d.rating) || 0,
-        gender: this.parseGender(d.gender),
-        uuid: uuidv4(),
-        created_by: userRoles.ORGANIZER,
-        age: moment(tournament.start_date).year() - Number(d.birth_year),
-        mobile: d?.mobile_number || '',
-        upi_id: d?.upi_address || '',
-        title: d?.title || '',
-      }))
+      data = data.map((d) => {
+        return {
+          name: d.name,
+          fide_id: Number(d?.fide_id) || null,
+          rating: Number(d.rating) || 0,
+          gender: this.parseGender(d.gender),
+          uuid: uuidv4(),
+          created_by: userRoles.ORGANIZER,
+          age: moment(tournament.start_date).year() - Number(d.birth_year),
+          mobile: d?.mobile_number || '',
+          upi_id: d?.upi_address || '',
+          title: d?.title || '',
+        }
+      })
 
       let fide_ids = []
       if (tournament.player_fide_ids) {
         fide_ids = tournament.player_fide_ids.split(',')
       }
 
-      let players = await this.playersDao.findByWhere({
+      const players = await this.playersDao.findByWhere({
         [Op.or]: where,
       })
 
-      let common = []
+      const common = []
       let newPlayers = []
-      let invalidPlayer = []
+      const invalidPlayer = []
       if (players.length > 0) {
-        data.forEach((p, i) => {
+        data.forEach((p) => {
           let MostMatchedPlayer = null
           let j = 0
           while (j < players.length) {
             const r = players[j]
-            if (!!p['mobile']?.length && r['mobile'] === p['mobile']) {
+            if (!!p.mobile?.length && r.mobile === p.mobile) {
               if (p.name === r.name) {
                 MostMatchedPlayer = r
-              } else if (!!p['fide_id'] && r.fide_id === p.fide_id) {
+              } else if (!!p.fide_id && r.fide_id === p.fide_id) {
                 invalidPlayer.push(p.name)
               }
               break
             }
-            if (!!p['fide_id'] && r['fide_id'] === p['fide_id']) {
+            if (!!p.fide_id && r.fide_id === p.fide_id) {
               if (p.name === r.name) {
                 MostMatchedPlayer = r
               } else {
@@ -139,12 +157,16 @@ class PlayersService {
       }
 
       data = newPlayers
-      const playerUuids = common.map((p) => p.uuid)
+      const playerUuids = common.map((p) => {
+        return p.uuid
+      })
 
       if (
         !data.length &&
         playerUuids.length &&
-        playerUuids.every((id) => fide_ids.includes(id))
+        playerUuids.every((id) => {
+          return fide_ids.includes(id)
+        })
       ) {
         message = 'Players are already registered in this tournament.'
         return responseHandler.returnError(httpStatus.BAD_REQUEST, message)
@@ -162,8 +184,14 @@ class PlayersService {
       const ids = [
         ...new Set(fide_ids),
         ...new Set(playerUuids),
-        ...new Set(data.map((r) => r.uuid)),
-      ].filter((id) => id || id.length)
+        ...new Set(
+          data.map((r) => {
+            return r.uuid
+          })
+        ),
+      ].filter((id) => {
+        return id || id.length
+      })
 
       await this.tournamentDao.updateWhere(
         {
@@ -224,7 +252,7 @@ class PlayersService {
         where.push({ fide_id: Number(data.fide_id) })
       }
 
-      let players = await this.playersDao.findByWhere({
+      const players = await this.playersDao.findByWhere({
         [Op.or]: where,
       })
 
@@ -233,15 +261,15 @@ class PlayersService {
       let i = 0
       while (i < players.length) {
         const r = players[i]
-        if (r['mobile'] === data['mobile']) {
+        if (r.mobile === data.mobile) {
           if (data.name === r.name) {
             player = r
-          } else if (!!p['fide_id'] && r.fide_id === p.fide_id) {
+          } else if (!!data.fide_id && r.fide_id === data.fide_id) {
             invalidPlayer = true
           }
           break
         }
-        if (!!data['fide_id'] && r['fide_id'] === Number(data['fide_id'])) {
+        if (!!data.fide_id && r.fide_id === Number(data.fide_id)) {
           if (data.name === r.name) {
             player = r
           } else {
@@ -279,7 +307,7 @@ class PlayersService {
         {
           player_fide_ids: ids.join(),
         },
-        { id: id }
+        { id }
       )
       if (!result) {
         message = 'Failed to add player! Please try again.'
@@ -321,11 +349,15 @@ class PlayersService {
       })
 
       const result = sortByInitialRankings(data)
-        .map((p) => ({
-          ...p,
-          isWithDrawn: withDrawnIds.includes(p.uuid),
-        }))
-        .sort((a, b) => (b.isWithDrawn ? -1 : 1))
+        .map((p) => {
+          return {
+            ...p,
+            isWithDrawn: withDrawnIds.includes(p.uuid),
+          }
+        })
+        .sort((a, b) => {
+          return b.isWithDrawn ? -1 : 1
+        })
 
       return responseHandler.returnSuccess(httpStatus.OK, message, result)
     } catch (e) {
@@ -358,7 +390,7 @@ class PlayersService {
         message,
         playerBody
       )
-    } catch (error) {
+    } catch (e) {
       logger.error(e)
       return responseHandler.returnError(
         httpStatus.BAD_REQUEST,
@@ -386,19 +418,20 @@ class PlayersService {
         return responseHandler.returnError(httpStatus.BAD_REQUEST, message)
       }
 
-      const tournamentId = req.body.tournamentId
+      const { tournamentId } = req.body
       const players = await this.playersPrizePayoutDao.findByWhere({
         tournament_id: tournamentId,
       })
 
       data = data
-        .filter(
-          (d) =>
-            !players.some(
-              (p) => p.mobile_number === d.mobile_number || p.name === d.name
-            )
-        )
-        .map((e) => ({ ...e, tournament_id: tournamentId }))
+        .filter((d) => {
+          return !players.some((p) => {
+            return p.mobile_number === d.mobile_number || p.name === d.name
+          })
+        })
+        .map((e) => {
+          return { ...e, tournament_id: tournamentId }
+        })
 
       if (!data.length) {
         message = 'Players already exists.'
@@ -473,7 +506,7 @@ class PlayersService {
         message,
         playerBody
       )
-    } catch (error) {
+    } catch (e) {
       logger.error(e)
       return responseHandler.returnError(
         httpStatus.BAD_REQUEST,
@@ -482,13 +515,25 @@ class PlayersService {
     }
   }
 
+  /**
+   * update prize winning players
+   * @param {Number} tournamentId
+   * @param {Object} user
+   * @returns {Object}
+   */
+
   createJuspayPayout = async (tournamentId, user) => {
     try {
       let message
       const players = await this.playersPrizePayoutDao.findByWhere({
         tournament_id: tournamentId,
       })
-      if (!players.some((p) => p.upi_id.length || p.amount > 0)) {
+      const tournament = await this.tournamentDao.findById(tournamentId)
+      if (
+        !players.some((p) => {
+          return p.upi_id.length || p.amount > 0
+        })
+      ) {
         message =
           'Amount should be greater than 0 and UPI Id should be available for all players!'
         return responseHandler.returnError(httpStatus.BAD_REQUEST, message)
@@ -497,18 +542,31 @@ class PlayersService {
       const random5char = Math.random().toString(36).substr(2, 5)
       const data = {
         orderId: `PAYOUT${moment().format('YYYYMM')}${random5char}`,
-        fulfillments: players.map((p) => ({
-          amount: p.amount,
-          beneficiaryDetails: {
-            details: {
-              name: p.name,
-              vpa: p.upi_id,
-            },
-            type: 'UPI_ID',
-          },
-        })),
-        amount: players.reduce((t, s) => t + s.amount, 0),
-        customerId: user.id,
+        fulfillments: players
+          .filter((p) => {
+            return !p.status || ['FAIL', 'FAILURE'].includes(p.status)
+          })
+          .map((p) => {
+            return {
+              preferredMethodList: ['DUMMY_UPI'],
+              amount: p.amount,
+              beneficiaryDetails: {
+                details: {
+                  name: p.name,
+                  vpa: p.upi_id,
+                },
+                type: 'UPI_ID',
+              },
+            }
+          }),
+        amount: players
+          .filter((p) => {
+            return !p.status || ['FAIL', 'FAILURE'].includes(p.status)
+          })
+          .reduce((t, s) => {
+            return t + s.amount
+          }, 0),
+        customerId: String(user.id),
         customerPhone: user.phone_number,
         customerEmail: user.email,
         type: 'FULFILL_ONLY',
@@ -518,28 +576,44 @@ class PlayersService {
         udf4: '',
         udf5: '',
       }
-      let options = {
-        url: config.juspay.url,
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Basic ${btoa(config.juspay.apiKey)}`,
-          'x-merchantid': config.juspay.merchantId,
-        },
-        body: JSON.stringify(data),
+
+      console.log(data)
+
+      const juspayResponse = await this.juspayService.createPayout(data)
+
+      console.log('orderId', data.orderId, juspayResponse)
+
+      const updateData = { order_id: juspayResponse.orderId }
+      if (tournament.order_id) {
+        const previousOrderIds = tournament.previous_order_ids
+          ? JSON.parse(tournament.previous_order_ids)
+          : []
+        previousOrderIds.push(tournament.order_id)
+        updateData.previous_order_ids = JSON.stringify(previousOrderIds)
       }
+      await this.tournamentDao.updateById(updateData, tournamentId)
+      const promises = players
+        .filter((p) => {
+          return !p.status || ['FAIL', 'FAILURE'].includes(p.status)
+        })
+        .map((s, i) => {
+          return this.playersPrizePayoutDao.updateById(
+            { fulfillment_id: juspayResponse.fulfillments[i].id },
+            s.id
+          )
+        })
+
+      await Promise.allSettled(promises)
 
       message =
         'Payout to all players have been inititated succesfully. You can check the status in the table.!'
-
-      const juspayResponse = await fetch(options)
 
       return responseHandler.returnSuccess(
         httpStatus.OK,
         message,
         juspayResponse
       )
-    } catch (error) {
+    } catch (e) {
       logger.error(e)
       return responseHandler.returnError(
         httpStatus.BAD_REQUEST,
@@ -564,16 +638,21 @@ class PlayersService {
       if (tournament.player_fide_ids) {
         let fide_ids = tournament.player_fide_ids.split(',')
         let withDrawn_ids = []
-        if (tournament.withdrawn_uuid)
+        if (tournament.withdrawn_uuid) {
           withDrawn_ids = tournament.withdrawn_uuid.split(',')
+        }
 
         if (playerBody.is_withdrawn) {
-          fide_ids = fide_ids.filter((id) => id !== playerBody.uuid)
+          fide_ids = fide_ids.filter((id) => {
+            return id !== playerBody.uuid
+          })
           withDrawn_ids.push(playerBody.uuid)
         } else {
           message = 'Successfully added player again for this tournament.'
           fide_ids.push(playerBody.uuid)
-          withDrawn_ids = withDrawn_ids.filter((id) => id !== playerBody.uuid)
+          withDrawn_ids = withDrawn_ids.filter((id) => {
+            return id !== playerBody.uuid
+          })
         }
 
         await this.tournamentDao.updateById(
@@ -618,7 +697,7 @@ class PlayersService {
     try {
       let message = 'Successfully fetch player details.'
 
-      const player = await this.playersDao.findOneByWhere({ uuid: uuid })
+      const player = await this.playersDao.findOneByWhere({ uuid })
 
       if (!player) {
         message = 'Failed to fetch player details.'
@@ -635,7 +714,7 @@ class PlayersService {
 
       if (tournamentId) {
         query += ` and tournament_id=${tournamentId}`
-        where['tournament_id'] = tournamentId
+        where.tournament_id = tournamentId
         const tournament = await this.tournamentDao.findById(tournamentId)
         tournamentName = tournament.name
       }
@@ -651,24 +730,23 @@ class PlayersService {
         tournamentName,
         details: {
           ...player.toJSON(),
-          tournaments: tournaments.filter(
-            (t) =>
-              !(
-                t.result ===
-                  data.find((p) => p.parent_id === t.id || t.parent_id === p.id)
-                    ?.result && Number(t.result) === 0
-              )
-          ),
-        },
-        opponents: data.filter(
-          (t) =>
-            !(
+          tournaments: tournaments.filter((t) => {
+            return !(
               t.result ===
-                tournaments.find(
-                  (p) => p.parent_id === t.id || t.parent_id === p.id
-                )?.result && Number(t.result) === 0
+                data.find((p) => {
+                  return p.parent_id === t.id || t.parent_id === p.id
+                })?.result && Number(t.result) === 0
             )
-        ),
+          }),
+        },
+        opponents: data.filter((t) => {
+          return !(
+            t.result ===
+              tournaments.find((p) => {
+                return p.parent_id === t.id || t.parent_id === p.id
+              })?.result && Number(t.result) === 0
+          )
+        }),
       }
       return responseHandler.returnSuccess(httpStatus.OK, message, result)
     } catch (error) {

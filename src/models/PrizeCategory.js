@@ -24,7 +24,7 @@ module.exports = (sequelize, DataTypes) => {
       // 0 = equal to, ex: equal to 11
       // 1 = greater than, ex: seniors
       operator: {
-        type: DataTypes.ENUM(-1, 0, 1),
+        type: DataTypes.INTEGER,
         allowNull: false,
       },
 

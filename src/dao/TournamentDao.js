@@ -14,7 +14,7 @@ class TournamentDao extends SuperDao {
       where: { id },
       include: {
         model: Users,
-        attributes: attributes, // You can specify which user attributes to include
+        attributes, // You can specify which user attributes to include
       },
     })
   }

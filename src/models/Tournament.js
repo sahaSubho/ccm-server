@@ -1,5 +1,4 @@
 const { Model } = require('sequelize')
-const User = require('./User')
 
 module.exports = (sequelize, DataTypes) => {
   class Tournament extends Model {
@@ -69,6 +68,8 @@ module.exports = (sequelize, DataTypes) => {
       cct_id: DataTypes.INTEGER,
       created_by: DataTypes.INTEGER,
       is_active: DataTypes.BOOLEAN,
+      order_id: DataTypes.STRING,
+      previous_order_ids: DataTypes.JSONB,
     },
     {
       sequelize,

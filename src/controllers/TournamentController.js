@@ -221,18 +221,6 @@ class TournamentController {
       res.status(httpStatus.BAD_GATEWAY).send(e)
     }
   }
-
-  uploadBrochureImage = async (req, res) => {
-    try {
-      console.log('re', req)
-      const message = 'Successfully Upload Image'
-      const data = req.file
-      res.status(httpStatus[200]).send({ status, message, data })
-    } catch (error) {
-      logger.error(e)
-      res.status(httpStatus.BAD_GATEWAY).send(e)
-    }
-  }
 }
 
 module.exports = TournamentController

@@ -15,6 +15,7 @@ const { javaFoFirstRoundPairing } = require('../helper/swiss')
 const getTieBreaks = require('../helper/tieBreakerCalculation')
 const UserService = require('./UserService')
 const PrizeCategoryDao = require('../dao/PrizeCategoryDao')
+const PlayersPrizePayoutDao = require('../dao/PlayersPrizePayoutDao')
 const TournamentPrizeCategoryMappingDao = require('../dao/TournamentCategoryMappingDao')
 const parseFile = require('../helper/parseFile')
 
@@ -25,6 +26,7 @@ class TournamentService {
     this.tournamentPrizeMappingDao = new TournamentPrizeCategoryMappingDao()
     this.playersDao = new PlayersDao()
     this.tournamentPairingsDao = new TournamentPairingsDao()
+    this.playersPrizePayoutDao = new PlayersPrizePayoutDao()
     this.userService = new UserService() // This is specifically to for querying the lichess token information from DB
   }
 
@@ -572,7 +574,7 @@ class TournamentService {
    */
   createTournamentPairing = async (round, tournamentId) => {
     try {
-      let message = `Paired successfully for the ${this.getNumberWithOrdinal(
+      let message = `Paired successfully for the ${TournamentService.getNumberWithOrdinal(
         round
       )} round of the tournament.`
 
@@ -595,7 +597,7 @@ class TournamentService {
       })
 
       if (pairingData > 0) {
-        message = `The pairing of players already done for the ${this.getNumberWithOrdinal(
+        message = `The pairing of players already done for the ${TournamentService.getNumberWithOrdinal(
           round
         )} round.`
         return responseHandler.returnError(httpStatus.BAD_REQUEST, message)
@@ -635,7 +637,7 @@ class TournamentService {
         }, {})
 
         if (!pairing.length) {
-          message = `The pairing of players for the ${this.getNumberWithOrdinal(
+          message = `The pairing of players for the ${TournamentService.getNumberWithOrdinal(
             round - 1
           )} round is not done yet. Please generate paring of it.`
           return responseHandler.returnError(httpStatus.BAD_REQUEST, message)
@@ -721,7 +723,7 @@ class TournamentService {
    */
   // uploadTournamentPairing = async (round, tournamentId) => {
   //   try {
-  //     let message = `Paired players uplaoded successfully for the ${this.getNumberWithOrdinal(
+  //     let message = `Paired players uplaoded successfully for the ${TournamentService.getNumberWithOrdinal(
   //       round
   //     )} round of the tournament.`
 
@@ -732,7 +734,7 @@ class TournamentService {
   //     })
 
   //     if (!deleteRes) {
-  //       message = `Pairing for ${this.getNumberWithOrdinal(
+  //       message = `Pairing for ${TournamentService.getNumberWithOrdinal(
   //         round
   //       )} round cannot be done again since it is ended.`
   //       return responseHandler.returnError(httpStatus.BAD_REQUEST, message)
@@ -904,12 +906,117 @@ class TournamentService {
       }
 
       const promises = scores.map((s) => {
-        return this.tournamentPairingsDao.updateById({ result: s.score }, s.id)
+        return this.tournamentPairingsDao.updateById(
+          { result: s.score, is_scored: true },
+          s.id
+        )
       })
-      const result = await Promise.all(promises)
+      const result = await Promise.allSettled(promises)
       if (!result.length) {
         message = `Updating scores of Round ${round} is failed! Please try again.`
         return responseHandler.returnError(httpStatus.BAD_REQUEST, message)
+      }
+
+      if (tournament.rounds === Number(round)) {
+        const pendingScoreToUpload =
+          await this.tournamentPairingsDao.checkExist({
+            round,
+            tournament_id: tournamentId,
+            is_scored: false,
+          })
+        if (pendingScoreToUpload) {
+          const data = await this.tournamentPairingsDao.findWithPlayers({
+            round: { [Op.lte]: round },
+            tournament_id: tournamentId,
+          })
+          if (!data.length) {
+            message = `No players found for Round ${round}! Please try again.`
+            return responseHandler.returnError(httpStatus.BAD_REQUEST, message)
+          }
+          const players = getTieBreaks(data, Number(round))
+          const tournamentPrizeCategoryMappings =
+            await this.tournamentPrizeMappingDao.findAllWithCategory({
+              tournament_id: tournamentId,
+            })
+
+          let winningPlayers = []
+
+          tournamentPrizeCategoryMappings.forEach((prize) => {
+            if (prize.category_id) {
+              const operator = prize['prize_category.operator']
+              const value = prize['prize_category.value']
+              const filteredPlayers = players.filter((p) => {
+                return (
+                  TournamentService.getFilterBasedOnOperator(
+                    operator,
+                    p,
+                    `player.${prize['prize_category.type']}`,
+                    value
+                  ) && p['player.gender'] === prize['prize_category.gender']
+                )
+              })
+              const finalPlayers = filteredPlayers.splice(
+                0,
+                prize.prizes.length
+              )
+
+              winningPlayers = winningPlayers.concat(
+                finalPlayers.map((p, i) => {
+                  return {
+                    tournament_id: tournamentId,
+                    name: p['player.name'],
+                    mobile_number: p['player.mobile'],
+                    upi_id: p['player.upi_id'],
+                    amount: prize.prizes[i].amount,
+                    prize_name:
+                      prize.prizes.length > 1
+                        ? `${prize.name} - ${prize.prizes[i].title}`
+                        : prize.name,
+                  }
+                })
+              )
+            } else {
+              const finalPlayers = [...players].splice(0, prize.prizes.length)
+
+              winningPlayers = winningPlayers.concat(
+                finalPlayers.map((p, i) => {
+                  return {
+                    tournament_id: tournamentId,
+                    name: p['player.name'],
+                    mobile_number: p['player.mobile'],
+                    upi_id: p['player.upi_id'],
+                    amount: prize.prizes[i].amount,
+                    prize_name:
+                      prize.prizes.length > 1
+                        ? `${prize.name} - ${prize.prizes[i].title}`
+                        : prize.name,
+                  }
+                })
+              )
+            }
+          })
+
+          winningPlayers = winningPlayers
+            .reduce((a, b) => {
+              const matchedItem = a.find((x) => {
+                return x?.name?.trim() === b?.name?.trim()
+              })
+              if (matchedItem) {
+                if (Number(b?.amount) > Number(matchedItem.amount)) {
+                  const index = a.indexOf(matchedItem)
+                  a[index] = b
+                }
+              } else {
+                a.push(b)
+              }
+              return a
+            }, [])
+            .sort((a, b) => {
+              return Number(b?.amount) - Number(a?.amount)
+            })
+
+          await this.playersPrizePayoutDao.bulkCreate(winningPlayers)
+        }
       }
       return responseHandler.returnSuccess(httpStatus.OK, message)
     } catch (e) {
@@ -918,6 +1025,17 @@ class TournamentService {
         httpStatus.BAD_REQUEST,
         'Something went wrong!'
       )
+    }
+  }
+
+  static getFilterBasedOnOperator = (key, player, type, value) => {
+    switch (key) {
+      case -1:
+        return player[type] < value
+      case 1:
+        return player[type] > value
+      default:
+        return player[type] === value
     }
   }
 
@@ -1350,7 +1468,7 @@ class TournamentService {
             }
           }
         })
-        await Promise.all(promises)
+        await Promise.allSettled(promises)
       }
 
       let body = tournamentBody

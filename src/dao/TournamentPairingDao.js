@@ -1,8 +1,9 @@
+const sequelize = require('sequelize')
 const SuperDao = require('./SuperDao')
 const models = require('../models')
-const sequelize = require('sequelize')
 
 const TournamentPairings = models.tournament_pairings
+const Players = models.players
 
 class TournamentPairingsDao extends SuperDao {
   constructor() {
@@ -17,6 +18,16 @@ class TournamentPairingsDao extends SuperDao {
     return TournamentPairings.destroy({ where })
   }
 
+  async findWithPlayers(where) {
+    return TournamentPairings.findAll({
+      where,
+      include: {
+        model: Players, // You can specify which user attributes to include
+      },
+      raw: true,
+    })
+  }
+
   async findCountByGroup(groupBy, column, where) {
     return TournamentPairings.findAll({
       attributes: [
@@ -24,7 +35,7 @@ class TournamentPairingsDao extends SuperDao {
         [sequelize.fn('COUNT', sequelize.col(column)), 'count'],
       ],
       group: [groupBy],
-      where: where,
+      where,
       raw: true,
     })
   }
@@ -36,7 +47,7 @@ class TournamentPairingsDao extends SuperDao {
         [sequelize.fn('sum', sequelize.col(column)), 'sum'],
       ],
       group: [groupBy],
-      where: where,
+      where,
       raw: true,
     })
   }

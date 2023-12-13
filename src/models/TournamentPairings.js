@@ -1,5 +1,5 @@
-'use strict'
 const { Model } = require('sequelize')
+
 module.exports = (sequelize, DataTypes) => {
   class TournamentPairings extends Model {
     /**
@@ -12,6 +12,11 @@ module.exports = (sequelize, DataTypes) => {
       TournamentPairings.belongsTo(models.cc_tournament_chessmasters, {
         foreignKey: 'tournament_id',
       })
+      TournamentPairings.belongsTo(models.players, {
+        targetKey: 'uuid',
+        foreignKey: 'player_uuid',
+        onDelete: 'CASCADE',
+      })
     }
   }
   TournamentPairings.init(
@@ -23,6 +28,10 @@ module.exports = (sequelize, DataTypes) => {
       player_uuid: {
         type: DataTypes.STRING,
         allowNull: false,
+        references: {
+          model: 'players',
+          key: 'uuid',
+        },
       },
       player_name: DataTypes.STRING,
       player_rating: DataTypes.INTEGER,
@@ -33,6 +42,10 @@ module.exports = (sequelize, DataTypes) => {
       result: {
         type: DataTypes.DECIMAL(10, 2),
         defaultValue: '0.0',
+      },
+      is_scored: {
+        type: DataTypes.BOOLEAN,
+        defaultValue: false,
       },
       is_withdrawn: {
         type: DataTypes.BOOLEAN,

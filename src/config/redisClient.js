@@ -7,17 +7,17 @@ if (redis.usePassword.toUpperCase() === 'YES') {
   client.auth(redis.password)
 }
 
-if (env === 'production') {
-  ;(async () => {
-    await client.connect()
-  })()
+// if (env === 'production') {
+;(async () => {
+  await client.connect()
+})()
 
-  client.on('ready', () => {
-    console.log('Redis Connected!')
-  })
+client.on('ready', () => {
+  console.log('Redis Connected!')
+})
 
-  client.on('error', (err) => {
-    console.error(err)
-  })
-}
+client.on('error', (err) => {
+  console.error(err)
+})
+// }
 module.exports = client

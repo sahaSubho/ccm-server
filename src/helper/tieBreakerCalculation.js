@@ -9,7 +9,9 @@ function calculateTB1TB2TB3(players) {
       let isDraw = false
       const player = Object.values(players)
         .flat()
-        .find((p) => p.player_uuid === Number(uuid))
+        .find((p) => {
+          return p.player_uuid === Number(uuid)
+        })
       if (!c) {
         if (player.scores) {
           const n = players[uuid].length
@@ -19,7 +21,9 @@ function calculateTB1TB2TB3(players) {
             Number(current.score) + (1 - Number(current.result)) + 0.5 * (n - r)
         }
       } else {
-        score = c.scores.reduce((a, b) => a + Number(b.result), 0)
+        score = c.scores.reduce((a, b) => {
+          return a + Number(b.result)
+        }, 0)
         if (
           player?.scores[i]?.result === c?.scores[i]?.result &&
           Number(player?.scores[i]?.result) === 0.5
@@ -31,11 +35,17 @@ function calculateTB1TB2TB3(players) {
       return p
     }, [])
 
-    const modifiedOppScores = oppScores.map((p) => p.score)
+    const modifiedOppScores = oppScores.map((p) => {
+      return p.score
+    })
     // Sort in descending order to easily calculate TB2.
-    modifiedOppScores.sort((a, b) => b - a)
+    modifiedOppScores.sort((a, b) => {
+      return b - a
+    })
     // Calculate TB2 - Sum of Opponent Scores
-    const tb2 = modifiedOppScores.reduce((acc, score) => acc + score, 0)
+    const tb2 = modifiedOppScores.reduce((acc, score) => {
+      return acc + score
+    }, 0)
     tiebreaks[uuid] = { TB1: 0, TB2: tb2, TB3: 0 }
 
     // Calculate TB1 - Sum of Opponent Scores excluding the lowest opponent score
@@ -48,9 +58,21 @@ function calculateTB1TB2TB3(players) {
 
     // Step 4: Calculate TB3 - Sonneborn-Berger score
     const tb3 =
-      oppScores.filter((p) => !p.isDraw).reduce((acc, p) => acc + p.score, 0) +
+      oppScores
+        .filter((p) => {
+          return !p.isDraw
+        })
+        .reduce((acc, p) => {
+          return acc + p.score
+        }, 0) +
       0.5 *
-        oppScores.filter((p) => p.isDraw).reduce((acc, p) => acc + p.score, 0)
+        oppScores
+          .filter((p) => {
+            return p.isDraw
+          })
+          .reduce((acc, p) => {
+            return acc + p.score
+          }, 0)
     tiebreaks[uuid].TB3 = tb3
   })
 
@@ -64,24 +86,28 @@ function getTieBreaks(data, round) {
       id: c.id,
       player_uuid: c.player_uuid,
       scores: data
-        .filter((d) => d.player_uuid === c.player_uuid)
-        .map((o) => ({
-          round: o.round,
-          score: o.player_score,
-          result: o.result,
-        })),
+        .filter((d) => {
+          return d.player_uuid === c.player_uuid
+        })
+        .map((o) => {
+          return {
+            round: o.round,
+            score: o.player_score,
+            result: o.result,
+          }
+        }),
     }
     if (c.parent_id) {
-      const player = data.find(
-        (d) => d.id === c.parent_id && d.round === c.round
-      )
+      const player = data.find((d) => {
+        return d.id === c.parent_id && d.round === c.round
+      })
       p[player.player_uuid] = p[player.player_uuid]
         ? [...p[player.player_uuid], opponent]
         : [opponent]
     } else {
-      const player = data.find(
-        (d) => d.parent_id === c.id && d.round === c.round
-      )
+      const player = data.find((d) => {
+        return d.parent_id === c.id && d.round === c.round
+      })
       if (player) {
         p[player.player_uuid] = p[player.player_uuid]
           ? [...p[player.player_uuid], opponent]
@@ -95,16 +121,22 @@ function getTieBreaks(data, round) {
 
   const tieBreakerResult = calculateTB1TB2TB3(playersMapping)
   const players = data
-    .filter((d) => d.round === round)
-    .map((e) => ({
-      ...e,
-      ...tieBreakerResult[e.player_uuid],
-      tieSum: Object.values(tieBreakerResult[e.player_uuid]).reduce(
-        (a, b) => a + b,
-        0
-      ),
-      point: Number(e.player_score) + Number(e.result),
-    }))
+    .filter((d) => {
+      return d.round === round
+    })
+    .map((e) => {
+      return {
+        ...e,
+        ...tieBreakerResult[e.player_uuid],
+        tieSum: Object.values(tieBreakerResult[e.player_uuid]).reduce(
+          (a, b) => {
+            return a + b
+          },
+          0
+        ),
+        point: Number(e.player_score) + Number(e.result),
+      }
+    })
     .sort((a, b) => {
       if (b.point === a.point) {
         if (b.TB1 === a.TB1) {
