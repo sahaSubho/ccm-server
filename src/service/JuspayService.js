@@ -38,17 +38,16 @@ class JuspayService {
       this.options.method = 'POST'
       this.options.body = JSON.stringify(requestBody)
       const response = await fetch(this.url, this.options)
-      const juspayResponse = await response.json()
-      console.log('repsonse', juspayResponse)
-      const id = juspayResponse.fulfillments[0].id.split('-').shift()
-      this.redisService.setValue(id, juspayResponse.orderId)
-      return juspayResponse
+      if (response.ok) {
+        const juspayResponse = await response.json()
+        const id = juspayResponse.fulfillments[0].id.split('-').shift()
+        await this.redisService.setValue(id, juspayResponse.orderId)
+        return juspayResponse
+      }
+      throw Error('Payout Failed')
     } catch (e) {
-      logger.error(e)
-      return responseHandler.returnError(
-        httpStatus.BAD_REQUEST,
-        'Something went wrong!'
-      )
+      logger.error('juspay error', e)
+      throw Error('Payout Failed')
     }
   }
 
@@ -76,7 +75,7 @@ class JuspayService {
             const obj = {
               id: txnObj.transactionRef,
               orderid: juspayResponse.orderId,
-              status: txnObj.status,
+              status: txn.status,
               amount: txn.amount,
               responseMessage: txnObj.responseMessage || '',
               preferredMethodList: txn.preferredMethodList,
@@ -89,7 +88,7 @@ class JuspayService {
               promises.push(
                 this.playersPrizePayoutDao.updateWhere(
                   {
-                    status: txnObj.status,
+                    status: txn.status,
                     transaction_id: txnObj.transactionRef,
                   },
                   { fulfillment_id: txn.id }
@@ -97,9 +96,10 @@ class JuspayService {
               )
             }
             if (payoutExists) {
-              delete obj.id
+              const updateData = { ...obj }
+              delete updateData.id
               promises.push(
-                this.payoutTransactionsDao.updateWhere(obj, {
+                this.payoutTransactionsDao.updateWhere(updateData, {
                   id: txnObj.transactionRef,
                 })
               )
@@ -154,8 +154,7 @@ class JuspayService {
       if (txn.label === 'FULFILLMENT_TXN') {
         const txnObj = txn.info
         const id = txnObj.FulfillmentId.split('-').shift()
-        const orderId = this.redisService.getValue(id)
-        console.log(orderId)
+        const orderId = await this.redisService.getValue(id)
         const obj = {
           id: txnObj.transactionRef,
           orderid: orderId || '',

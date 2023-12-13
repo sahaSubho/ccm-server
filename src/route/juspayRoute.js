@@ -16,7 +16,6 @@ const authCheck = async (req, res, next) => {
       new ApiError(httpStatus.BAD_REQUEST, 'Please provide Basic Authorization')
     )
   }
-  console.log('auth', req.headers.authorization, validAuth)
   if (req.headers.authorization !== `Basic ${validAuth}`) {
     return next(
       new ApiError(

@@ -577,11 +577,7 @@ class PlayersService {
         udf5: '',
       }
 
-      console.log(data)
-
       const juspayResponse = await this.juspayService.createPayout(data)
-
-      console.log('orderId', data.orderId, juspayResponse)
 
       const updateData = { order_id: juspayResponse.orderId }
       if (tournament.order_id) {
@@ -598,7 +594,10 @@ class PlayersService {
         })
         .map((s, i) => {
           return this.playersPrizePayoutDao.updateById(
-            { fulfillment_id: juspayResponse.fulfillments[i].id },
+            {
+              fulfillment_id: juspayResponse.fulfillments[i].id,
+              status: 'INITIATED',
+            },
             s.id
           )
         })
