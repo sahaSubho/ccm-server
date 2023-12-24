@@ -11,7 +11,7 @@ const logger = require('../config/logger')
 const config = require('../config/config')
 const { sequelize } = require('../models')
 const { userRoles } = require('../config/constant')
-const { javaFoFirstRoundPairing } = require('../helper/swiss')
+const { javaFoRoundPairing } = require('../helper/swiss')
 const getTieBreaks = require('../helper/tieBreakerCalculation')
 const UserService = require('./UserService')
 const PrizeCategoryDao = require('../dao/PrizeCategoryDao')
@@ -671,7 +671,7 @@ class TournamentService {
       //     tournamentId
       //   )
 
-      const { whitePlayers, blackPlayers } = await javaFoFirstRoundPairing(
+      const { whitePlayers, blackPlayers } = await javaFoRoundPairing(
         players,
         round,
         tournament,

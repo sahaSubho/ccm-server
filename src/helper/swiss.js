@@ -1,7 +1,9 @@
+/* eslint-disable no-param-reassign */
+/* eslint-disable no-plusplus */
 const pair = require('./pairingEngine')
 
 function formatPlayerData(player, round = 1, tournament_id = undefined) {
-  if (round === 1)
+  if (round === 1) {
     return {
       round,
       tournament_id,
@@ -12,6 +14,7 @@ function formatPlayerData(player, round = 1, tournament_id = undefined) {
       player_rating: player.rating || 0,
       player_score: player.score || 0,
     }
+  }
   return {
     round,
     tournament_id,
@@ -24,244 +27,296 @@ function formatPlayerData(player, round = 1, tournament_id = undefined) {
   }
 }
 
-function swissFirstRoundPairing(players, tournament_id) {
-  // Initialize the pairings.
-  const whitePlayers = []
-  const blackPlayers = []
+const orderTitles = [
+  'GM',
+  'WGM',
+  'IM',
+  'WIM',
+  'SG',
+  'FM',
+  'WFM',
+  'AGM',
+  'IGM',
+  'DGM',
+  'CM',
+  'WCM',
+  'AIM',
+  'AFM',
+  'ACM',
+  'GCM',
+]
 
-  // Sort the players by their ratings.
-  players.sort((a, b) => b.rating - a.rating || a.name.localeCompare(b.name))
-
-  // Pair the players off.
-  const median = players.length / 2
-
-  for (let i = 0; i < players.length / 2; i++) {
-    if (i % 2 == 0) {
-      if (players[i])
-        whitePlayers.push(formatPlayerData(players[i], 1, tournament_id))
-      if (players[median + i])
-        blackPlayers.push(
-          formatPlayerData(players[median + i], 1, tournament_id)
+const sortByInitialRankings = (players) => {
+  return players.sort((a, b) => {
+    if (b.rating === a.rating) {
+      if (b?.title?.length && a?.title?.length) {
+        return (
+          orderTitles.indexOf(a.title.toUpperCase()) -
+            orderTitles.indexOf(b.title.toUpperCase()) ||
+          a.name.localeCompare(b.name)
         )
-    } else {
-      if (players[i])
-        blackPlayers.push(formatPlayerData(players[i], 1, tournament_id))
-      if (players[median + i])
-        whitePlayers.push(
-          formatPlayerData(players[median + i], 1, tournament_id)
-        )
+      }
+      if (b?.title?.length || a?.title?.length) {
+        return b.title.length - a.title.length
+      }
+      return a.name.localeCompare(b.name)
     }
-  }
-
-  // Return the list of pairings.
-  return { whitePlayers, blackPlayers }
+    return b.rating - a.rating
+  })
 }
 
-function swissOtherRoundPairings(players, opponents, round, tournament_id) {
-  // Initialize the pairings.
-  const nextParing = []
-  const whitePlayers = []
-  const blackPlayers = []
+// function swissFirstRoundPairing(players, tournament_id) {
+//   // Initialize the pairings.
+//   const whitePlayers = []
+//   const blackPlayers = []
 
-  console.log('count', players.length, opponents.length)
+//   // Sort the players by their ratings.
+//   players.sort((a, b) => {
+//     return b.rating - a.rating || a.name.localeCompare(b.name)
+//   })
 
-  const points = [
-    ...new Set([...players, ...opponents].map((i) => Number(i.player_score))),
-  ].sort((a, b) => b - a)
-  // Sort the players by their ratings.
-  console.log(points)
-  players.sort(
-    (a, b) =>
-      Number(b.player_score) - Number(a.player_score) ||
-      b.player_rating - a.player_rating ||
-      a.player_name.localeCompare(b.player_name)
-  )
-  opponents.sort(
-    (a, b) =>
-      Number(b.player_score) - Number(a.player_score) ||
-      a.player_name.localeCompare(b.player_name)
-  )
+//   // Pair the players off.
+//   const median = players.length / 2
 
-  let tempPlayer = null
-  let ptype = null
-  let index = 0
+//   for (let i = 0; i < players.length / 2; i++) {
+//     if (i % 2 == 0) {
+//       if (players[i]) {
+//         whitePlayers.push(formatPlayerData(players[i], 1, tournament_id))
+//       }
+//       if (players[median + i]) {
+//         blackPlayers.push(
+//           formatPlayerData(players[median + i], 1, tournament_id)
+//         )
+//       }
+//     } else {
+//       if (players[i]) {
+//         blackPlayers.push(formatPlayerData(players[i], 1, tournament_id))
+//       }
+//       if (players[median + i]) {
+//         whitePlayers.push(
+//           formatPlayerData(players[median + i], 1, tournament_id)
+//         )
+//       }
+//     }
+//   }
 
-  // Pair the players off.
-  points.forEach((score) => {
-    const currentPlayers = players.filter(
-      (ele) => Number(ele.player_score) === score
-    )
-    const currentOpponents = opponents.filter(
-      (ele) => Number(ele.player_score) === score
-    )
+//   // Return the list of pairings.
+//   return { whitePlayers, blackPlayers }
+// }
 
-    // console.log(
-    //   'count........................',
-    //   currentPlayers.length,
-    //   currentOpponents.length
-    // )
+// function swissOtherRoundPairings(players, opponents, round, tournament_id) {
+//   // Initialize the pairings.
+//   const nextParing = []
+//   const whitePlayers = []
+//   const blackPlayers = []
 
-    if (tempPlayer && ptype) {
-      let player
-      if (ptype === 'players') {
-        player = currentOpponents.length
-          ? currentOpponents.shift()
-          : currentPlayers.shift()
-      } else {
-        player = currentPlayers.length
-          ? currentPlayers.shift()
-          : currentOpponents.shift()
-      }
-      // console.log('player', ptype, tempPlayer, player)
-      nextParing.push([tempPlayer, player])
-      tempPlayer = null
-      ptype = null
-    }
+//   console.log('count', players.length, opponents.length)
 
-    // console.log(
-    //   'count2........................',
-    //   currentPlayers.length,
-    //   currentOpponents.length
-    // )
-    const maxvalue = Math.max(currentOpponents.length, currentPlayers.length)
-    const minvalue = Math.min(currentOpponents.length, currentPlayers.length)
+//   const points = [
+//     ...new Set(
+//       [...players, ...opponents].map((i) => {
+//         return Number(i.player_score)
+//       })
+//     ),
+//   ].sort((a, b) => {
+//     return b - a
+//   })
+//   // Sort the players by their ratings.
+//   console.log(points)
+//   players.sort((a, b) => {
+//     return (
+//       Number(b.player_score) - Number(a.player_score) ||
+//       b.player_rating - a.player_rating ||
+//       a.player_name.localeCompare(b.player_name)
+//     )
+//   })
+//   opponents.sort((a, b) => {
+//     return (
+//       Number(b.player_score) - Number(a.player_score) ||
+//       a.player_name.localeCompare(b.player_name)
+//     )
+//   })
 
-    const oMedian = Math.round(currentOpponents.length / 2)
-    const pMedian = Math.round(currentPlayers.length / 2)
+//   let tempPlayer = null
+//   let ptype = null
+//   const index = 0
 
-    const data = {
-      playersA: [...currentPlayers].splice(0, pMedian), // [1,2,3,4]
-      playersB: [...currentPlayers].splice(pMedian), // [5,6,7]
-      opponentsA: [...currentOpponents].splice(0, oMedian), // [8,9,10,11,12]
-      opponentsB: [...currentOpponents].splice(oMedian), // [13,14,15,16]
-    }
+//   // Pair the players off.
+//   points.forEach((score) => {
+//     const currentPlayers = players.filter((ele) => {
+//       return Number(ele.player_score) === score
+//     })
+//     const currentOpponents = opponents.filter((ele) => {
+//       return Number(ele.player_score) === score
+//     })
 
-    // [[11,1],[8,5],[12,2],[9,6],[10,3]] => [4,7]
-    // [[11,1],[8,5],[12,2],[9,6],[13,3],[10,7]] => [4]
-    // [[12,1],[8,5],[13,2],[9,6],[14,3],[10,7],[15,4]] => [11]
-    // [[13,1],[8,5],[14,2],[9,6],[15,3],[10,7],[16,4]] => [11,12]
-    const distributionMapping = {
-      even: ['B', 'A'],
-      odd: ['A', 'B'],
-    }
+//     // console.log(
+//     //   'count........................',
+//     //   currentPlayers.length,
+//     //   currentOpponents.length
+//     // )
 
-    // console.log('pairing..................', nextParing.length)
+//     if (tempPlayer && ptype) {
+//       let player
+//       if (ptype === 'players') {
+//         player = currentOpponents.length
+//           ? currentOpponents.shift()
+//           : currentPlayers.shift()
+//       } else {
+//         player = currentPlayers.length
+//           ? currentPlayers.shift()
+//           : currentOpponents.shift()
+//       }
+//       // console.log('player', ptype, tempPlayer, player)
+//       nextParing.push([tempPlayer, player])
+//       tempPlayer = null
+//       ptype = null
+//     }
 
-    for (let index = 0; index < minvalue; index++) {
-      if (index % 2 === 0) {
-        const opp = !data.opponentsB.length ? data.opponentsA : data.opponentsB
-        nextParing.push([opp.shift(), data.playersA.shift()])
-      } else {
-        const pl = !data.playersB.length ? data.playersA : data.playersB
-        nextParing.push([data.opponentsA.shift(), pl.shift()])
-      }
-      // console.log(
-      //   'player',
-      //   JSON.stringify(data),
-      //   nextParing.length,
-      //   [...nextParing].slice(-1)
-      // )
-    }
-    if (maxvalue !== minvalue) {
-      const type = minvalue % 2 === 0 ? 'even' : 'odd'
-      const playersType =
-        maxvalue === currentPlayers.length ? 'players' : 'opponents'
-      const count = Math.min(
-        data[`${playersType}A`].length,
-        data[`${playersType}B`].length
-      )
-      if (
-        !count &&
-        Math.max(
-          data[`${playersType}A`].length,
-          data[`${playersType}B`].length
-        ) === 2
-      ) {
-        const item = !data[`${playersType}A`].length
-          ? data[`${playersType}B`]
-          : data[`${playersType}A`]
-        nextParing.push(item)
-      } else {
-        let j = 0
-        while (j < count) {
-          if (j % 2 === 0 || (j === 0 && type === 'even')) {
-            const item = distributionMapping['even'].map((t) =>
-              data[`${playersType}${t}`].shift()
-            )
-            nextParing.push(item)
-          } else if (j % 2 !== 0 || (j === 0 && type === 'odd')) {
-            const item = distributionMapping['odd'].map((t) =>
-              data[`${playersType}${t}`].shift()
-            )
-            nextParing.push(item)
-          }
-          j++
-        }
-        tempPlayer = data[`${playersType}A`].length
-          ? data[`${playersType}A`].shift()
-          : data[`${playersType}B`].shift()
-        ptype = playersType
-      }
-    }
+//     // console.log(
+//     //   'count2........................',
+//     //   currentPlayers.length,
+//     //   currentOpponents.length
+//     // )
+//     const maxvalue = Math.max(currentOpponents.length, currentPlayers.length)
+//     const minvalue = Math.min(currentOpponents.length, currentPlayers.length)
 
-    // for (let i = 0; i <= Math.floor(maxvalue / 2); i++) {
-    //   const remainingPlayers = currentPlayers.filter(
-    //     (a) => !nextParing.flat().some((n) => n?.player_uuid === a.player_uuid)
-    //   )
-    //   const remainingOpponent = currentOpponents.filter(
-    //     (a) => !nextParing.flat().some((n) => n?.player_uuid === a.player_uuid)
-    //   )
-    //   if (remainingPlayers.length === 0 || remainingOpponent.length === 0) {
-    //     tempPlayer =
-    //       remainingPlayers.length > remainingOpponent.length
-    //         ? remainingPlayers[0]
-    //         : remainingOpponent[0]
-    //     type = remainingPlayers.length === 1 ? 'opponent' : 'player'
-    //     const median = type === 'opponent' ? oMedian : pMedian
-    //     index = i === median ? median + i : i
-    //   } else if (
-    //     i >= currentOpponents.length / 2 ||
-    //     i >= currentPlayers.length / 2
-    //   ) {
-    //     const median = i >= currentOpponents.length / 2 ? pMedian : oMedian
-    //     const newPlayers =
-    //       i >= currentOpponents.length / 2 ? currentPlayers : currentOpponents
-    //     const j = index ? median + index : i
-    //     if ((i >= oMedian && i % 2 == 0) || (i >= pMedian && i % 2 == 0)) {
-    //       nextParing.push([newPlayers[j], newPlayers[median + i]])
-    //     } else {
-    //       nextParing.push([newPlayers[median + i], newPlayers[j]])
-    //     }
-    //   } else {
-    //     nextParing.push([currentOpponents[oMedian + i], currentPlayers[i]])
-    //     nextParing.push([currentOpponents[i], currentPlayers[pMedian + i]])
-    //   }
+//     const oMedian = Math.round(currentOpponents.length / 2)
+//     const pMedian = Math.round(currentPlayers.length / 2)
 
-    //   if (tempPlayer && type) {
-    //     const newPlayer = type === 'player' ? currentPlayers : currentOpponents
-    //     nextParing.push([tempPlayer, newPlayer[index]])
-    //     tempPlayer = null
-    //     type = null
-    //   }
-    // }
-  })
-  // console.log('nextPairing', nextParing.length)
+//     const data = {
+//       playersA: [...currentPlayers].splice(0, pMedian), // [1,2,3,4]
+//       playersB: [...currentPlayers].splice(pMedian), // [5,6,7]
+//       opponentsA: [...currentOpponents].splice(0, oMedian), // [8,9,10,11,12]
+//       opponentsB: [...currentOpponents].splice(oMedian), // [13,14,15,16]
+//     }
 
-  nextParing.forEach((p) => {
-    whitePlayers.push(formatPlayerData(p[0], round, tournament_id))
-    blackPlayers.push(formatPlayerData(p[1], round, tournament_id))
-  })
+//     // [[11,1],[8,5],[12,2],[9,6],[10,3]] => [4,7]
+//     // [[11,1],[8,5],[12,2],[9,6],[13,3],[10,7]] => [4]
+//     // [[12,1],[8,5],[13,2],[9,6],[14,3],[10,7],[15,4]] => [11]
+//     // [[13,1],[8,5],[14,2],[9,6],[15,3],[10,7],[16,4]] => [11,12]
+//     const distributionMapping = {
+//       even: ['B', 'A'],
+//       odd: ['A', 'B'],
+//     }
 
-  // Return the list of pairings.
-  return { whitePlayers, blackPlayers }
-}
+//     // console.log('pairing..................', nextParing.length)
 
-async function javaFoFirstRoundPairing(
+//     for (let index = 0; index < minvalue; index++) {
+//       if (index % 2 === 0) {
+//         const opp = !data.opponentsB.length ? data.opponentsA : data.opponentsB
+//         nextParing.push([opp.shift(), data.playersA.shift()])
+//       } else {
+//         const pl = !data.playersB.length ? data.playersA : data.playersB
+//         nextParing.push([data.opponentsA.shift(), pl.shift()])
+//       }
+//       // console.log(
+//       //   'player',
+//       //   JSON.stringify(data),
+//       //   nextParing.length,
+//       //   [...nextParing].slice(-1)
+//       // )
+//     }
+//     if (maxvalue !== minvalue) {
+//       const type = minvalue % 2 === 0 ? 'even' : 'odd'
+//       const playersType =
+//         maxvalue === currentPlayers.length ? 'players' : 'opponents'
+//       const count = Math.min(
+//         data[`${playersType}A`].length,
+//         data[`${playersType}B`].length
+//       )
+//       if (
+//         !count &&
+//         Math.max(
+//           data[`${playersType}A`].length,
+//           data[`${playersType}B`].length
+//         ) === 2
+//       ) {
+//         const item = !data[`${playersType}A`].length
+//           ? data[`${playersType}B`]
+//           : data[`${playersType}A`]
+//         nextParing.push(item)
+//       } else {
+//         let j = 0
+//         while (j < count) {
+//           if (j % 2 === 0 || (j === 0 && type === 'even')) {
+//             const item = distributionMapping.even.map((t) => {
+//               return data[`${playersType}${t}`].shift()
+//             })
+//             nextParing.push(item)
+//           } else if (j % 2 !== 0 || (j === 0 && type === 'odd')) {
+//             const item = distributionMapping.odd.map((t) => {
+//               return data[`${playersType}${t}`].shift()
+//             })
+//             nextParing.push(item)
+//           }
+//           j++
+//         }
+//         tempPlayer = data[`${playersType}A`].length
+//           ? data[`${playersType}A`].shift()
+//           : data[`${playersType}B`].shift()
+//         ptype = playersType
+//       }
+//     }
+
+//     // for (let i = 0; i <= Math.floor(maxvalue / 2); i++) {
+//     //   const remainingPlayers = currentPlayers.filter(
+//     //     (a) => !nextParing.flat().some((n) => n?.player_uuid === a.player_uuid)
+//     //   )
+//     //   const remainingOpponent = currentOpponents.filter(
+//     //     (a) => !nextParing.flat().some((n) => n?.player_uuid === a.player_uuid)
+//     //   )
+//     //   if (remainingPlayers.length === 0 || remainingOpponent.length === 0) {
+//     //     tempPlayer =
+//     //       remainingPlayers.length > remainingOpponent.length
+//     //         ? remainingPlayers[0]
+//     //         : remainingOpponent[0]
+//     //     type = remainingPlayers.length === 1 ? 'opponent' : 'player'
+//     //     const median = type === 'opponent' ? oMedian : pMedian
+//     //     index = i === median ? median + i : i
+//     //   } else if (
+//     //     i >= currentOpponents.length / 2 ||
+//     //     i >= currentPlayers.length / 2
+//     //   ) {
+//     //     const median = i >= currentOpponents.length / 2 ? pMedian : oMedian
+//     //     const newPlayers =
+//     //       i >= currentOpponents.length / 2 ? currentPlayers : currentOpponents
+//     //     const j = index ? median + index : i
+//     //     if ((i >= oMedian && i % 2 == 0) || (i >= pMedian && i % 2 == 0)) {
+//     //       nextParing.push([newPlayers[j], newPlayers[median + i]])
+//     //     } else {
+//     //       nextParing.push([newPlayers[median + i], newPlayers[j]])
+//     //     }
+//     //   } else {
+//     //     nextParing.push([currentOpponents[oMedian + i], currentPlayers[i]])
+//     //     nextParing.push([currentOpponents[i], currentPlayers[pMedian + i]])
+//     //   }
+
+//     //   if (tempPlayer && type) {
+//     //     const newPlayer = type === 'player' ? currentPlayers : currentOpponents
+//     //     nextParing.push([tempPlayer, newPlayer[index]])
+//     //     tempPlayer = null
+//     //     type = null
+//     //   }
+//     // }
+//   })
+//   // console.log('nextPairing', nextParing.length)
+
+//   nextParing.forEach((p) => {
+//     whitePlayers.push(formatPlayerData(p[0], round, tournament_id))
+//     blackPlayers.push(formatPlayerData(p[1], round, tournament_id))
+//   })
+
+//   // Return the list of pairings.
+//   return { whitePlayers, blackPlayers }
+// }
+
+async function javaFoRoundPairing(
   players,
   round,
   tournament,
-  white = [],
-  black = [],
+  white,
+  black,
   ranking
 ) {
   const numberOfPlayers = players.length
@@ -272,26 +327,29 @@ async function javaFoFirstRoundPairing(
     `062  ${numberOfPlayers}\n` +
     `092  Individual: Swiss-System\n` +
     `XXR  ${tournament.rounds}\n`
-  const lastRoundPlayers = white
-    .concat(black)
-    .filter((p) => p?.round === round - 1)
-  let stats = sortByInitialRankings(players)
-  const formatedPlayers = stats.map((p, i) => ({
-    ...formatPlayerData(p, 1, tournament.id),
-    is_withdrawn: !!p.is_withdrawn,
-    key: i + 1,
-    round: round,
-    player_score:
-      lastRoundPlayers?.find((x) => x.player_uuid === p.uuid)?.player_score ||
-      0,
-  }))
-  let matches = {}
+  const lastRoundPlayers = white.concat(black).filter((p) => {
+    return p?.round === round - 1
+  })
+  const stats = sortByInitialRankings(players)
+  const formatedPlayers = stats.map((p, i) => {
+    return {
+      ...formatPlayerData(p, 1, tournament.id),
+      is_withdrawn: !!p.is_withdrawn,
+      key: i + 1,
+      round,
+      player_score:
+        lastRoundPlayers?.find((x) => {
+          return x.player_uuid === p.uuid
+        })?.player_score || 0,
+    }
+  })
+  const matches = {}
   let ranks = {}
   stats.forEach((b, i) => {
     ranks[b.uuid] = i + 1
     matches[b.uuid] = []
   })
-  let indexes = stats.reduce((a, b, i) => {
+  const indexes = stats.reduce((a, b, i) => {
     a[b.uuid] = i + 1
     return a
   }, {})
@@ -299,8 +357,12 @@ async function javaFoFirstRoundPairing(
   if (white.length && black.length) {
     ranks = ranking
     for (let index = 1; index < round; index++) {
-      const whitePlayers = white.filter((p) => p.round === index)
-      const blackPlayers = black.filter((p) => p.round === index)
+      const whitePlayers = white.filter((p) => {
+        return p.round === index
+      })
+      const blackPlayers = black.filter((p) => {
+        return p.round === index
+      })
 
       const count = Math.max(whitePlayers.length, blackPlayers.length)
       for (let i = 0; i < count; i++) {
@@ -345,14 +407,22 @@ async function javaFoFirstRoundPairing(
     })
   }
   let result = tournamentDetails
-  if (formatedPlayers.some((p) => p.is_withdrawn)) {
+  if (
+    formatedPlayers.some((p) => {
+      return p.is_withdrawn
+    })
+  ) {
     result += `XXZ  ${formatedPlayers
-      .filter((p) => p.is_withdrawn)
-      .map((x) => x.key)
+      .filter((p) => {
+        return p.is_withdrawn
+      })
+      .map((x) => {
+        return x.key
+      })
       .join(' ')}\n`
   }
-  for (let i = 0; i < formatedPlayers.length; i++) {
-    let p = formatedPlayers[i]
+  for (let i = 0; i < formatedPlayers.length; i += 1) {
+    const p = formatedPlayers[i]
     // refer trf_format.txt file
     let ans =
       `001 ` +
@@ -366,57 +436,22 @@ async function javaFoFirstRoundPairing(
       `${p?.player_score?.toFixed(1).padStart(4, ' ')} ` +
       `${ranks[p.player_uuid]?.toString().padStart(4, ' ')}`
     ;[...Array(matches[p.player_uuid]?.length).keys()]
-      .map((x) => matches[p.player_uuid][x] || '')
+      .map((x) => {
+        return matches[p.player_uuid][x] || ''
+      })
       ?.forEach((match) => {
         ans += `  ${match.padStart(8, ' ')}`
       })
-    result += ans + `\n`
+    result += `${ans}\n`
   }
   result += 'XXC white1'
   const pairings = await pair(result, formatedPlayers)
   return pairings
 }
 
-const orderTitles = [
-  'GM',
-  'WGM',
-  'IM',
-  'WIM',
-  'SG',
-  'FM',
-  'WFM',
-  'AGM',
-  'IGM',
-  'DGM',
-  'CM',
-  'WCM',
-  'AIM',
-  'AFM',
-  'ACM',
-  'GCM',
-]
-
-const sortByInitialRankings = (players) => {
-  return players.sort((a, b) => {
-    if (b.rating === a.rating) {
-      if (b?.title?.length && a?.title?.length) {
-        return (
-          orderTitles.indexOf(a.title.toUpperCase()) -
-            orderTitles.indexOf(b.title.toUpperCase()) ||
-          a.name.localeCompare(b.name)
-        )
-      } else if (b?.title?.length || a?.title?.length) {
-        return b.title.length - a.title.length
-      }
-      return a.name.localeCompare(b.name)
-    }
-    return b.rating - a.rating
-  })
-}
-
 module.exports = {
-  swissFirstRoundPairing,
-  swissOtherRoundPairings,
-  javaFoFirstRoundPairing,
+  // swissFirstRoundPairing,
+  // swissOtherRoundPairings,
+  javaFoRoundPairing,
   sortByInitialRankings,
 }

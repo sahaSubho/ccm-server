@@ -21,6 +21,7 @@ class TournamentValidator {
       rating: Joi.number().default(0),
       rounds: Joi.number().required(),
       address: Joi.string().required(),
+      city: Joi.string().required(),
       state: Joi.string().required(),
       country: Joi.string().required(),
       category: Joi.string().default('Open'),
