@@ -1375,7 +1375,7 @@ class TournamentService {
         return responseHandler.returnError(httpStatus.BAD_REQUEST, message)
       }
 
-      if (tournamentBody.is_active) {
+      if (tournamentBody.is_active === 'true') {
         message = 'Tournament has been successfully published.'
         if (config.circlechess.publish) {
           try {
