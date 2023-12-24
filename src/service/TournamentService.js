@@ -1479,6 +1479,7 @@ class TournamentService {
         delete tournamentBody.template
         delete tournamentBody?.brochure
         const data = {
+          is_active: false,
           brochure_details: {
             ...tournament.brochure_details,
             [templateId]: tournamentBody,
