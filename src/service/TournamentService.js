@@ -1498,7 +1498,7 @@ class TournamentService {
         return responseHandler.returnError(httpStatus.BAD_REQUEST, message)
       }
 
-      return responseHandler.returnSuccess(httpStatus.OK, message, data)
+      return responseHandler.returnSuccess(httpStatus.OK, message, body)
     } catch (e) {
       logger.error(e)
       return responseHandler.returnError(
