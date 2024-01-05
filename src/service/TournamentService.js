@@ -1368,6 +1368,10 @@ class TournamentService {
     try {
       let message = 'Successfully updated tournament.'
       const tournament = await this.tournamentDao.findById(id)
+      if (tournamentBody.entry_fee) {
+        tournamentBody.entry_fee = JSON.parse(tournamentBody.entry_fee)
+      }
+      tournamentBody.is_active = tournamentBody.is_active === 'true'
       if (req.user.id !== tournament.created_by) {
         message = `Tournament belongs to different organizer. Please login as same organizer to ${
           tournamentBody.is_active ? 'publish' : 'update'
@@ -1375,7 +1379,7 @@ class TournamentService {
         return responseHandler.returnError(httpStatus.BAD_REQUEST, message)
       }
 
-      if (tournamentBody.is_active === 'true') {
+      if (tournamentBody.is_active) {
         message = 'Tournament has been successfully published.'
         if (config.circlechess.publish) {
           try {
@@ -1411,7 +1415,11 @@ class TournamentService {
           message = 'Failed to publish tournament.Please try again'
           return responseHandler.returnError(httpStatus.BAD_REQUEST, message)
         }
-        return responseHandler.returnSuccess(httpStatus.OK, message, data)
+        return responseHandler.returnSuccess(
+          httpStatus.OK,
+          message,
+          tournamentBody
+        )
       }
 
       if (tournamentBody.is_brochure) {
