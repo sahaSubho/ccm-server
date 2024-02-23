@@ -70,6 +70,7 @@ module.exports = (sequelize, DataTypes) => {
       is_active: DataTypes.BOOLEAN,
       order_id: DataTypes.STRING,
       previous_order_ids: DataTypes.JSONB,
+      enable_registration: DataTypes.BOOLEAN,
     },
     {
       sequelize,

@@ -3,13 +3,13 @@ const httpStatus = require('http-status')
 const { Op } = require('sequelize')
 const moment = require('moment')
 const sharp = require('sharp')
+const fetch = require('node-fetch')
 const TournamentDao = require('../dao/TournamentDao')
 const PlayersDao = require('../dao/PlayersDao')
 const TournamentPairingsDao = require('../dao/TournamentPairingDao')
 const responseHandler = require('../helper/responseHandler')
 const logger = require('../config/logger')
 const config = require('../config/config')
-const { sequelize } = require('../models')
 const { userRoles } = require('../config/constant')
 const { javaFoRoundPairing } = require('../helper/swiss')
 const getTieBreaks = require('../helper/tieBreakerCalculation')
@@ -375,7 +375,7 @@ class TournamentService {
       }
 
       tournamentBody.created_by = req.user.id
-      tournamentBody.is_active = false
+      tournamentBody.is_active = true
 
       const data = await this.tournamentDao.create(tournamentBody)
 
@@ -1059,7 +1059,7 @@ class TournamentService {
       return responseHandler.returnSuccess(httpStatus.OK, message, data)
     } catch (error) {
       const message = 'Could not retrieve prize categories'
-      console.log(error)
+      logger.error(error)
       return responseHandler.returnError(httpStatus.BAD_REQUEST, message)
     }
   }
@@ -1208,7 +1208,6 @@ class TournamentService {
         return moment(p.createdAt).diff(moment(), 'd') === 0
       })?.length
 
-      console.log('..........', yesterdayPlayers, todayPlayers)
       const revenue = tournaments.reduce((t, ta) => {
         const total = players.reduce((a, b) => {
           if (ta?.player_fide_ids?.includes(b.uuid)) {
@@ -1368,10 +1367,6 @@ class TournamentService {
     try {
       let message = 'Successfully updated tournament.'
       const tournament = await this.tournamentDao.findById(id)
-      if (tournamentBody.entry_fee) {
-        tournamentBody.entry_fee = JSON.parse(tournamentBody.entry_fee)
-      }
-      tournamentBody.is_active = tournamentBody.is_active === 'true'
       if (req.user.id !== tournament.created_by) {
         message = `Tournament belongs to different organizer. Please login as same organizer to ${
           tournamentBody.is_active ? 'publish' : 'update'
@@ -1379,47 +1374,8 @@ class TournamentService {
         return responseHandler.returnError(httpStatus.BAD_REQUEST, message)
       }
 
-      if (tournamentBody.is_active) {
-        message = 'Tournament has been successfully published.'
-        if (config.circlechess.publish) {
-          try {
-            const options = {
-              method: 'POST',
-              body: JSON.stringify({ tournament_id: id }),
-            }
-            const res = await fetch(
-              `${config.circlechess.endpoint}/tournaments/save_chessmaster_tournament`,
-              options
-            )
-            if (!res.ok) {
-              throw new Error(`HTTP error! status: ${res.status}`)
-            }
-            const data = await sequelize.query(
-              `Select id from cc_tournaments where dbkey=${id}`,
-              {
-                type: sequelize.QueryTypes.SELECT,
-              }
-            )
-            if (data) {
-              tournamentBody.cct_id = data[0]?.id
-            }
-          } catch (error) {
-            message = 'Failed to publish tournament.Please try again'
-            return responseHandler.returnError(httpStatus.BAD_REQUEST, message)
-          }
-        } else {
-          tournamentBody.is_active = true
-        }
-        const data = await this.tournamentDao.updateById(tournamentBody, id)
-        if (!data) {
-          message = 'Failed to publish tournament.Please try again'
-          return responseHandler.returnError(httpStatus.BAD_REQUEST, message)
-        }
-        return responseHandler.returnSuccess(
-          httpStatus.OK,
-          message,
-          tournamentBody
-        )
+      if (tournamentBody.entry_fee) {
+        tournamentBody.entry_fee = JSON.parse(tournamentBody.entry_fee)
       }
 
       if (tournamentBody.is_brochure) {
@@ -1480,6 +1436,7 @@ class TournamentService {
       }
 
       let body = tournamentBody
+      body.enable_registration = body.enable_registration === 'true'
       if (tournamentBody.is_brochure) {
         const templateId = tournamentBody.template
         const brochure = tournamentBody?.brochure
@@ -1500,6 +1457,37 @@ class TournamentService {
       }
 
       const data = await this.tournamentDao.updateById(body, id)
+
+      if (tournamentBody.enable_registration || tournament.cct_id) {
+        if (tournamentBody.enable_registration) {
+          if (body.enable_registration) {
+            message = 'Tournament registration has been enabled successfully.'
+          } else {
+            message = 'Tournament registration has been disabled successfully'
+          }
+        }
+        try {
+          const options = {
+            method: 'POST',
+            body: JSON.stringify({ tournament_id: id }),
+          }
+          const res = await fetch(
+            `${config.circlechess.endpoint}/tournaments/save_chessmaster_tournament`,
+            options
+          )
+          const response = await res.json()
+          if (!response.status) {
+            throw new Error(`HTTP error! status: ${response.status}`)
+          }
+          if (!tournament.cct_id) {
+            await this.tournamentDao.updateById({ cct_id: response.id }, id)
+          }
+        } catch (error) {
+          logger.error(error)
+          message = 'Failed to publish tournament.Please try again'
+          return responseHandler.returnError(httpStatus.BAD_REQUEST, message)
+        }
+      }
 
       if (!data) {
         message = 'Tournament updation failed! Please Try again.'
