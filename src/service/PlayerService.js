@@ -37,6 +37,146 @@ class PlayersService {
     return ''
   }
 
+  processUniquePlayers = async (input, tournamentId, isChatbot = false) => {
+    let message = ''
+    let data = input
+    const tournament = await this.tournamentDao.findById(tournamentId)
+
+    const where = [
+      {
+        name: data.map((d) => {
+          return d.name
+        }),
+      },
+    ]
+    if (Object.keys(data[0]).includes('mobile_number')) {
+      where.push({
+        mobile: data.map((d) => {
+          return String(d.mobile_number)
+        }),
+      })
+    }
+    if (Object.keys(data[0]).includes('fide_id')) {
+      where.push({
+        fide_id: data.map((d) => {
+          return Number(d.fide_id)
+        }),
+      })
+    }
+
+    data = data.map((d) => {
+      return {
+        name: d.name,
+        fide_id: Number(d?.fide_id) || null,
+        rating: Number(d.rating) || 0,
+        gender: PlayersService.parseGender(d.gender),
+        uuid: uuidv4(),
+        created_by: isChatbot ? 'Chatbot' : userRoles.ORGANIZER,
+        age: moment(tournament.start_date).year() - Number(d.birth_year),
+        mobile: d?.mobile_number || '',
+        upi_id: d?.upi_address || '',
+        title: d?.title || '',
+        entry_fee_category: d?.category || 'Open',
+      }
+    })
+
+    let fide_ids = []
+    if (tournament.player_fide_ids) {
+      fide_ids = tournament.player_fide_ids.split(',')
+    }
+
+    const players = await this.playersDao.findByWhere({
+      [Op.or]: where,
+    })
+
+    const common = []
+    let newPlayers = []
+    const invalidPlayer = []
+    if (players.length > 0) {
+      data.forEach((p) => {
+        let MostMatchedPlayer = null
+        let j = 0
+        while (j < players.length) {
+          const r = players[j]
+          if (!!p.mobile?.length && r.mobile === p.mobile) {
+            if (p.name === r.name) {
+              MostMatchedPlayer = r
+            } else if (!!p.fide_id && r.fide_id === p.fide_id) {
+              invalidPlayer.push(p.name)
+            }
+            break
+          }
+          if (!!p.fide_id && r.fide_id === p.fide_id) {
+            if (p.name === r.name) {
+              MostMatchedPlayer = r
+            } else {
+              invalidPlayer.push(p.name)
+            }
+            break
+          }
+          if (p.name === r.name && p.age === r.age) {
+            MostMatchedPlayer = r
+            break
+          }
+          j += 1
+        }
+        if (MostMatchedPlayer) {
+          common.push(MostMatchedPlayer)
+        } else if (!invalidPlayer.includes(p.name)) {
+          newPlayers.push(p)
+        }
+      })
+    } else {
+      newPlayers = data
+    }
+
+    data = newPlayers
+    const playerUuids = common.map((p) => {
+      return p.uuid
+    })
+
+    if (
+      !data.length &&
+      playerUuids.length &&
+      playerUuids.every((id) => {
+        return fide_ids.includes(id)
+      })
+    ) {
+      message = 'Players are already registered in this tournament.'
+      throw Error(message)
+    }
+
+    if (data.length) {
+      const result = await this.playersDao.bulkCreate(data)
+
+      if (!result) {
+        message = 'Failed to upload players! Please try again.'
+        throw Error(message)
+      }
+    }
+
+    const ids = [
+      ...new Set(fide_ids),
+      ...new Set(playerUuids),
+      ...new Set(
+        data.map((r) => {
+          return r.uuid
+        })
+      ),
+    ].filter((id) => {
+      return id || id.length
+    })
+
+    await this.tournamentDao.updateWhere(
+      {
+        player_fide_ids: ids.join(),
+      },
+      { id: tournamentId }
+    )
+
+    return { ids, invalidPlayer }
+  }
+
   /**
    * Upload players
    * @param {Object} req
@@ -48,7 +188,7 @@ class PlayersService {
       const filePath = req.file.path
       const type = req.file.mimetype
 
-      let data = await parseFile(filePath, type)
+      const data = await parseFile(filePath, type)
 
       if (!data.length) {
         message =
@@ -67,151 +207,30 @@ class PlayersService {
         return responseHandler.returnError(httpStatus.BAD_REQUEST, message)
       }
       const { tournamentId } = req.body
-      const tournament = await this.tournamentDao.findById(tournamentId)
 
-      const where = [
-        {
-          name: data.map((d) => {
-            return d.name
-          }),
-        },
-      ]
-      if (Object.keys(data[0]).includes('mobile_number')) {
-        where.push({
-          mobile: data.map((d) => {
-            return String(d.mobile_number)
-          }),
-        })
-      }
-      if (Object.keys(data[0]).includes('fide_id')) {
-        where.push({
-          fide_id: data.map((d) => {
-            return Number(d.fide_id)
-          }),
-        })
-      }
-
-      data = data.map((d) => {
-        return {
-          name: d.name,
-          fide_id: Number(d?.fide_id) || null,
-          rating: Number(d.rating) || 0,
-          gender: PlayersService.parseGender(d.gender),
-          uuid: uuidv4(),
-          created_by: userRoles.ORGANIZER,
-          age: moment(tournament.start_date).year() - Number(d.birth_year),
-          mobile: d?.mobile_number || '',
-          upi_id: d?.upi_address || '',
-          title: d?.title || '',
+      try {
+        const { ids, invalidPlayer } = await this.processUniquePlayers(
+          data,
+          tournamentId
+        )
+        message = `Successfully uploaded ${ids.length} players`
+        if (invalidPlayer.length) {
+          message += ` except players with names ${invalidPlayer.join()} due to incorrect Fide Id.`
         }
-      })
 
-      let fide_ids = []
-      if (tournament.player_fide_ids) {
-        fide_ids = tournament.player_fide_ids.split(',')
+        const finalData = await this.playersDao.findByWhere({ uuid: ids })
+
+        return responseHandler.returnSuccess(
+          httpStatus.CREATED,
+          message,
+          sortByInitialRankings(finalData)
+        )
+      } catch (error) {
+        return responseHandler.returnError(
+          httpStatus.BAD_REQUEST,
+          error.message
+        )
       }
-
-      const players = await this.playersDao.findByWhere({
-        [Op.or]: where,
-      })
-
-      const common = []
-      let newPlayers = []
-      const invalidPlayer = []
-      if (players.length > 0) {
-        data.forEach((p) => {
-          let MostMatchedPlayer = null
-          let j = 0
-          while (j < players.length) {
-            const r = players[j]
-            if (!!p.mobile?.length && r.mobile === p.mobile) {
-              if (p.name === r.name) {
-                MostMatchedPlayer = r
-              } else if (!!p.fide_id && r.fide_id === p.fide_id) {
-                invalidPlayer.push(p.name)
-              }
-              break
-            }
-            if (!!p.fide_id && r.fide_id === p.fide_id) {
-              if (p.name === r.name) {
-                MostMatchedPlayer = r
-              } else {
-                invalidPlayer.push(p.name)
-              }
-              break
-            }
-            if (p.name === r.name && p.age === r.age) {
-              MostMatchedPlayer = r
-              break
-            }
-            j += 1
-          }
-          if (MostMatchedPlayer) {
-            common.push(MostMatchedPlayer)
-          } else if (!invalidPlayer.includes(p.name)) {
-            newPlayers.push(p)
-          }
-        })
-      } else {
-        newPlayers = data
-      }
-
-      data = newPlayers
-      const playerUuids = common.map((p) => {
-        return p.uuid
-      })
-
-      if (
-        !data.length &&
-        playerUuids.length &&
-        playerUuids.every((id) => {
-          return fide_ids.includes(id)
-        })
-      ) {
-        message = 'Players are already registered in this tournament.'
-        return responseHandler.returnError(httpStatus.BAD_REQUEST, message)
-      }
-
-      if (data.length) {
-        const result = await this.playersDao.bulkCreate(data)
-
-        if (!result) {
-          message = 'Failed to upload players! Please try again.'
-          return responseHandler.returnError(httpStatus.BAD_REQUEST, message)
-        }
-      }
-
-      const ids = [
-        ...new Set(fide_ids),
-        ...new Set(playerUuids),
-        ...new Set(
-          data.map((r) => {
-            return r.uuid
-          })
-        ),
-      ].filter((id) => {
-        return id || id.length
-      })
-
-      await this.tournamentDao.updateWhere(
-        {
-          player_fide_ids: ids.join(),
-        },
-        { id: tournamentId }
-      )
-
-      message = `Successfully uploaded ${ids.length} players`
-      if (invalidPlayer.length) {
-        message += ` except players with names ${invalidPlayer.join()} due to incorrect Fide Id.`
-      }
-
-      const finalData = await this.playersDao.findByWhere({ uuid: ids })
-
-      return responseHandler.returnSuccess(
-        httpStatus.CREATED,
-        message,
-        sortByInitialRankings(finalData)
-      )
     } catch (e) {
       logger.error(e)
       return responseHandler.returnError(
@@ -332,7 +351,47 @@ class PlayersService {
   getPlayersByTournament = async (tournamentId) => {
     try {
       let message = 'Successfully fetched players for tournament.'
-      const tournament = await this.tournamentDao.findById(tournamentId)
+      let tournament = await this.tournamentDao.findById(tournamentId)
+
+      if (tournament.cct_id) {
+        try {
+          const newPlayers = await sequelize.query(
+            `Select b.player_name as name,
+          a.category as category,
+          b.mobile_number as mobile_number,
+          b.sex as gender,
+          b.fide_id as fide_id,
+          (select fide_title from fide_player_profile c where c.fide_id=b.fide_id) as title,
+          CASE
+              WHEN b.fide_id > 0 THEN (select current_rapid_rating from fide_player_profile c where c.fide_id=b.fide_id)
+              ELSE 0
+          END AS rating, 
+          CASE
+              WHEN b.dob is null THEN (select birth_year from fide_player_profile c where c.fide_id=b.fide_id)::text
+              WHEN b.dob = '' THEN (select birth_year from fide_player_profile c where c.fide_id=b.fide_id)::text
+              ELSE RIGHT(b.dob,4)
+          END AS birth_year 
+          from cc_registration_orders as a join tournament_notification_registrations as b on a.player_id=b.id where a.tournament_id=${tournament.cct_id};`,
+            {
+              type: sequelize.QueryTypes.SELECT,
+            }
+          )
+          const { ids, invalidPlayer } = await this.processUniquePlayers(
+            newPlayers,
+            tournamentId,
+            true
+          )
+          let msg = `Successfully uploaded ${ids.length} players`
+          if (invalidPlayer.length) {
+            msg += ` except players with names ${invalidPlayer.join()} due to incorrect Fide Id.`
+          }
+          logger.info(msg)
+        } catch (error) {
+          logger.error(error)
+        }
+      }
+
+      tournament = await this.tournamentDao.findById(tournamentId)
 
       if (!tournament.player_fide_ids) {
         message = 'No players exist for this tournament!'

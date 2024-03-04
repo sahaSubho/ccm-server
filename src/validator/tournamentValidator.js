@@ -12,7 +12,7 @@ const options = {
 class TournamentValidator {
   static createValidator(req, res, next) {
     // create schema object
-    const schema = Joi.object({
+    let schema = Joi.object({
       name: Joi.string().required(),
       organizer: Joi.string().required(),
       federation: Joi.string().required(),
@@ -36,6 +36,9 @@ class TournamentValidator {
         .min(1)
         .required(),
       tournament_type: Joi.string().default('OTB'),
+      reporting_time: Joi.string(),
+      meeting_time: Joi.string(),
+      stakeholders_mobile_number: Joi.string().required(),
       start_date: Joi.date().required(),
       end_date: Joi.date().greater(Joi.ref('start_date')).required(),
     })
@@ -54,7 +57,25 @@ class TournamentValidator {
     const fileResult = Joi.array().items(fileSchema).validate(req.files)
 
     // validate request body against schema(
-    const body = { ...req.body, entry_fee: JSON.parse(req.body.entry_fee) }
+    let body
+    if (req?.body?.feedback) {
+      schema = Joi.object({
+        feedback: Joi.array()
+          .items(
+            Joi.object({
+              label: Joi.string(),
+              rank: Joi.number(),
+              field: Joi.string().default(''),
+            })
+          )
+          .min(1)
+          .required(),
+        id: Joi.number().required(),
+      })
+      body = { ...req.body, feedback: JSON.parse(req.body.feedback) }
+    } else {
+      body = { ...req.body, entry_fee: JSON.parse(req.body.entry_fee) }
+    }
     const { error, value } = schema.validate(body, options)
 
     if (error || fileResult.error) {

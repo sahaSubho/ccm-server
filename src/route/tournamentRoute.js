@@ -33,6 +33,11 @@ router.get(
   tournamentValidator.pairingValidator,
   tournamentController.createTournamentPairing
 )
+router.get(
+  '/revert-pairing',
+  auth(),
+  tournamentController.revertTournamentPairing
+)
 router.post(
   '/upload-pairing',
   auth(),

@@ -88,6 +88,20 @@ class TournamentController {
     }
   }
 
+  revertTournamentPairing = async (req, res) => {
+    try {
+      const { tournamentId } = req.query
+      const pairings = await this.tournamentService.revertTournamentPairing(
+        tournamentId
+      )
+      const { status, message, data } = pairings.response
+      res.status(pairings.statusCode).send({ status, message, data })
+    } catch (e) {
+      logger.error(e)
+      res.status(httpStatus.BAD_GATEWAY).send(e)
+    }
+  }
+
   uploadTournamentPairing = async (req, res) => {
     try {
       const { round, tournamentId } = req.body

@@ -1,15 +1,18 @@
 /* eslint-disable no-param-reassign */
 const httpStatus = require('http-status')
 const { Op } = require('sequelize')
+const { v4: uuidv4 } = require('uuid')
 const moment = require('moment')
 const sharp = require('sharp')
 const fetch = require('node-fetch')
 const TournamentDao = require('../dao/TournamentDao')
+const CCTournamentFeedbackDao = require('../dao/CcTournamentFeedback')
 const PlayersDao = require('../dao/PlayersDao')
 const TournamentPairingsDao = require('../dao/TournamentPairingDao')
 const responseHandler = require('../helper/responseHandler')
 const logger = require('../config/logger')
 const config = require('../config/config')
+const { sequelize } = require('../models')
 const { userRoles } = require('../config/constant')
 const { javaFoRoundPairing } = require('../helper/swiss')
 const getTieBreaks = require('../helper/tieBreakerCalculation')
@@ -26,6 +29,7 @@ class TournamentService {
     this.tournamentPrizeMappingDao = new TournamentPrizeCategoryMappingDao()
     this.playersDao = new PlayersDao()
     this.tournamentPairingsDao = new TournamentPairingsDao()
+    this.ccTournamentFeedbackDao = new CCTournamentFeedbackDao()
     this.playersPrizePayoutDao = new PlayersPrizePayoutDao()
     this.userService = new UserService() // This is specifically to for querying the lichess token information from DB
   }
@@ -363,6 +367,25 @@ class TournamentService {
           'Tournament creation is limited to organizers. Kindly sign up or log in as an organizer to continue.'
         return responseHandler.returnError(httpStatus.BAD_REQUEST, message)
       }
+      if (tournamentBody?.feedback?.length && tournamentBody?.id) {
+        message = 'Successfully created tournament feedback.'
+        const key = uuidv4()
+        const data = tournamentBody.feedback.map((f) => {
+          return {
+            question_text: f.label,
+            rank: f.rank,
+            field_to_update: f.field,
+            tournament_key: key,
+          }
+        })
+        const res = this.ccTournamentFeedbackDao.bulkCreate(data)
+        if (!res) {
+          message = 'Tournament feedback creation failed! Please Try again.'
+          return responseHandler.returnError(httpStatus.BAD_REQUEST, message)
+        }
+        this.tournamentDao.updateById({ feedback_key: key }, tournamentBody?.id)
+        return responseHandler.returnSuccess(httpStatus.CREATED, message, data)
+      }
       if (req?.files?.length) {
         req.files.forEach((f) => {
           if (f.path.includes('brochure')) {
@@ -383,7 +406,6 @@ class TournamentService {
         message = 'Tournament creation failed! Please Try again.'
         return responseHandler.returnError(httpStatus.BAD_REQUEST, message)
       }
-
       return responseHandler.returnSuccess(httpStatus.CREATED, message, data)
     } catch (e) {
       logger.error(e)
@@ -507,6 +529,17 @@ class TournamentService {
         return acc
       }, {})
 
+      if (data.cct_id) {
+        const ccTournament = await sequelize.query(
+          `select tournament_key from cc_tournaments where id=${data.cct_id};`,
+          {
+            type: sequelize.QueryTypes.SELECT,
+          }
+        )
+        if (ccTournament.length > 0) {
+          data.setDataValue('tournamentKey', ccTournament[0].tournament_key)
+        }
+      }
       data.setDataValue('pairings', pairings)
       data.setDataValue('currentRound', currentRound)
 
@@ -706,6 +739,28 @@ class TournamentService {
       })
 
       return responseHandler.returnSuccess(httpStatus.OK, message, data)
+    } catch (e) {
+      logger.error(e)
+      return responseHandler.returnError(
+        httpStatus.BAD_REQUEST,
+        'Something went wrong!'
+      )
+    }
+  }
+
+  revertTournamentPairing = async (tournamentId) => {
+    try {
+      const message = 'Successfully reverted current round pairing'
+      const tournament = await this.tournamentDao.findById(tournamentId)
+
+      await this.tournamentPairingsDao.deleteByWhere({
+        round: tournament.current_round,
+      })
+      await this.tournamentDao.updateById(
+        { current_round: tournament.current_round - 1 },
+        tournamentId
+      )
+      return responseHandler.returnSuccess(httpStatus.OK, message)
     } catch (e) {
       logger.error(e)
       return responseHandler.returnError(
@@ -1368,9 +1423,7 @@ class TournamentService {
       let message = 'Successfully updated tournament.'
       const tournament = await this.tournamentDao.findById(id)
       if (req.user.id !== tournament.created_by) {
-        message = `Tournament belongs to different organizer. Please login as same organizer to ${
-          tournamentBody.is_active ? 'publish' : 'update'
-        }.`
+        message = `Tournament belongs to different organizer. Please login as same organizer to update.`
         return responseHandler.returnError(httpStatus.BAD_REQUEST, message)
       }
 
@@ -1444,7 +1497,6 @@ class TournamentService {
         delete tournamentBody.template
         delete tournamentBody?.brochure
         const data = {
-          is_active: false,
           brochure_details: {
             ...tournament.brochure_details,
             [templateId]: tournamentBody,

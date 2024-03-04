@@ -33,6 +33,8 @@ module.exports = (sequelize, DataTypes) => {
       tournament_type: DataTypes.STRING,
       start_date: DataTypes.DATE,
       end_date: DataTypes.DATE,
+      reporting_time: DataTypes.TIME,
+      meeting_time: DataTypes.TIME,
       rating: DataTypes.INTEGER,
       rounds: DataTypes.INTEGER,
       /*
@@ -71,6 +73,8 @@ module.exports = (sequelize, DataTypes) => {
       order_id: DataTypes.STRING,
       previous_order_ids: DataTypes.JSONB,
       enable_registration: DataTypes.BOOLEAN,
+      stakeholders_mobile_number: DataTypes.STRING,
+      feedback_key: DataTypes.UUID,
     },
     {
       sequelize,
