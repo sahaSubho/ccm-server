@@ -1422,7 +1422,7 @@ class TournamentService {
     try {
       let message = 'Successfully updated tournament.'
       const tournament = await this.tournamentDao.findById(id)
-      if (Number(req.user.id) !== 3 || req.user.id !== tournament.created_by) {
+      if (![tournament.created_by, 3].includes(req.user.id)) {
         message = `Tournament belongs to different organizer. Please login as same organizer to update.`
         return responseHandler.returnError(httpStatus.BAD_REQUEST, message)
       }
