@@ -167,7 +167,7 @@ class TournamentValidator {
       Joi.object({
         name: Joi.string().required(),
         type: Joi.string().valid('age', 'rating').required(),
-        gender: Joi.string().valid('M', 'F').required(),
+        gender: Joi.string().valid('M', 'F', 'B').required(),
         operator: Joi.number().valid(-1, 0, 1).required(),
         value: Joi.required(),
       })

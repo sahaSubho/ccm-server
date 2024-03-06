@@ -1456,9 +1456,12 @@ class TournamentService {
                 png: { compressionLevel: 5 },
               }
 
-              const extn = f.filename.slice(f.filename.lastIndexOf('.'))
+              // const extn = f.filename.slice(f.filename.lastIndexOf('.'))
 
-              const newPath = f.path.replace(`${extn}`, `-compressed${extn}`)
+              const newPath = f.path.replace(
+                `.${format}`,
+                `-compressed.${format}`
+              )
 
               await image[format](configure[format]).toFile(
                 newPath,
