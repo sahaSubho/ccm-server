@@ -1,6 +1,6 @@
 /* eslint-disable no-param-reassign */
 const httpStatus = require('http-status')
-const { Op } = require('sequelize')
+const { Op, literal } = require('sequelize')
 const { v4: uuidv4 } = require('uuid')
 const moment = require('moment')
 const sharp = require('sharp')
@@ -431,7 +431,11 @@ class TournamentService {
           },
         },
         undefined,
-        ['end_date', 'asc'],
+        [
+          literal(
+            `CASE WHEN "start_date" >= CURRENT_DATE THEN "start_date" ELSE NULL END ASC,CASE WHEN "start_date" < CURRENT_DATE THEN "start_date" ELSE NULL END DESC`
+          ),
+        ],
         limit,
         offset
       )

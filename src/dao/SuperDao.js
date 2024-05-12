@@ -1,5 +1,5 @@
-const logger = require('../config/logger')
 const sequelize = require('sequelize')
+const logger = require('../config/logger')
 
 class SuperDao {
   constructor(model) {
@@ -206,7 +206,7 @@ class SuperDao {
   async findDistinct(key, where) {
     return this.Model.findAll({
       attributes: [[sequelize.fn('DISTINCT', sequelize.col(key)), key]],
-      where: where,
+      where,
       raw: true,
     })
   }
