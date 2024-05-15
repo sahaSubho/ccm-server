@@ -43,9 +43,11 @@
     "sequelize-cli": "^6.2.0",
     "sharp": "^0.32.6",
     "socket.io": "^4.4.1",
+    "unzipper": "^0.11.6",
     "uuid": "^9.0.1",
     "winston": "^3.3.3",
-    "winston-daily-rotate-file": "^4.5.5"
+    "winston-daily-rotate-file": "^4.5.5",
+    "xml-stream": "^0.4.5"
   },
   "devDependencies": {
     "@babel/cli": "^7.15.7",

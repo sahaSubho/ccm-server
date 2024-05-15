@@ -15,6 +15,7 @@ const verificationCodeConstant = {
 const userRoles = {
   ORGANIZER: 'organizer',
   PLAYER: 'player',
+  ADMIN: 'admin',
 }
 
 module.exports = {

@@ -28,6 +28,7 @@ module.exports = (sequelize, DataTypes) => {
       status: DataTypes.STRING,
       transaction_id: DataTypes.STRING,
       fulfillment_id: DataTypes.STRING,
+      remarks: DataTypes.STRING,
     },
     {
       sequelize,

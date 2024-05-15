@@ -616,6 +616,9 @@ class PlayersService {
                 },
                 type: 'UPI_ID',
               },
+              additionalInfo: {
+                remark: p.remarks,
+              },
             }
           }),
         amount: players

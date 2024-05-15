@@ -1,3 +1,26 @@
+function calculateDirectEncounter(players) {
+  let result = []
+  Object.keys(players).forEach((uuid) => {
+    const oppScores = players[uuid].reduce((p, c, i) => {
+      let score = 0
+      if (c) {
+        score = c.scores.reduce((a, b) => {
+          return a + Number(b.result)
+        }, 0)
+      }
+      p.push({ score, isDraw })
+      return p
+    }, [])
+    const score = oppScores.reduce((acc, curr) => {
+      return acc + curr
+    }, 0)
+    result.push({ id: uuid, score })
+  })
+  result = result.sort((a, b) => {
+    return b.score - a.score
+  })
+}
+
 function calculateTB1TB2TB3(players) {
   // Initialize tiebreaks object to store TB1, TB2, and TB3 for each player
   const tiebreaks = {}
@@ -78,9 +101,9 @@ function calculateTB1TB2TB3(players) {
 
   return tiebreaks
 }
-// Example usage:
 
 function getTieBreaks(data, round) {
+  console.log('data', data)
   const playersMapping = data.reduce((p, c) => {
     const opponent = {
       id: c.id,
