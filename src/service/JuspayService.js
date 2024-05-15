@@ -60,11 +60,7 @@ class JuspayService {
       const juspayResponse = await response.json()
 
       let data = []
-      if (
-        !['FULFILLMENTS_FAILURE', 'FULFILLMENTS_SUCCESSFUL'].includes(
-          juspayResponse.status
-        )
-      ) {
+      if (!['FULFILLMENTS_FAILURE'].includes(juspayResponse.status)) {
         const payoutExists = await this.payoutTransactionsDao.checkExist({
           orderid: orderId,
         })
