@@ -34,10 +34,10 @@ class JuspayService {
    */
   createPayout = async (requestBody) => {
     try {
-      this.url += 'merchant/v1/orders'
+      const url = `${this.url}merchant/v1/orders`
       this.options.method = 'POST'
       this.options.body = JSON.stringify(requestBody)
-      const response = await fetch(this.url, this.options)
+      const response = await fetch(url, this.options)
       if (response.ok) {
         const juspayResponse = await response.json()
         const id = juspayResponse.fulfillments[0].id.split('-').shift()
@@ -54,9 +54,9 @@ class JuspayService {
   orderStatus = async (orderId) => {
     try {
       const message = `Successfully fetched payout order status for ${orderId}`
-      this.url += `merchant/v1/orders/${orderId}?expand=fulfillment`
+      const url = `${this.url}merchant/v1/orders/${orderId}?expand=fulfillment`
       this.options.method = 'GET'
-      const response = await fetch(this.url, this.options)
+      const response = await fetch(url, this.options)
       const juspayResponse = await response.json()
 
       let data = []
