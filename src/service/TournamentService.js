@@ -364,7 +364,7 @@ class TournamentService {
     try {
       let message = 'Successfully created tournament.'
       if (
-        req.user.role !== userRoles.ORGANIZER ||
+        req.user.role !== userRoles.ORGANIZER &&
         req.user.role !== userRoles.ADMIN
       ) {
         message =
