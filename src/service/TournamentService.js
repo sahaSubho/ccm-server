@@ -21,6 +21,7 @@ const PrizeCategoryDao = require('../dao/PrizeCategoryDao')
 const PlayersPrizePayoutDao = require('../dao/PlayersPrizePayoutDao')
 const TournamentPrizeCategoryMappingDao = require('../dao/TournamentCategoryMappingDao')
 const parseFile = require('../helper/parseFile')
+// const fetchLatestFidePlayers = require('../helper/fidePlayers')
 
 class TournamentService {
   constructor() {
@@ -362,7 +363,10 @@ class TournamentService {
   createTournament = async (tournamentBody, req) => {
     try {
       let message = 'Successfully created tournament.'
-      if (req.user.role !== userRoles.ORGANIZER) {
+      if (
+        req.user.role !== userRoles.ORGANIZER ||
+        req.user.role !== userRoles.ADMIN
+      ) {
         message =
           'Tournament creation is limited to organizers. Kindly sign up or log in as an organizer to continue.'
         return responseHandler.returnError(httpStatus.BAD_REQUEST, message)
@@ -547,6 +551,8 @@ class TournamentService {
       data.setDataValue('pairings', pairings)
       data.setDataValue('currentRound', currentRound)
 
+      // await fetchLatestFidePlayers()
+
       return responseHandler.returnSuccess(httpStatus.OK, message, data)
     } catch (e) {
       logger.error(e)
@@ -561,12 +567,13 @@ class TournamentService {
    * Get Tournament List created by Organizer
    * @returns {Object}
    */
-  getTournamentsByUser = async (userId, query) => {
+  getTournamentsByUser = async (user, query) => {
     try {
       const { limit = 8, offset = 0, start_date, end_date, type, ids } = query
       const message = 'Fetched tournaments successfully.'
-      const where = {
-        created_by: userId,
+      const where = {}
+      if (user.role !== userRoles.ADMIN) {
+        where.created_by = user.id
       }
       if (ids) {
         where.id = ids.split(',')
@@ -1336,7 +1343,7 @@ class TournamentService {
       let data = await parseFile(filePath, type)
 
       data = data.map((d) => {
-        return { ...d, created_by: userRoles.ORGANIZER }
+        return { ...d, created_by: req.user.role }
       })
 
       if (!data) {
@@ -1426,7 +1433,10 @@ class TournamentService {
     try {
       let message = 'Successfully updated tournament.'
       const tournament = await this.tournamentDao.findById(id)
-      if (![tournament.created_by, 3].includes(req.user.id)) {
+      if (
+        tournament.created_by !== req.user.id &&
+        req.user.role !== userRoles.ADMIN
+      ) {
         message = `Tournament belongs to different organizer. Please login as same organizer to update.`
         return responseHandler.returnError(httpStatus.BAD_REQUEST, message)
       }

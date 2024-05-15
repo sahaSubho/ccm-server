@@ -62,7 +62,7 @@ class TournamentController {
   getTournamentsByUser = async (req, res) => {
     try {
       const tournaments = await this.tournamentService.getTournamentsByUser(
-        req.user.id,
+        req.user,
         req.query
       )
       const { status, message, data } = tournaments.response
