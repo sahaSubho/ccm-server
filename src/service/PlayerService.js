@@ -607,7 +607,6 @@ class PlayersService {
           })
           .map((p) => {
             return {
-              preferredMethodList: ['DUMMY_UPI'],
               amount: p.amount,
               beneficiaryDetails: {
                 details: {
