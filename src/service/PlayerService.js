@@ -24,12 +24,12 @@ class PlayersService {
   }
 
   static parseGender = (gender) => {
-    if (['male', 'm', 'b', 'boys', 'boy'].includes(gender.toLowerCase())) {
+    if (['male', 'm', 'b', 'boys', 'boy'].includes(gender?.toLowerCase())) {
       return 'M'
     }
     if (
       ['female', 'f', 'w', 'girls', 'girl', 'women'].includes(
-        gender.toLowerCase()
+        gender?.toLowerCase()
       )
     ) {
       return 'F'

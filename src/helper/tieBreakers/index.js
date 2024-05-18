@@ -1,25 +1,6 @@
-function calculateDirectEncounter(players) {
-  let result = []
-  Object.keys(players).forEach((uuid) => {
-    const oppScores = players[uuid].reduce((p, c, i) => {
-      let score = 0
-      if (c) {
-        score = c.scores.reduce((a, b) => {
-          return a + Number(b.result)
-        }, 0)
-      }
-      p.push({ score, isDraw })
-      return p
-    }, [])
-    const score = oppScores.reduce((acc, curr) => {
-      return acc + curr
-    }, 0)
-    result.push({ id: uuid, score })
-  })
-  result = result.sort((a, b) => {
-    return b.score - a.score
-  })
-}
+const { getPlayerOpponentMapping } = require('./utils')
+const calculateDirectEncounter = require('./directEncounter')
+const calculateNumberOfWins = require('./numberOfWins')
 
 function calculateTB1TB2TB3(players) {
   // Initialize tiebreaks object to store TB1, TB2, and TB3 for each player
@@ -103,46 +84,11 @@ function calculateTB1TB2TB3(players) {
 }
 
 function getTieBreaks(data, round) {
-  console.log('data', data)
-  const playersMapping = data.reduce((p, c) => {
-    const opponent = {
-      id: c.id,
-      player_uuid: c.player_uuid,
-      scores: data
-        .filter((d) => {
-          return d.player_uuid === c.player_uuid
-        })
-        .map((o) => {
-          return {
-            round: o.round,
-            score: o.player_score,
-            result: o.result,
-          }
-        }),
-    }
-    if (c.parent_id) {
-      const player = data.find((d) => {
-        return d.id === c.parent_id && d.round === c.round
-      })
-      p[player.player_uuid] = p[player.player_uuid]
-        ? [...p[player.player_uuid], opponent]
-        : [opponent]
-    } else {
-      const player = data.find((d) => {
-        return d.parent_id === c.id && d.round === c.round
-      })
-      if (player) {
-        p[player.player_uuid] = p[player.player_uuid]
-          ? [...p[player.player_uuid], opponent]
-          : [opponent]
-      } else {
-        p[c.player_uuid] = p[c.player_uuid] ? [...p[c.player_uuid]] : []
-      }
-    }
-    return p
-  }, {})
-
+  const playersMapping = getPlayerOpponentMapping(data)
   const tieBreakerResult = calculateTB1TB2TB3(playersMapping)
+  const directEncounter = calculateDirectEncounter(data)
+  const noOfWins = calculateNumberOfWins(data)
+
   const players = data
     .filter((d) => {
       return d.round === round
@@ -151,6 +97,8 @@ function getTieBreaks(data, round) {
       return {
         ...e,
         ...tieBreakerResult[e.player_uuid],
+        TB4: directEncounter[e.player_uuid],
+        TB5: noOfWins[e.player_uuid],
         tieSum: Object.values(tieBreakerResult[e.player_uuid]).reduce(
           (a, b) => {
             return a + b
@@ -165,10 +113,16 @@ function getTieBreaks(data, round) {
         if (b.TB1 === a.TB1) {
           if (b.TB2 === a.TB2) {
             if (b.TB3 === a.TB3) {
-              return (
-                b.player_rating - a.player_rating ||
-                a.player_name.localeCompare(b.player_name)
-              )
+              if (b.TB4 === a.TB4) {
+                if (b.TB5 === a.TB5) {
+                  return (
+                    b.player_rating - a.player_rating ||
+                    a.player_name.localeCompare(b.player_name)
+                  )
+                }
+                return b.TB5 - a.TB5
+              }
+              return b.TB4 - a.TB4
             }
             return b.TB3 - a.TB3
           }

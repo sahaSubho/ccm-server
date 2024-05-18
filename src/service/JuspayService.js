@@ -44,10 +44,11 @@ class JuspayService {
         await this.redisService.setValue(id, juspayResponse.orderId)
         return juspayResponse
       }
-      throw Error('Payout Failed')
+      const juspayResponse = await response.json()
+      throw Error(juspayResponse.message)
     } catch (e) {
       logger.error('juspay error', e)
-      throw Error('Payout Failed')
+      throw Error(e.message)
     }
   }
 
