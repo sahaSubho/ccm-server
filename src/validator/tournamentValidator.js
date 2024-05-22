@@ -23,14 +23,22 @@ class TournamentValidator {
       address: Joi.string().required(),
       city: Joi.string().required(),
       state: Joi.string().required(),
-      country: Joi.string().required(),
+      country: Joi.string().default('India'),
       category: Joi.string().default('Open'),
       time_control: Joi.string().required(),
       entry_fee: Joi.array()
         .items(
           Joi.object({
             category: Joi.string(),
-            fee: Joi.number(),
+            fee: Joi.string().optional(),
+            fees: Joi.array()
+              .items(
+                Joi.object({
+                  category: Joi.string(),
+                  fee: Joi.string(),
+                })
+              )
+              .optional(),
           })
         )
         .min(1)
@@ -63,8 +71,10 @@ class TournamentValidator {
         feedback: Joi.array()
           .items(
             Joi.object({
-              label: Joi.string(),
-              rank: Joi.number(),
+              question_text: Joi.string(),
+              question_type: Joi.string().default('TEXT'),
+              validator_regex: Joi.string().default(''),
+              pincode_regex: Joi.string().default(''),
               field: Joi.string().default(''),
             })
           )
@@ -74,7 +84,13 @@ class TournamentValidator {
       })
       body = { ...req.body, feedback: JSON.parse(req.body.feedback) }
     } else {
-      body = { ...req.body, entry_fee: JSON.parse(req.body.entry_fee) }
+      const entry_fee = JSON.parse(req.body.entry_fee)
+      entry_fee.forEach((e) => {
+        if (e.fee === '') {
+          delete e.fee
+        }
+      })
+      body = { ...req.body, entry_fee }
     }
     const { error, value } = schema.validate(body, options)
 

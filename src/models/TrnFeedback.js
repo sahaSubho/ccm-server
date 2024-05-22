@@ -29,7 +29,7 @@ module.exports = (sequelize, DataTypes) => {
       },
       flow_id: {
         type: DataTypes.INTEGER,
-        defaultValue: 1,
+        defaultValue: 2,
       },
       field_type: {
         type: DataTypes.INTEGER,

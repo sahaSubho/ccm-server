@@ -374,12 +374,17 @@ class TournamentService {
       if (tournamentBody?.feedback?.length && tournamentBody?.id) {
         message = 'Successfully created tournament feedback.'
         const key = uuidv4()
-        const data = tournamentBody.feedback.map((f) => {
+        const data = tournamentBody.feedback.map((f, i) => {
           return {
-            question_text: f.label,
-            rank: f.rank,
+            question_text: f.question_text,
+            question_type: f.question_type,
+            rank: i + 1,
             field_to_update: f.field,
             tournament_key: key,
+            flow_id: 2,
+            is_mandatory: f.is_mandatory,
+            validator_regex: f.validator_regex,
+            pincode_regex: f.pincode_regex,
           }
         })
         const res = this.ccTournamentFeedbackDao.bulkCreate(data)
@@ -472,6 +477,12 @@ class TournamentService {
         return responseHandler.returnError(httpStatus.BAD_REQUEST, message)
       }
 
+      if (data.feedback_key) {
+        const feedbacks = await this.ccTournamentFeedbackDao.findByWhere({
+          tournament_key: data.feedback_key,
+        })
+        data.setDataValue('feedbacks', feedbacks)
+      }
       const roundDetails = await this.tournamentPairingsDao.findDistinct(
         'round',
         { tournament_id: id }
@@ -1453,6 +1464,62 @@ class TournamentService {
         }
       }
 
+      if (tournamentBody.feedbacks) {
+        const feedbacks = JSON.parse(tournamentBody.feedbacks)
+        const currentFeedbacks = await this.ccTournamentFeedbackDao.findByWhere(
+          { tournament_key: tournament.feedback_key },
+          ['question_text', 'id']
+        )
+        const remove = currentFeedbacks
+          .filter((cf) => {
+            return !feedbacks.some((f) => {
+              return f.question_text === cf.question_text
+            })
+          })
+          .map((cf) => {
+            return this.ccTournamentFeedbackDao.deleteByWhere({ id: cf.id })
+          })
+        const existing = []
+        const newData = []
+        feedbacks.forEach((f, i) => {
+          if (
+            currentFeedbacks
+              .map((cf) => {
+                return cf.question_text
+              })
+              .includes(f.question_text)
+          ) {
+            existing.push(
+              this.ccTournamentFeedbackDao.updateById(
+                { rank: i + 1, is_mandatory: f.is_mandatory },
+                f.id
+              )
+            )
+          } else {
+            newData.push({
+              question_text: f.question_text,
+              question_type: f.question_type,
+              rank: i + 1,
+              field_to_update: f.field,
+              tournament_key: tournament.feedback_key,
+              flow_id: 2,
+              is_mandatory: f.is_mandatory,
+              validator_regex: f.validator_regex,
+              pincode_regex: f.pincode_regex,
+            })
+          }
+        })
+        if (newData.length) {
+          await this.ccTournamentFeedbackDao.bulkCreate(newData)
+        }
+        if (existing.length) {
+          await Promise.allSettled(existing)
+        }
+        if (remove.length) {
+          await Promise.allSettled(remove)
+        }
+      }
+
       if (req?.files?.length) {
         const promises = req.files.map(async (f) => {
           if (f.path.includes('brochure')) {
@@ -1506,7 +1573,9 @@ class TournamentService {
       }
 
       let body = tournamentBody
-      body.enable_registration = body.enable_registration === 'true'
+      if (tournamentBody.enable_registration) {
+        body.enable_registration = body.enable_registration === 'true'
+      }
       if (tournamentBody.is_brochure) {
         const templateId = tournamentBody.template
         const brochure = tournamentBody?.brochure
@@ -1549,7 +1618,10 @@ class TournamentService {
             throw new Error(`HTTP error! status: ${response.status}`)
           }
           if (!tournament.cct_id) {
-            await this.tournamentDao.updateById({ cct_id: response.id }, id)
+            await this.tournamentDao.updateById(
+              { cct_id: response.id, feedback_key: response.tournament_key },
+              id
+            )
           }
         } catch (error) {
           logger.error(error)
