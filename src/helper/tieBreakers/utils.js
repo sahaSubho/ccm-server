@@ -4,6 +4,7 @@ const getPlayerOpponentMapping = (data) => {
     const opponent = {
       id: c.id,
       player_uuid: c.player_uuid,
+      rating: c.player_rating,
       scores: data
         .filter((d) => {
           return d.player_uuid === c.player_uuid
@@ -38,6 +39,20 @@ const getPlayerOpponentMapping = (data) => {
   return playersMapping
 }
 
+function findIntervalWithNumber(intervals, number) {
+  for (let i = 0; i < intervals.length; i += 1) {
+    // Split the string into start and end values
+    const interval = intervals[i].split('-').map(Number)
+
+    // Check if the number falls within the interval
+    if (interval[0] <= number && number <= interval[1]) {
+      return intervals[i]
+    }
+  }
+  return null
+}
+
 module.exports = {
   getPlayerOpponentMapping,
+  findIntervalWithNumber,
 }

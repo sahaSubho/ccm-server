@@ -1,6 +1,7 @@
 const { getPlayerOpponentMapping } = require('./utils')
 const calculateDirectEncounter = require('./directEncounter')
 const calculateNumberOfWins = require('./numberOfWins')
+const calculatePTP = require('./PTP')
 
 function calculateTB1TB2TB3(players) {
   // Initialize tiebreaks object to store TB1, TB2, and TB3 for each player
