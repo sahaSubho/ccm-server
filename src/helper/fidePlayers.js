@@ -1,5 +1,6 @@
 const fetch = require('node-fetch')
 const fs = require('fs')
+const { v4: uuidv4 } = require('uuid')
 const unzipper = require('unzipper')
 const XmlStream = require('xml-stream')
 const moment = require('moment')
@@ -81,31 +82,10 @@ async function fetchLatestFidePlayers() {
     // Create an XML stream parser
     const parser = new XmlStream(xmlStream)
 
-    <player>
-<fideid>10292519</fideid>
-<name>A A M Imtiaz, Chowdhury</name>
-<country>BAN</country>
-<sex>M</sex>
-<title></title>
-<w_title></w_title>
-<o_title></o_title>
-<foa_title></foa_title>
-<rating>0</rating>
-<games>0</games>
-<k>0</k>
-<rapid_rating>0</rapid_rating>
-<rapid_games>0</rapid_games>
-<rapid_k>0</rapid_k>
-<blitz_rating>0</blitz_rating>
-<blitz_games>0</blitz_games>
-<blitz_k>0</blitz_k>
-<birthday>1975</birthday>
-<flag></flag>
-</player>
-
     // Set event handlers for specific XML elements
     parser.on('endElement: player', async (item) => {
       const data = {
+        uuid: uuidv4(),
         name: item.name,
         fide_id: item.fideid,
         title: item.title,

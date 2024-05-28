@@ -18,6 +18,17 @@ class PlayerController {
     }
   }
 
+  uploadSheet = async (req, res) => {
+    try {
+      const user = await this.playerService.uploadSheet(req)
+      const { status, message, data } = user.response
+      res.status(user.statusCode).send({ status, message, data })
+    } catch (e) {
+      logger.error(e)
+      res.status(httpStatus.BAD_GATEWAY).send(e)
+    }
+  }
+
   getPlayersByTournament = async (req, res) => {
     try {
       const { id } = req.params

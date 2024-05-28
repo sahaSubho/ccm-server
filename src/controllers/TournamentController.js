@@ -106,6 +106,7 @@ class TournamentController {
     try {
       const { round, tournamentId } = req.body
       const pairing = await this.tournamentService.uploadTournamentPairing(
+        req,
         round,
         tournamentId
       )

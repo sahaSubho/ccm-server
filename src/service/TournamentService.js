@@ -502,6 +502,14 @@ class TournamentService {
           tournament_id: id,
         }
       )
+      const isScored = await this.tournamentPairingsDao.findCountByGroup(
+        'round',
+        'is_scored',
+        {
+          tournament_id: id,
+          is_scored: true,
+        }
+      )
 
       // const maxScore = playerCount ? Math.round(playerCount / 2) : playerCount
 
@@ -533,16 +541,14 @@ class TournamentService {
             .includes(curr + 1),
           scored:
             Number(
-              scored?.find((s) => {
+              playerCountMap?.find((s) => {
                 return s.round === curr + 1
-              })?.sum || 0
+              })?.count
             ) ===
-            Math.round(
-              Number(
-                playerCountMap?.find((s) => {
-                  return s.round === curr + 1
-                })?.count
-              ) / 2
+            Number(
+              isScored?.find((s) => {
+                return s.round === curr + 1
+              })?.count
             ),
         }
         return acc
@@ -1288,10 +1294,11 @@ class TournamentService {
       const revenue = tournaments.reduce((t, ta) => {
         const total = players.reduce((a, b) => {
           if (ta?.player_fide_ids?.includes(b.uuid)) {
-            a +=
+            a += Number(
               ta.entry_fee.find((e) => {
                 return e.category === b.entry_fee_category
               })?.fee || 0
+            )
           }
           return a
         }, 0)

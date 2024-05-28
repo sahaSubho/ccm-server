@@ -9,6 +9,7 @@ const TournamentPairingDao = require('../dao/TournamentPairingDao')
 const responseHandler = require('../helper/responseHandler')
 const logger = require('../config/logger')
 const parseFile = require('../helper/parseFile')
+const { parseChessResultFile } = require('../helper/parseFile')
 const { userRoles } = require('../config/constant')
 const { sequelize } = require('../models')
 const { sortByInitialRankings } = require('../helper/swiss')
@@ -56,11 +57,19 @@ class PlayersService {
         }),
       })
     }
-    if (Object.keys(data[0]).includes('fide_id')) {
+    if (
+      data.some((d) => {
+        return !!d?.fide_id
+      })
+    ) {
       where.push({
-        fide_id: data.map((d) => {
-          return Number(d.fide_id)
-        }),
+        fide_id: data
+          .filter((d) => {
+            return !!d?.fide_id
+          })
+          .map((d) => {
+            return Number(d.fide_id)
+          }),
       })
     }
 
@@ -225,6 +234,139 @@ class PlayersService {
           message,
           sortByInitialRankings(finalData)
         )
+      } catch (error) {
+        return responseHandler.returnError(
+          httpStatus.BAD_REQUEST,
+          error.message
+        )
+      }
+    } catch (e) {
+      logger.error(e)
+      return responseHandler.returnError(
+        httpStatus.BAD_REQUEST,
+        'Something went wrong!'
+      )
+    }
+  }
+
+  uploadSheet = async (req) => {
+    try {
+      let message
+      const filePath = req.file.path
+      const { mimetype } = req.file
+      const { tournamentId, type } = req.body
+
+      const { results: data, round } = await parseChessResultFile(
+        filePath,
+        mimetype,
+        type
+      )
+
+      if (!data.length) {
+        message =
+          'Failed to parse data from file! Please upload again with correct format.'
+        return responseHandler.returnError(httpStatus.BAD_REQUEST, message)
+      }
+
+      try {
+        if (type === 'players') {
+          const { ids, invalidPlayer } = await this.processUniquePlayers(
+            data,
+            tournamentId
+          )
+          message = `Successfully uploaded ${ids.length} players`
+          if (invalidPlayer.length) {
+            message += ` except players with names ${invalidPlayer.join()} due to incorrect Fide Id.`
+          }
+
+          const finalData = await this.playersDao.findByWhere({ uuid: ids })
+
+          return responseHandler.returnSuccess(
+            httpStatus.CREATED,
+            message,
+            finalData
+          )
+        }
+        if (type === 'pairings') {
+          const whitePlayers = []
+          const blackPlayers = []
+          const tournament = await this.tournamentDao.findById(tournamentId)
+
+          if (!tournament.player_fide_ids) {
+            message = 'No players exist for this tournament!'
+            return responseHandler.returnError(httpStatus.BAD_REQUEST, message)
+          }
+
+          const fide_ids = tournament.player_fide_ids.split(',')
+          let withDrawnIds = []
+          if (tournament.withdrawn_uuid) {
+            withDrawnIds = tournament.withdrawn_uuid.split(',')
+          }
+          const players = await this.playersDao.findByWhere({
+            uuid: fide_ids.concat(withDrawnIds),
+          })
+
+          data.forEach((d) => {
+            whitePlayers.push({
+              round,
+              tournament_id: tournamentId,
+              player_uuid: players.find((p) => {
+                return p.name === d.white.name
+              })?.uuid,
+              player_name: d.white.name,
+              player_rating: d.white.rating,
+              player_score: d.white.score,
+              result: d.white.result,
+              is_scored: true,
+            })
+            if (d.black['no.'] !== d.white['no.']) {
+              blackPlayers.push({
+                round,
+                tournament_id: tournamentId,
+                player_uuid: players.find((p) => {
+                  return p.name === d.black.name
+                })?.uuid,
+                player_name: d.black.name,
+                player_rating: d.black.rating,
+                player_score: d.black.score,
+                result: d.black.result,
+                is_scored: true,
+              })
+            }
+          })
+
+          const res = await this.tournamentPairingDao.bulkCreate(whitePlayers)
+          if (!res) {
+            message = 'Failed to pair players! Please try again.'
+            return responseHandler.returnError(httpStatus.BAD_REQUEST, message)
+          }
+          const newOpponents = blackPlayers.map((b, i) => {
+            return {
+              ...b,
+              parent_id: res[i].id,
+            }
+          })
+          const oppRes = await this.tournamentPairingDao.bulkCreate(
+            newOpponents
+          )
+
+          await this.tournamentDao.updateById(
+            { current_round: Number(round) },
+            tournamentId
+          )
+
+          const finalData = res.map((w, i) => {
+            return {
+              player: w,
+              opponent: oppRes[i] || null,
+            }
+          })
+          return responseHandler.returnSuccess(
+            httpStatus.OK,
+            message,
+            finalData
+          )
+        }
       } catch (error) {
         return responseHandler.returnError(
           httpStatus.BAD_REQUEST,

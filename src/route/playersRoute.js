@@ -16,6 +16,13 @@ router.post(
   playerValidator.uploadValidator,
   playersController.uploadPlayers
 )
+
+router.post(
+  '/upload-sheet',
+  upload.single('file'),
+  playerValidator.uploadCRValidator,
+  playersController.uploadSheet
+)
 router.patch(
   '/update-player-info/:id',
   auth(),
