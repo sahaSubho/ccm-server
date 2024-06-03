@@ -38,16 +38,15 @@ class JuspayService {
       this.options.method = 'POST'
       this.options.body = JSON.stringify(requestBody)
       const response = await fetch(url, this.options)
-      if (response.ok) {
-        const juspayResponse = await response.json()
+      const juspayResponse = await response.json()
+      if (juspayResponse.error) {
+        throw Error(juspayResponse.errorMessage)
+      } else {
         const id = juspayResponse.fulfillments[0].id.split('-').shift()
         await this.redisService.setValue(id, juspayResponse.orderId)
         return juspayResponse
       }
-      const juspayResponse = await response.json()
-      throw Error(juspayResponse.message)
     } catch (e) {
-      logger.error('juspay error', e)
       throw Error(e.message)
     }
   }
