@@ -1,6 +1,6 @@
 /* eslint-disable no-param-reassign */
 /* eslint-disable no-plusplus */
-const pair = require('./pairingEngine')
+const pair = require('.')
 
 function formatPlayerData(player, round = 1, tournament_id = undefined) {
   if (round === 1) {

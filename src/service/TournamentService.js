@@ -14,14 +14,14 @@ const logger = require('../config/logger')
 const config = require('../config/config')
 const { sequelize } = require('../models')
 const { userRoles } = require('../config/constant')
-const { javaFoRoundPairing } = require('../helper/swiss')
+const { javaFoRoundPairing } = require('../helper/pairingEngine/swiss')
 const getTieBreaks = require('../helper/tieBreakers')
 const UserService = require('./UserService')
 const PrizeCategoryDao = require('../dao/PrizeCategoryDao')
 const PlayersPrizePayoutDao = require('../dao/PlayersPrizePayoutDao')
 const TournamentPrizeCategoryMappingDao = require('../dao/TournamentCategoryMappingDao')
 const parseFile = require('../helper/parseFile')
-// const fetchLatestFidePlayers = require('../helper/fidePlayers')
+const fetchLatestFidePlayers = require('../helper/fidePlayers')
 
 class TournamentService {
   constructor() {
@@ -568,7 +568,7 @@ class TournamentService {
       data.setDataValue('pairings', pairings)
       data.setDataValue('currentRound', currentRound)
 
-      // await fetchLatestFidePlayers()
+      await fetchLatestFidePlayers()
 
       return responseHandler.returnSuccess(httpStatus.OK, message, data)
     } catch (e) {

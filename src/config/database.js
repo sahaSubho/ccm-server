@@ -12,6 +12,7 @@ module.exports = {
     dialectOptions: {
       bigNumberStrings: true,
     },
+    logging: false,
   },
   test: {
     username: config.dbUser,

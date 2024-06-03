@@ -12,7 +12,7 @@ const parseFile = require('../helper/parseFile')
 const { parseChessResultFile } = require('../helper/parseFile')
 const { userRoles } = require('../config/constant')
 const { sequelize } = require('../models')
-const { sortByInitialRankings } = require('../helper/swiss')
+const { sortByInitialRankings } = require('../helper/pairingEngine/swiss')
 const JuspayService = require('./JuspayService')
 
 class PlayersService {

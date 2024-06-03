@@ -26,7 +26,7 @@ async function fetchLatestFidePlayers() {
     if (response.headers.get('last-modified')) {
       const date = moment.utc(response.headers.get('last-modified'))
       let lastDate = await redisService.getValue('lastfidePlayersFetchedDate')
-      lastDate = moment.utc(lastDate)
+      lastDate = lastDate ? moment.utc(lastDate) : moment.utc()
 
       if (date.isSame(lastDate)) {
         return { success: true, message: 'Already Updated' }
@@ -98,15 +98,16 @@ async function fetchLatestFidePlayers() {
         rapid_rating: item.rapid_rating,
         blitz_rating: item.blitz_rating,
       }
+      await delay(100)
       result.push(data)
-      await delay(1000)
-      if (result.length % 1000 === 0) {
+      if (result.length > 1000) {
+        console.log('len', result.length)
         await playersDao.bulkCreate(result, {
           updateOnDuplicate: ['name', 'title', 'gender', 'age', 'rating'], // Specify fields to update on duplicate
         })
         console.log(`Inserted or Updated total ${result.length} players`)
         result = []
-        await delay(3000)
+        await delay(2000)
       }
     })
 
