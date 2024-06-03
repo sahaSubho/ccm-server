@@ -21,7 +21,7 @@ const PrizeCategoryDao = require('../dao/PrizeCategoryDao')
 const PlayersPrizePayoutDao = require('../dao/PlayersPrizePayoutDao')
 const TournamentPrizeCategoryMappingDao = require('../dao/TournamentCategoryMappingDao')
 const parseFile = require('../helper/parseFile')
-const fetchLatestFidePlayers = require('../helper/fidePlayers')
+// const fetchLatestFidePlayers = require('../helper/fidePlayers')
 
 const fieldsOfType1 = ['address', 'email', 'upi_id']
 
@@ -571,7 +571,7 @@ class TournamentService {
       data.setDataValue('pairings', pairings)
       data.setDataValue('currentRound', currentRound)
 
-      await fetchLatestFidePlayers()
+      // await fetchLatestFidePlayers()
 
       return responseHandler.returnSuccess(httpStatus.OK, message, data)
     } catch (e) {
