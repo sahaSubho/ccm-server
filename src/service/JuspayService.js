@@ -74,7 +74,7 @@ class JuspayService {
               status: txn.status,
               amount: txn.amount,
               responseMessage: txnObj.responseMessage || '',
-              preferredMethodList: txn.preferredMethodList,
+              preferredMethodList: txn.preferredMethodList || '',
               fulfillmentMethod: txnObj.fulfillmentMethod || '',
               beneficiaryDetails: txn.beneficiaryDetails,
               fulfillmentId: txn.id,
