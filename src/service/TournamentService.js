@@ -382,7 +382,9 @@ class TournamentService {
             field_to_update: f.field,
             tournament_key: key,
             flow_id: 2,
-            field_type: f.field === 'state_id_str' ? 2 : 1,
+            field_type: ['state_id_str', 'district_id'].includes(f.field)
+              ? 2
+              : 1,
             is_mandatory: f.is_mandatory,
             validator_regex: f.validator_regex,
             pincode_regex: f.pincode_regex,
@@ -1504,7 +1506,9 @@ class TournamentService {
               field_to_update: f.field,
               tournament_key: tournament.feedback_key,
               flow_id: 2,
-              field_type: f.field === 'state_id_str' ? 2 : 1,
+              field_type: ['state_id_str', 'district_id'].includes(f.field)
+                ? 2
+                : 1,
               is_mandatory: f.is_mandatory,
               validator_regex: f.validator_regex,
               pincode_regex: f.pincode_regex,
