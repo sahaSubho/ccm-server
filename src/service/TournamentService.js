@@ -583,7 +583,15 @@ class TournamentService {
    */
   getTournamentsByUser = async (user, query) => {
     try {
-      const { limit = 8, offset = 0, start_date, end_date, type, ids } = query
+      const {
+        limit = 8,
+        offset = 0,
+        start_date,
+        end_date,
+        type,
+        ids,
+        name,
+      } = query
       const message = 'Fetched tournaments successfully.'
       const where = {}
       if (user.role !== userRoles.ADMIN) {
@@ -591,6 +599,9 @@ class TournamentService {
       }
       if (ids) {
         where.id = ids.split(',')
+      }
+      if (name) {
+        where.name = { [Op.iLike]: `%${name}%` }
       }
       if (start_date) {
         where.start_date = { [Op.gte]: moment(start_date) }
@@ -606,7 +617,11 @@ class TournamentService {
         where,
         limit,
         offset,
-        ['end_date', 'desc']
+        [
+          literal(
+            `CASE WHEN "start_date" >= CURRENT_DATE THEN "start_date" ELSE NULL END ASC,CASE WHEN "start_date" < CURRENT_DATE THEN "start_date" ELSE NULL END DESC`
+          ),
+        ]
       )
       return responseHandler.returnSuccess(httpStatus.OK, message, data)
     } catch (e) {
@@ -1249,9 +1264,14 @@ class TournamentService {
   createPrizingCategories = async (payload) => {
     try {
       let message = 'Successfully created prize categories.'
+      const exists = await this.prizeCategoryDao.checkExist(payload?.[0])
+      if (exists) {
+        message = 'Prize Category already exists! Please create a new one.'
+        return responseHandler.returnError(httpStatus.BAD_REQUEST, message)
+      }
       const data = await this.prizeCategoryDao.bulkCreate(payload)
       if (!data) {
-        message = 'Prize Categories creation failed! Please Try again.'
+        message = 'Prize Category Failed! Please try again.'
         return responseHandler.returnError(httpStatus.BAD_REQUEST, message)
       }
 
@@ -1292,9 +1312,11 @@ class TournamentService {
         const total = players.reduce((a, b) => {
           if (ta?.player_fide_ids?.includes(b.uuid)) {
             a +=
-              ta.entry_fee.find((e) => {
-                return e.category === b.entry_fee_category
-              })?.fee || 0
+              Number(
+                ta.entry_fee.find((e) => {
+                  return e.category === b.entry_fee_category
+                })?.fee
+              ) || 0
           }
           return a
         }, 0)
