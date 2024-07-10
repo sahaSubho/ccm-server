@@ -236,6 +236,41 @@ class TournamentController {
       res.status(httpStatus.BAD_GATEWAY).send(e)
     }
   }
+
+  removePairings = async (req, res) => {
+    try {
+      const { round, tournamentId, player_id, opponent_id } = req.body
+      const pairing = await this.tournamentService.removePairings(
+        round,
+        tournamentId,
+        player_id,
+        opponent_id
+      )
+      const { status, message } = pairing.response
+      res.status(pairing.statusCode).send({ status, message })
+    } catch (e) {
+      logger.error(e)
+      res.status(httpStatus.BAD_GATEWAY).send(e)
+    }
+  }
+
+  addPairings = async (req, res) => {
+    try {
+      const { round, tournamentId, player_id, opponent_id, type } = req.body
+      const pairing = await this.tournamentService.addPairings(
+        round,
+        tournamentId,
+        player_id,
+        opponent_id,
+        type
+      )
+      const { status, message } = pairing.response
+      res.status(pairing.statusCode).send({ status, message })
+    } catch (e) {
+      logger.error(e)
+      res.status(httpStatus.BAD_GATEWAY).send(e)
+    }
+  }
 }
 
 module.exports = TournamentController

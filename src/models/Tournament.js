@@ -75,6 +75,7 @@ module.exports = (sequelize, DataTypes) => {
       enable_registration: DataTypes.BOOLEAN,
       stakeholders_mobile_number: DataTypes.STRING,
       feedback_key: DataTypes.UUID,
+      pairing_type: DataTypes.STRING,
     },
     {
       sequelize,

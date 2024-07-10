@@ -75,6 +75,19 @@ router.post('/upload', auth(), tournamentController.uploadWinners)
 router.post('/score-upload', auth(), tournamentController.updateScoring)
 router.get('/statistics', auth(), tournamentController.getStatistics)
 
+router.patch(
+  '/remove-pairing',
+  auth(),
+  tournamentValidator.removePairings,
+  tournamentController.removePairings
+)
+router.patch(
+  '/add-pairing',
+  auth(),
+  tournamentValidator.addPairings,
+  tournamentController.addPairings
+)
+
 router.get('/:id', tournamentController.getTournamentById)
 router.patch(
   '/:id',

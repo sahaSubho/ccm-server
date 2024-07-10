@@ -46,6 +46,7 @@ class SuperDao {
       where,
       attributes,
       order: [order],
+      raw: true,
     })
       .then((result) => {
         return result

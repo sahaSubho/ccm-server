@@ -23,7 +23,7 @@ function formatPlayerData(player, round = 1, tournament_id = undefined) {
     player_name: player.player_name,
     player_rating: player.player_rating || 0,
     player_score: Number(player.player_score),
-    result: Number(player.result),
+    result: player.result,
   }
 }
 
@@ -377,10 +377,14 @@ async function javaFoRoundPairing(
           matches[opp.player_uuid][index - 1] = `0000 - Z`
         } else if (opp.is_withdrawn) {
           matches[player.player_uuid][index - 1] = `0000 - Z`
-        } else if (
-          Number(player.result) === 0.5 ||
-          Number(opp.result) === 0.5
-        ) {
+        } else if (player.result.replace(/\s/g, '') === '---') {
+          matches[player.player_uuid][index - 1] = `${
+            indexes[opp.player_uuid]
+          } w  `
+          matches[opp.player_uuid][index - 1] = `${
+            indexes[player.player_uuid]
+          } b  `
+        } else if (player.result === '0.5-0.5' || opp.result === '0.5-0.5') {
           matches[player.player_uuid][index - 1] = `${
             indexes[opp.player_uuid]
           } w =`
@@ -390,11 +394,11 @@ async function javaFoRoundPairing(
         } else {
           matches[player.player_uuid][index - 1] = `${
             indexes[opp.player_uuid]
-          } w ${Number(player.result)}`
+          } w ${player.result?.[0]}`
 
           matches[opp.player_uuid][index - 1] = `${
             indexes[player.player_uuid]
-          } b ${Number(opp.result)}`
+          } b ${opp.result?.[2]}`
         }
       }
     }

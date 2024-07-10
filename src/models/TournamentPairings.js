@@ -40,8 +40,8 @@ module.exports = (sequelize, DataTypes) => {
         defaultValue: '0.0',
       },
       result: {
-        type: DataTypes.DECIMAL(10, 2),
-        defaultValue: '0.0',
+        type: DataTypes.STRING,
+        defaultValue: '',
       },
       is_scored: {
         type: DataTypes.BOOLEAN,
@@ -50,6 +50,10 @@ module.exports = (sequelize, DataTypes) => {
       is_withdrawn: {
         type: DataTypes.BOOLEAN,
         allowNull: false,
+        defaultValue: false,
+      },
+      is_unpaired: {
+        type: DataTypes.BOOLEAN,
         defaultValue: false,
       },
     },

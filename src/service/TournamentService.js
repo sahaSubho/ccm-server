@@ -490,14 +490,14 @@ class TournamentService {
         'round',
         { tournament_id: id }
       )
-      const scored = await this.tournamentPairingsDao.findSumByGroup(
-        'round',
-        'result',
-        {
-          tournament_id: id,
-          result: { [Op.gt]: 0 },
-        }
-      )
+      // const scored = await this.tournamentPairingsDao.findSumByGroup(
+      //   'round',
+      //   'result',
+      //   {
+      //     tournament_id: id,
+      //     result: { [Op.gt]: 0 },
+      //   }
+      // )
       const playerCountMap = await this.tournamentPairingsDao.findCountByGroup(
         'round',
         'result',
@@ -527,7 +527,7 @@ class TournamentService {
             .pop() || 0
 
         if (
-          scored.some((s) => {
+          isScored.some((s) => {
             return s.round === currentRound
           })
         ) {
@@ -935,17 +935,120 @@ class TournamentService {
       }
       const players = data
         .filter((p) => {
-          return !p.parent_id
+          return !p.parent_id && !p.is_unpaired
         })
         .map((e) => {
           return {
-            player: e,
+            player: e.is_unpaired ? undefined : e,
             opponent: data.find((d) => {
               return d.parent_id === e.id
             }),
+            unpaired: e.is_unpaired ? e : undefined,
           }
         })
+        .concat(
+          data
+            .filter((p) => {
+              return p.is_unpaired
+            })
+            .map((x) => {
+              return { unpaired: x }
+            })
+        )
       return responseHandler.returnSuccess(httpStatus.OK, message, players)
+    } catch (e) {
+      logger.error(e)
+      return responseHandler.returnError(
+        httpStatus.BAD_REQUEST,
+        'Something went wrong!'
+      )
+    }
+  }
+
+  /**
+   * Remove paired player from Pairing for particular Round
+   * @param {Number} round
+   * @param {Number} tournamentId
+   * @param {Number} player_id
+   * @param {Number} opponent_id
+   * @returns {Array}
+   */
+  removePairings = async (round, tournamentId, player_id, opponent_id) => {
+    try {
+      let message = 'Successfully removed player from this board'
+      if (player_id && opponent_id) {
+        message = 'Successfully removed selected board from this round'
+      }
+      const where = {
+        round,
+        tournament_id: tournamentId,
+      }
+      if (player_id) {
+        await this.tournamentPairingsDao.updateWhere(
+          { is_unpaired: true },
+          { ...where, id: player_id }
+        )
+      }
+      if (opponent_id) {
+        await this.tournamentPairingsDao.updateWhere(
+          { is_unpaired: true, parent_id: null },
+          { ...where, id: opponent_id }
+        )
+      }
+      return responseHandler.returnSuccess(httpStatus.OK, message)
+    } catch (e) {
+      logger.error(e)
+      return responseHandler.returnError(
+        httpStatus.BAD_REQUEST,
+        'Something went wrong!'
+      )
+    }
+  }
+
+  /**
+   * Add unpaired paired player to existing or new board pairing
+   * @param {Number} round
+   * @param {Number} tournamentId
+   * @param {Array} player_uuids
+   * @returns {Array}
+   */
+  addPairings = async (round, tournamentId, player_id, opponent_id, type) => {
+    try {
+      let message = 'Successfully added player to this board'
+      const where = {
+        round,
+        tournament_id: tournamentId,
+      }
+      let parent_id = player_id
+      if (type === 'add') {
+        message = 'Successfully added new board pairing'
+        const player_data = await this.tournamentPairingsDao.findOneByWhere(
+          { id: player_id },
+          [
+            'round',
+            'tournament_id',
+            'player_fide_id',
+            'player_uuid',
+            'player_name',
+            'player_rating',
+            'player_score',
+          ]
+        )
+        await this.tournamentPairingsDao.deleteByWhere({ id: player_id })
+        const new_player = await this.tournamentPairingsDao.create(player_data)
+        parent_id = new_player.dataValues.id
+      } else {
+        await this.tournamentPairingsDao.updateWhere(
+          { is_unpaired: false, is_withdrawn: false },
+          { ...where, id: player_id }
+        )
+      }
+      await this.tournamentPairingsDao.updateWhere(
+        { is_unpaired: false, parent_id },
+        { ...where, id: opponent_id }
+      )
+
+      return responseHandler.returnSuccess(httpStatus.OK, message)
     } catch (e) {
       logger.error(e)
       return responseHandler.returnError(
@@ -1001,10 +1104,10 @@ class TournamentService {
       let message = `Updated scores of matches for Round ${round} successfully.`
       const tournament = await this.tournamentDao.findById(tournamentId)
 
-      if (tournament.current_round > round) {
-        message = `Scores of round ${round} can't be updated since it is already completed!`
-        return responseHandler.returnError(httpStatus.BAD_REQUEST, message)
-      }
+      // if (tournament.current_round > round) {
+      //   message = `Scores of round ${round} can't be updated since it is already completed!`
+      //   return responseHandler.returnError(httpStatus.BAD_REQUEST, message)
+      // }
 
       const promises = scores.map((s) => {
         return this.tournamentPairingsDao.updateById(
