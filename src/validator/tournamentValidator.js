@@ -26,23 +26,7 @@ class TournamentValidator {
       country: Joi.string().default('India'),
       category: Joi.string().default('Open'),
       time_control: Joi.string().required(),
-      entry_fee: Joi.array()
-        .items(
-          Joi.object({
-            category: Joi.string(),
-            fee: Joi.string().optional(),
-            fees: Joi.array()
-              .items(
-                Joi.object({
-                  category: Joi.string(),
-                  fee: Joi.string(),
-                })
-              )
-              .optional(),
-          })
-        )
-        .min(1)
-        .required(),
+      entry_fee: Joi.any().required(),
       tournament_type: Joi.string().default('OTB'),
       reporting_time: Joi.string(),
       meeting_time: Joi.string(),
@@ -85,11 +69,13 @@ class TournamentValidator {
       body = { ...req.body, feedback: JSON.parse(req.body.feedback) }
     } else {
       const entry_fee = JSON.parse(req.body.entry_fee)
-      entry_fee.forEach((e) => {
-        if (e.fee === '') {
-          delete e.fee
-        }
-      })
+      if (Array.isArray(entry_fee)) {
+        entry_fee.forEach((e) => {
+          if (e.fee === '') {
+            delete e.fee
+          }
+        })
+      }
       body = { ...req.body, entry_fee }
     }
     const { error, value } = schema.validate(body, options)
