@@ -1420,11 +1420,12 @@ class TournamentService {
       const revenue = tournaments.reduce((t, ta) => {
         const total = players.reduce((a, b) => {
           if (ta?.player_fide_ids?.includes(b.uuid)) {
-            a += Number(
-              ta.entry_fee.find((e) => {
-                return e.category === b.entry_fee_category
-              })?.fee || 0
-            )
+            a +=
+              Number(
+                ta.entry_fee.find((e) => {
+                  return e.category === b.entry_fee_category
+                })?.fee
+              ) || 0
           }
           return a
         }, 0)
