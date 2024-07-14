@@ -477,6 +477,7 @@ class PlayersService {
         return responseHandler.returnError(httpStatus.BAD_REQUEST, message)
       }
 
+      await this.redisService.removeKey(`ccm_players_${id}`)
       return responseHandler.returnSuccess(httpStatus.CREATED, message, data)
     } catch (e) {
       logger.error(e)
@@ -893,6 +894,9 @@ class PlayersService {
         message = 'Failed to withdraw player from this tournament.'
         return responseHandler.returnError(httpStatus.BAD_REQUEST, message)
       }
+      await this.redisService.removeKey(
+        `ccm_players_${playerBody.tournamentId}`
+      )
       return responseHandler.returnSuccess(httpStatus.OK, message)
     } catch (e) {
       logger.error(e)

@@ -927,16 +927,16 @@ class TournamentService {
   getPairings = async (round, tournamentId) => {
     try {
       let message = 'Fetched tournament player pairings successfully.'
-      const redisResult = await this.redisService.getValue(
-        `ccm_pairings_${tournamentId}_${round}`
-      )
-      if (redisResult) {
-        return responseHandler.returnSuccess(
-          httpStatus.OK,
-          message,
-          JSON.parse(redisResult)
-        )
-      }
+      // const redisResult = await this.redisService.getValue(
+      //   `ccm_pairings_${tournamentId}_${round}`
+      // )
+      // if (redisResult) {
+      //   return responseHandler.returnSuccess(
+      //     httpStatus.OK,
+      //     message,
+      //     JSON.parse(redisResult)
+      //   )
+      // }
       const data = await this.tournamentPairingsDao.findByWhere({
         round,
         tournament_id: tournamentId,
@@ -967,10 +967,10 @@ class TournamentService {
               return { unpaired: x }
             })
         )
-      await this.redisService.setValue(
-        `ccm_pairings_${tournamentId}_${round}`,
-        JSON.stringify(players)
-      )
+      // await this.redisService.setValue(
+      //   `ccm_pairings_${tournamentId}_${round}`,
+      //   JSON.stringify(players)
+      // )
       return responseHandler.returnSuccess(httpStatus.OK, message, players)
     } catch (e) {
       logger.error(e)
@@ -1103,7 +1103,6 @@ class TournamentService {
         message = `No players found for Round ${round}! Please try again.`
         return responseHandler.returnError(httpStatus.BAD_REQUEST, message)
       }
-      console.log('data', JSON.stringify(data))
       const players = getTieBreaks(data, round)
 
       return responseHandler.returnSuccess(httpStatus.OK, message, players)
