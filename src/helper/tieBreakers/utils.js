@@ -52,7 +52,38 @@ function findIntervalWithNumber(intervals, number) {
   return null
 }
 
+function processResult(result, playersType) {
+  let modifiedResult = result
+  switch (result) {
+    case '--+':
+      modifiedResult = '0-1'
+      break
+    case '+--':
+      modifiedResult = '1-0'
+      break
+    case '---':
+      modifiedResult = '0-0'
+      break
+    default:
+      break
+  }
+  if (playersType === 'player') {
+    return Number(modifiedResult[0])
+  }
+  return Number(modifiedResult[2])
+}
+
+function convertPlayersResultInNumeric(data) {
+  return data.reduce((a, b) => {
+    const obj = b
+    obj.result = processResult(b.result, !b.parent_id ? 'player' : 'opponent')
+    a.push(obj)
+    return a
+  }, [])
+}
+
 module.exports = {
   getPlayerOpponentMapping,
   findIntervalWithNumber,
+  convertPlayersResultInNumeric,
 }

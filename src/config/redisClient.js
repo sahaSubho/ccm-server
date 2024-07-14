@@ -1,11 +1,11 @@
 const Redis = require('redis')
 const { redis, env } = require('./config')
 
-const url = `redis://${redis.host}:${redis.port}`
-const client = Redis.createClient({ url })
-if (redis.usePassword.toUpperCase() === 'YES') {
-  client.auth(redis.password)
-}
+const client = Redis.createClient({
+  host: redis.host, // e.g., '127.0.0.1'
+  port: redis.port, // e.g., 6379
+  password: redis.password,
+})
 
 // if (env === 'production') {
 ;(async () => {

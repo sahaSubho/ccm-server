@@ -14,6 +14,7 @@ const { userRoles } = require('../config/constant')
 const { sequelize } = require('../models')
 const { sortByInitialRankings } = require('../helper/pairingEngine/swiss')
 const JuspayService = require('./JuspayService')
+const RedisService = require('./RedisService')
 
 class PlayersService {
   constructor() {
@@ -22,6 +23,7 @@ class PlayersService {
     this.tournamentPairingDao = new TournamentPairingDao()
     this.playersPrizePayoutDao = new PlayersPrizePayoutDao()
     this.juspayService = new JuspayService()
+    this.redisService = new RedisService()
   }
 
   static parseGender = (gender) => {
@@ -493,6 +495,17 @@ class PlayersService {
   getPlayersByTournament = async (tournamentId) => {
     try {
       let message = 'Successfully fetched players for tournament.'
+      const redisResult = await this.redisService.getValue(
+        `ccm_players_${tournamentId}`
+      )
+      if (redisResult) {
+        return responseHandler.returnSuccess(
+          httpStatus.OK,
+          message,
+          JSON.parse(redisResult)
+        )
+      }
+
       let tournament = await this.tournamentDao.findById(tournamentId)
 
       if (tournament.cct_id) {
@@ -560,6 +573,10 @@ class PlayersService {
           return b.isWithDrawn ? -1 : 1
         })
 
+      await this.redisService.setValue(
+        `ccm_players_${tournamentId}`,
+        JSON.stringify(result)
+      )
       return responseHandler.returnSuccess(httpStatus.OK, message, result)
     } catch (e) {
       logger.error(e)

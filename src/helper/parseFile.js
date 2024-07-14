@@ -109,20 +109,17 @@ const parseFile = async (filePath, type) => {
 }
 
 const processResult = (key) => {
-  switch (key) {
+  switch (String(key)) {
     case '½ - ½':
-      return [0.5, 0.5]
-    case '- - +':
-    case '0 - 1':
-      return [0, 1]
-    case '+ - -':
-    case '1 - 0':
+      return '0.5-0.5'
     case '1':
-      return [1, 0]
+      return '1-0'
     case '½':
-      return [0.5, 0]
+      return '0.5-0'
+    case '0':
+      return '0-0'
     default:
-      return [0, 0]
+      return key.replace(/\s/g, '')
   }
 }
 
@@ -205,10 +202,11 @@ const parseChessResultFile = async (filePath, type, format) => {
                       b,
                   }
                 } else if (data[i] === 'Result') {
+                  console.log('result', b)
                   const currentScore = processResult(b)
-                  a[color].result = currentScore[0]
+                  a[color].result = currentScore
                   color = 'black'
-                  a[color] = { ...a.white, result: currentScore[1] }
+                  a[color] = { ...a.white, result: currentScore }
                 } else if (data[i] === 'score') {
                   if (typeof b === 'string' && b.includes('½')) {
                     b = b.split('').reduce((t, c) => {

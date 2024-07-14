@@ -21,6 +21,7 @@ const PrizeCategoryDao = require('../dao/PrizeCategoryDao')
 const PlayersPrizePayoutDao = require('../dao/PlayersPrizePayoutDao')
 const TournamentPrizeCategoryMappingDao = require('../dao/TournamentCategoryMappingDao')
 const parseFile = require('../helper/parseFile')
+const RedisService = require('./RedisService')
 // const fetchLatestFidePlayers = require('../helper/fidePlayers')
 
 const fieldsOfType1 = ['address', 'email', 'upi_id']
@@ -35,6 +36,7 @@ class TournamentService {
     this.ccTournamentFeedbackDao = new CCTournamentFeedbackDao()
     this.playersPrizePayoutDao = new PlayersPrizePayoutDao()
     this.userService = new UserService() // This is specifically to for querying the lichess token information from DB
+    this.redisService = new RedisService()
   }
 
   createLichessSwissTournament = async (tournamentBody, req) => {
@@ -925,6 +927,16 @@ class TournamentService {
   getPairings = async (round, tournamentId) => {
     try {
       let message = 'Fetched tournament player pairings successfully.'
+      const redisResult = await this.redisService.getValue(
+        `ccm_pairings_${tournamentId}_${round}`
+      )
+      if (redisResult) {
+        return responseHandler.returnSuccess(
+          httpStatus.OK,
+          message,
+          JSON.parse(redisResult)
+        )
+      }
       const data = await this.tournamentPairingsDao.findByWhere({
         round,
         tournament_id: tournamentId,
@@ -955,6 +967,10 @@ class TournamentService {
               return { unpaired: x }
             })
         )
+      await this.redisService.setValue(
+        `ccm_pairings_${tournamentId}_${round}`,
+        JSON.stringify(players)
+      )
       return responseHandler.returnSuccess(httpStatus.OK, message, players)
     } catch (e) {
       logger.error(e)
@@ -1087,6 +1103,7 @@ class TournamentService {
         message = `No players found for Round ${round}! Please try again.`
         return responseHandler.returnError(httpStatus.BAD_REQUEST, message)
       }
+      console.log('data', JSON.stringify(data))
       const players = getTieBreaks(data, round)
 
       return responseHandler.returnSuccess(httpStatus.OK, message, players)

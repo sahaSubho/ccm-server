@@ -1,7 +1,10 @@
-const { getPlayerOpponentMapping } = require('./utils')
+const {
+  getPlayerOpponentMapping,
+  convertPlayersResultInNumeric,
+} = require('./utils')
 const calculateDirectEncounter = require('./directEncounter')
 const calculateNumberOfWins = require('./numberOfWins')
-const calculatePTP = require('./PTP')
+// const calculatePTP = require('./PTP')
 
 function calculateTB1TB2TB3(players) {
   // Initialize tiebreaks object to store TB1, TB2, and TB3 for each player
@@ -14,8 +17,8 @@ function calculateTB1TB2TB3(players) {
       let isDraw = false
       const player = Object.values(players)
         .flat()
-        .find((p) => {
-          return p.player_uuid === Number(uuid)
+        .find((pa) => {
+          return pa.player_uuid === uuid
         })
       if (!c) {
         if (player.scores) {
@@ -84,7 +87,8 @@ function calculateTB1TB2TB3(players) {
   return tiebreaks
 }
 
-function getTieBreaks(data, round) {
+function getTieBreaks(playerData, round) {
+  const data = convertPlayersResultInNumeric(playerData)
   const playersMapping = getPlayerOpponentMapping(data)
   const tieBreakerResult = calculateTB1TB2TB3(playersMapping)
   const directEncounter = calculateDirectEncounter(data)
