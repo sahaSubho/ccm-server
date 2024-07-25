@@ -19,6 +19,17 @@ class JuspayController {
     }
   }
 
+  getPayoutBalance = async (req, res) => {
+    try {
+      const payout = await this.juspayService.getPayoutBalance()
+      const { status, message, data } = payout.response
+      res.status(payout.statusCode).send({ status, message, data })
+    } catch (e) {
+      logger.error(e)
+      res.status(httpStatus.BAD_GATEWAY).send(e)
+    }
+  }
+
   webhookTxnStatusUpdate = async (req, res) => {
     try {
       await this.juspayService.webhookTxnStatusUpdate(req.body)
