@@ -466,37 +466,39 @@ class PlayersService {
   uploadPrizeWinningPlayers = async (req) => {
     try {
       let message = 'Successfully uploaded winning players.'
-      const filePath = req.file.path
-      const type = req.file.mimetype
+      const { tournamentId, payload } = req.body
+      let data
+      if (req?.file?.path) {
+        const filePath = req.file.path
+        const type = req.file.mimetype
+        data = await parseFile(filePath, type)
+        if (!data) {
+          message =
+            'Failed to parse data from file! Please upload again with correct format.'
+          return responseHandler.returnError(httpStatus.BAD_REQUEST, message)
+        }
 
-      let data = await parseFile(filePath, type)
-
-      if (!data) {
-        message =
-          'Failed to parse data from file! Please upload again with correct format.'
-        return responseHandler.returnError(httpStatus.BAD_REQUEST, message)
-      }
-
-      const { tournamentId } = req.body
-      const players = await this.playersPrizePayoutDao.findByWhere({
-        tournament_id: tournamentId,
-      })
-
-      data = data
-        .filter((d) => {
+        data = data.filter((d) => {
           return !players.some((p) => {
             return p.mobile_number === d.mobile_number || p.name === d.name
           })
         })
-        .map((e) => {
-          return { ...e, tournament_id: tournamentId }
-        })
+      } else {
+        data = [payload]
+      }
+
+      const players = await this.playersPrizePayoutDao.findByWhere({
+        tournament_id: tournamentId,
+      })
+
+      data = data.map((e) => {
+        return { ...e, tournament_id: tournamentId }
+      })
 
       if (!data.length) {
         message = 'Players already exists.'
         return responseHandler.returnError(httpStatus.BAD_REQUEST, message)
       }
-
       const result = await this.playersPrizePayoutDao.bulkCreate(data)
 
       if (!result) {
@@ -519,12 +521,20 @@ class PlayersService {
    * @param {Number} tournamentId
    * @returns {Array}
    */
-  getPrizeWinningPlayers = async (tournamentId) => {
+  getPrizeWinningPlayers = async (tournamentId, type) => {
     try {
       let message = 'Successfully fetched players for tournament.'
-      const players = await this.playersPrizePayoutDao.findByWhere({
+      const where = {
         tournament_id: tournamentId,
-      })
+      }
+      if (type === 'new') {
+        where.fulfillment_id = null
+      } else if (type === 'history') {
+        where.fulfillment_id = {
+          [Op.ne]: null,
+        }
+      }
+      const players = await this.playersPrizePayoutDao.findByWhere(where)
 
       if (!players) {
         message = 'No players exist for this tournament!'
@@ -599,12 +609,15 @@ class PlayersService {
       }
 
       const random5char = Math.random().toString(36).substr(2, 5)
+      const filter = (p) => {
+        return tournamentId === 1
+          ? !p.status
+          : !p.status || ['FAIL', 'FAILURE'].includes(p.status)
+      }
       const data = {
         orderId: `PAYOUT${moment().format('YYYYMM')}${random5char}`,
         fulfillments: players
-          .filter((p) => {
-            return !p.status || ['FAIL', 'FAILURE'].includes(p.status)
-          })
+          .filter((p) => filter(p))
           .map((p) => {
             return {
               amount: p.amount,
@@ -621,9 +634,7 @@ class PlayersService {
             }
           }),
         amount: players
-          .filter((p) => {
-            return !p.status || ['FAIL', 'FAILURE'].includes(p.status)
-          })
+          .filter((p) => filter(p))
           .reduce((t, s) => {
             return t + s.amount
           }, 0),
@@ -650,9 +661,7 @@ class PlayersService {
       }
       await this.tournamentDao.updateById(updateData, tournamentId)
       const promises = players
-        .filter((p) => {
-          return !p.status || ['FAIL', 'FAILURE'].includes(p.status)
-        })
+        .filter((p) => filter(p))
         .map((s, i) => {
           return this.playersPrizePayoutDao.updateById(
             {

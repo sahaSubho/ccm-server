@@ -70,9 +70,10 @@ class PlayerController {
 
   getPrizeWinningPlayers = async (req, res) => {
     try {
-      const { tournamentId } = req.params
+      const { tournamentId, type } = req.params
       const players = await this.playerService.getPrizeWinningPlayers(
-        tournamentId
+        tournamentId,
+        type
       )
       const { status, message, data } = players.response
       res.status(players.statusCode).send({ status, message, data })

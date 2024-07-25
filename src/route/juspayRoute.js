@@ -40,4 +40,6 @@ router.get(
   juspayController.orderStatus
 )
 
+router.get('/balance', auth(), juspayController.getPayoutBalance)
+
 module.exports = router
