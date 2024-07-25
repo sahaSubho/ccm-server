@@ -4,6 +4,7 @@ const { v4: uuidv4 } = require('uuid')
 const moment = require('moment')
 const PlayersDao = require('../dao/PlayersDao')
 const PlayersPrizePayoutDao = require('../dao/PlayersPrizePayoutDao')
+const PayoutTransactionsDao = require('../dao/PayoutTransactionsDao')
 const TournamentDao = require('../dao/TournamentDao')
 const TournamentPairingDao = require('../dao/TournamentPairingDao')
 const responseHandler = require('../helper/responseHandler')
@@ -21,6 +22,7 @@ class PlayersService {
     this.tournamentPairingDao = new TournamentPairingDao()
     this.playersPrizePayoutDao = new PlayersPrizePayoutDao()
     this.juspayService = new JuspayService()
+    this.payoutTransactionsDao = new PayoutTransactionsDao()
   }
 
   static parseGender = (gender) => {
@@ -541,7 +543,20 @@ class PlayersService {
         return responseHandler.returnError(httpStatus.BAD_REQUEST, message)
       }
 
-      return responseHandler.returnSuccess(httpStatus.OK, message, players)
+      const messageData = await this.payoutTransactionsDao.findByWhere(
+        { fulfillmentId: players.map((p) => p.fulfillment_id) },
+        ['responseMessage', 'fulfillmentId']
+      )
+
+      const data = players.map((p) => ({
+        ...p,
+        ...(['FAIL', 'FAILURE', 'PENDING'].includes(p.status) && {
+          message: messageData.find((m) => m.fulfillmentId === p.fulfillment_id)
+            ?.responseMessage,
+        }),
+      }))
+
+      return responseHandler.returnSuccess(httpStatus.OK, message, data)
     } catch (e) {
       logger.error(e)
       return responseHandler.returnError(
