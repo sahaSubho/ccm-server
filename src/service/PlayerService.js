@@ -482,15 +482,16 @@ class PlayersService {
             'Failed to parse data from file! Please upload again with correct format.'
           return responseHandler.returnError(httpStatus.BAD_REQUEST, message)
         }
+      } else {
+        data = [payload]
+      }
 
+      if (Number(tournamentId) !== 1)
         data = data.filter((d) => {
           return !players.some((p) => {
             return p.mobile_number === d.mobile_number || p.name === d.name
           })
         })
-      } else {
-        data = [payload]
-      }
 
       data = data.map((e) => {
         return { ...e, tournament_id: tournamentId }
