@@ -470,6 +470,9 @@ class PlayersService {
       let message = 'Successfully uploaded winning players.'
       const { tournamentId, payload } = req.body
       let data
+      const players = await this.playersPrizePayoutDao.findByWhere({
+        tournament_id: tournamentId,
+      })
       if (req?.file?.path) {
         const filePath = req.file.path
         const type = req.file.mimetype
@@ -488,10 +491,6 @@ class PlayersService {
       } else {
         data = [payload]
       }
-
-      const players = await this.playersPrizePayoutDao.findByWhere({
-        tournament_id: tournamentId,
-      })
 
       data = data.map((e) => {
         return { ...e, tournament_id: tournamentId }
