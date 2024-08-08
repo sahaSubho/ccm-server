@@ -317,7 +317,8 @@ async function javaFoRoundPairing(
   tournament,
   white,
   black,
-  ranking
+  ranking,
+  teams = []
 ) {
   const numberOfPlayers = players.length
   const tournamentDetails =
@@ -330,7 +331,20 @@ async function javaFoRoundPairing(
   const lastRoundPlayers = white.concat(black).filter((p) => {
     return p?.round === round - 1
   })
-  const stats = sortByInitialRankings(players)
+  let stats = sortByInitialRankings(players)
+  if (teams.length > 0) {
+    stats = teams
+      .sort((a, b) => b.rating - a.rating)
+      .reduce((a, b) => {
+        const teamPlayers = players.filter((p) =>
+          b.player_uuids.includes(p.uuid)
+        )
+        const sortedPlayers = sortByInitialRankings(teamPlayers)
+        a.push(...sortedPlayers)
+        return a
+      }, [])
+  }
+
   const formatedPlayers = stats.map((p, i) => {
     return {
       ...formatPlayerData(p, 1, tournament.id),
@@ -413,7 +427,7 @@ async function javaFoRoundPairing(
   let result = tournamentDetails
   if (
     formatedPlayers.some((p) => {
-      return p.is_withdrawn
+      return p?.is_withdrawn
     })
   ) {
     result += `XXZ  ${formatedPlayers
@@ -425,9 +439,16 @@ async function javaFoRoundPairing(
       })
       .join(' ')}\n`
   }
+  const teamPlayers = {}
   for (let i = 0; i < formatedPlayers.length; i += 1) {
     const p = formatedPlayers[i]
     // refer trf_format.txt file
+    if (teams.length > 0) {
+      const tp = teams.find((t) => t.player_uuids.includes(p.player_uuid))
+      if (tp) {
+        teamPlayers[tp.name] = [...(teamPlayers[tp.name] || []), p.key]
+      }
+    }
     let ans =
       `001 ` +
       `${p.key.toString().padStart(4, ' ')}` +
@@ -448,7 +469,17 @@ async function javaFoRoundPairing(
       })
     result += `${ans}\n`
   }
-  result += 'XXC white1'
+  if (teams.length > 0) {
+    result += '\n'
+    Object.keys(teamPlayers).forEach((tp) => {
+      let ans = `013 ${tp.padStart(32, ' ')} ${teamPlayers[tp]
+        .map((p) => p.toString().padStart(4, ' '))
+        .join(' ')}`
+      result += `\n${ans}`
+    })
+  } else {
+    result += 'XXC white1'
+  }
   const pairings = await pair(result, formatedPlayers)
   return pairings
 }

@@ -169,20 +169,21 @@ const parseChessResultFile = async (filePath, type, format) => {
 
           const data = []
           worksheet.eachRow((row, rowNumber) => {
+            const heading = format === 'pairings' ? 6 : 5
             if (format === 'pairings' && rowNumber === 5) {
               const text = row.values[1].replace(/\s/g, '')
               if (text.includes('Round')) {
                 round = text.slice(5, 6)
               }
             }
-            if (rowNumber === (format === 'players' ? 5 : 6)) {
+            if (rowNumber === heading) {
               for (let i = 0; i <= row.values.length; i += 1) {
                 const v = row.values[i]
                 if (!v && row.values[i + 1] === 'Name') {
                   data[i] = 'title'
                 } else if (v === 'FideID') {
                   data[i] = 'fide_id'
-                } else if (v === 'Rtg') {
+                } else if (['Rtg', 'RtgI'].includes(v)) {
                   data[i] = 'rating'
                 } else if (v === 'Pts.') {
                   data[i] = 'score'
@@ -193,16 +194,15 @@ const parseChessResultFile = async (filePath, type, format) => {
             } else if (row?.values?.length > 2) {
               let color = 'white'
               const res = row.values.reduce((a, b, i) => {
-                if (format === 'players') {
+                if (['players', 'team'].includes(format)) {
                   a.gender = 'M'
                   a.birth_year = 2012
                   a = {
                     ...a,
-                    [(data[i] || `item${i}`).replace(' ', '_').toLowerCase()]:
+                    [(data[i] || `item${i}`).replace(' ', '_')?.toLowerCase()]:
                       b,
                   }
                 } else if (data[i] === 'Result') {
-                  console.log('result', b)
                   const currentScore = processResult(b)
                   a[color].result = currentScore
                   color = 'black'
@@ -217,12 +217,13 @@ const parseChessResultFile = async (filePath, type, format) => {
                 } else {
                   a[color] = {
                     ...a[color],
-                    [(data[i] || `item${i}`).replace(' ', '_').toLowerCase()]:
+                    [(data[i] || `item${i}`)?.replace(' ', '_')?.toLowerCase()]:
                       b,
                   }
                 }
                 return a
               }, {})
+              console.log('res', JSON.stringify(res))
               results.push(res)
             }
           })

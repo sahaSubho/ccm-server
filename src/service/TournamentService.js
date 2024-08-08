@@ -18,6 +18,7 @@ const { javaFoRoundPairing } = require('../helper/pairingEngine/swiss')
 const getTieBreaks = require('../helper/tieBreakers')
 const UserService = require('./UserService')
 const PrizeCategoryDao = require('../dao/PrizeCategoryDao')
+const TeamsDao = require('../dao/TeamsDao')
 const PlayersPrizePayoutDao = require('../dao/PlayersPrizePayoutDao')
 const TournamentPrizeCategoryMappingDao = require('../dao/TournamentCategoryMappingDao')
 const parseFile = require('../helper/parseFile')
@@ -37,6 +38,37 @@ class TournamentService {
     this.playersPrizePayoutDao = new PlayersPrizePayoutDao()
     this.userService = new UserService() // This is specifically to for querying the lichess token information from DB
     this.redisService = new RedisService()
+    this.teamsDao = new TeamsDao()
+  }
+
+  static convertToTeamPairings = (data) => {
+    const result = []
+
+    const teams = data.reduce((acc, match) => {
+      if (!acc[match.teamA]) {
+        acc[match.teamA] = []
+      }
+      if (!acc[match.teamB]) {
+        acc[match.teamB] = []
+      }
+      acc[match.teamA].push(match.player)
+      acc[match.teamB].push(match.opponent)
+      return acc
+    }, {})
+
+    for (let index = 0; index < Object.keys(teams).length; index += 2) {
+      const teamA = Object.keys(teams)[index]
+      const teamB = Object.keys(teams)[index + 1]
+
+      result.push({
+        teamA,
+        teamAPlayers: teams[teamA],
+        teamB,
+        teamBPlayers: teams[teamB],
+      })
+    }
+
+    return result
   }
 
   createLichessSwissTournament = async (tournamentBody, req) => {
@@ -703,6 +735,7 @@ class TournamentService {
       let white = []
       let black = []
       let ranking = {}
+      let lastRoundPairings = []
 
       if (round > 1) {
         const pairing = await this.tournamentPairingsDao.findByWhere({
@@ -710,6 +743,7 @@ class TournamentService {
           tournament_id: tournamentId,
         })
 
+        lastRoundPairings = pairing.filter((p) => p.round === round - 1)
         const playersRanking = getTieBreaks(pairing, round - 1)
 
         ranking = playersRanking.reduce((a, b, i) => {
@@ -752,13 +786,44 @@ class TournamentService {
       //     tournamentId
       //   )
 
+      let teams = []
+      if (tournament.pairing_type === 'Team') {
+        teams = await this.teamsDao.findByWhere({ tournament_id: tournamentId })
+        const minPlayerCount = Math.min(
+          ...teams.map((t) => t.player_uuids.length)
+        )
+        teams.forEach((t) => {
+          let teamPlayerUuids = t.player_uuids
+          if (lastRoundPairings.length) {
+            teamPlayerUuids = lastRoundPairings
+              .filter((lrp) => teamPlayerUuids.includes(lrp.player_uuid))
+              .map((lrp) => lrp.player_uuid)
+          }
+          const totalRatings = players
+            .filter((p) => teamPlayerUuids.includes(p.uuid))
+            .reduce((t, p) => t + Number(p.rating || 0), 0)
+          const existingPlayerIds = t.player_uuids.filter(
+            (p) => !teamPlayerUuids.includes(p)
+          )
+          const playerUuids = players
+            .filter((p) => teamPlayerUuids.includes(p.uuid))
+            .sort((a, b) => b.rating - a.rating)
+            .map((p) => p.uuid)
+          t.player_uuids = existingPlayerIds
+            .concat(playerUuids)
+            .slice(0, minPlayerCount)
+          t.rating = totalRatings / minPlayerCount
+        })
+      }
+
       const { whitePlayers, blackPlayers } = await javaFoRoundPairing(
         players,
         round,
         tournament,
         white,
         black,
-        ranking
+        ranking,
+        teams
       )
 
       const res = await this.tournamentPairingsDao.bulkCreate(whitePlayers)
@@ -945,7 +1010,11 @@ class TournamentService {
         message = `Pairing of Round ${round} is not done yet! Please try again.`
         return responseHandler.returnError(httpStatus.BAD_REQUEST, message)
       }
-      const players = data
+
+      const teams = await this.teamsDao.findByWhere({
+        tournament_id: tournamentId,
+      })
+      let players = data
         .filter((p) => {
           return !p.parent_id && !p.is_unpaired
         })
@@ -956,6 +1025,15 @@ class TournamentService {
               return d.parent_id === e.id
             }),
             unpaired: e.is_unpaired ? e : undefined,
+            teamA: teams?.find((t) => t.player_uuids.includes(e.player_uuid))
+              ?.name,
+            teamB: teams?.find((t) =>
+              t.player_uuids.includes(
+                data?.find((d) => {
+                  return d.parent_id === e.id
+                })?.player_uuid
+              )
+            )?.name,
           }
         })
         .concat(
@@ -967,6 +1045,9 @@ class TournamentService {
               return { unpaired: x }
             })
         )
+      // if (teams.length) {
+      //   players = TournamentService.convertToTeamPairings(players)
+      // }
       // await this.redisService.setValue(
       //   `ccm_pairings_${tournamentId}_${round}`,
       //   JSON.stringify(players)

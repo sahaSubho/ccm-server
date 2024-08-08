@@ -2,7 +2,9 @@ const httpStatus = require('http-status')
 const { Op } = require('sequelize')
 const { v4: uuidv4 } = require('uuid')
 const moment = require('moment')
+const levenshtein = require('fast-levenshtein')
 const PlayersDao = require('../dao/PlayersDao')
+const TeamsDao = require('../dao/TeamsDao')
 const PlayersPrizePayoutDao = require('../dao/PlayersPrizePayoutDao')
 const TournamentDao = require('../dao/TournamentDao')
 const TournamentPairingDao = require('../dao/TournamentPairingDao')
@@ -15,10 +17,10 @@ const { sequelize } = require('../models')
 const { sortByInitialRankings } = require('../helper/pairingEngine/swiss')
 const JuspayService = require('./JuspayService')
 const RedisService = require('./RedisService')
-
 class PlayersService {
   constructor() {
     this.playersDao = new PlayersDao()
+    this.teamsDao = new TeamsDao()
     this.tournamentDao = new TournamentDao()
     this.tournamentPairingDao = new TournamentPairingDao()
     this.playersPrizePayoutDao = new PlayersPrizePayoutDao()
@@ -38,6 +40,20 @@ class PlayersService {
       return 'F'
     }
     return ''
+  }
+
+  static areNamesSimilar = (name1, name2, threshold = 0.5) => {
+    // Convert names to lowercase for case-insensitive comparison
+    name1 = name1.toLowerCase()
+    name2 = name2.toLowerCase()
+
+    // Calculate the Levenshtein distance
+    const distance = levenshtein.get(name1, name2)
+    const maxLen = Math.max(name1.length, name2.length)
+    const normalizedDistance = maxLen > 0 ? distance / maxLen : 0
+
+    // Check if the normalized distance is less than or equal to the threshold
+    return normalizedDistance <= threshold
   }
 
   processUniquePlayers = async (input, tournamentId, isChatbot = false) => {
@@ -88,6 +104,7 @@ class PlayersService {
         upi_id: d?.upi_address || '',
         title: d?.title || '',
         entry_fee_category: d?.category || 'Open',
+        team: d?.team || '',
       }
     })
 
@@ -110,23 +127,43 @@ class PlayersService {
         while (j < players.length) {
           const r = players[j]
           if (!!p.mobile?.length && r.mobile === p.mobile) {
-            if (p.name === r.name) {
+            if (PlayersService.areNamesSimilar(p.name, r.name)) {
               MostMatchedPlayer = r
+              if (p.team) {
+                MostMatchedPlayer.team = p.team
+              }
+              if (p.rating > r.rating) {
+                MostMatchedPlayer.rating = p.rating
+                this.playersDao.updateById({ rating: p.rating }, r.id)
+              }
             } else if (!!p.fide_id && r.fide_id === p.fide_id) {
               invalidPlayer.push(p.name)
             }
             break
-          }
-          if (!!p.fide_id && r.fide_id === p.fide_id) {
-            if (p.name === r.name) {
+          } else if (!!p.fide_id && r.fide_id === p.fide_id) {
+            // if (p.name.replace(/[,]/g, '') === r.name.replace(/[,]/g, '')) {
+            if (PlayersService.areNamesSimilar(p.name, r.name)) {
               MostMatchedPlayer = r
+              if (p.team) {
+                MostMatchedPlayer.team = p.team
+              }
+              if (p.rating > r.rating) {
+                MostMatchedPlayer.rating = p.rating
+                this.playersDao.updateById({ rating: p.rating }, r.id)
+              }
             } else {
               invalidPlayer.push(p.name)
             }
             break
-          }
-          if (p.name === r.name && p.age === r.age) {
+          } else if (p.name === r.name && p.age === r.age) {
             MostMatchedPlayer = r
+            if (p.team) {
+              MostMatchedPlayer.team = p.team
+            }
+            if (p.rating > r.rating) {
+              MostMatchedPlayer.rating = p.rating
+              this.playersDao.updateById({ rating: p.rating }, r.id)
+            }
             break
           }
           j += 1
@@ -174,9 +211,14 @@ class PlayersService {
           return r.uuid
         })
       ),
-    ].filter((id) => {
-      return id || id.length
-    })
+    ]
+
+    const playerTeamMapping = [...common, ...data].reduce((acc, c) => {
+      if (c.team) {
+        acc[c.uuid] = c.team
+      }
+      return acc
+    }, {})
 
     await this.tournamentDao.updateWhere(
       {
@@ -185,7 +227,7 @@ class PlayersService {
       { id: tournamentId }
     )
 
-    return { ids, invalidPlayer }
+    return { ids, invalidPlayer, playerTeamMapping }
   }
 
   /**
@@ -218,6 +260,8 @@ class PlayersService {
         return responseHandler.returnError(httpStatus.BAD_REQUEST, message)
       }
       const { tournamentId } = req.body
+
+      await this.redisService.removeKey(`ccm_players_${tournamentId}`)
 
       try {
         const { ids, invalidPlayer } = await this.processUniquePlayers(
@@ -270,6 +314,8 @@ class PlayersService {
         return responseHandler.returnError(httpStatus.BAD_REQUEST, message)
       }
 
+      await this.redisService.removeKey(`ccm_players_${tournamentId}`)
+
       try {
         if (type === 'players') {
           const { ids, invalidPlayer } = await this.processUniquePlayers(
@@ -288,8 +334,50 @@ class PlayersService {
             message,
             finalData
           )
-        }
-        if (type === 'pairings') {
+        } else if (type === 'team') {
+          const { ids, invalidPlayer, playerTeamMapping } =
+            await this.processUniquePlayers(data, tournamentId)
+
+          const distinctTeams = new Set(data.map((d) => d.team))
+          message = `Successfully uploaded ${ids.length} players`
+          if (invalidPlayer.length) {
+            message += ` except players with names ${invalidPlayer.join()} due to incorrect Fide Id.`
+          }
+
+          const finalData = await this.playersDao.findByWhere({ uuid: ids })
+          const teamPlayersMapping = {}
+
+          finalData.forEach((b, i) => {
+            const team = playerTeamMapping[b.uuid]
+
+            if (team && teamPlayersMapping[team]) {
+              teamPlayersMapping[team] = [...teamPlayersMapping[team], b.uuid]
+            } else if (team && !teamPlayersMapping[team]) {
+              teamPlayersMapping[team] = [b.uuid]
+            }
+            b.team = team
+          })
+
+          const payload = Object.keys(teamPlayersMapping).map((team) => ({
+            tournament_id: tournamentId,
+            name: team,
+            player_uuids: teamPlayersMapping[team],
+          }))
+          await this.teamsDao.bulkCreate(payload)
+          const result = payload
+            .sort((a, b) => a.name.localeCompare(b.name))
+            .map((t) => ({
+              ...t,
+              players: finalData
+                .filter((r) => t.player_uuids.includes(r.uuid))
+                .map((p, i) => ({ ...p, key: i + 1 })),
+            }))
+          return responseHandler.returnSuccess(
+            httpStatus.CREATED,
+            message,
+            result
+          )
+        } else if (type === 'pairings') {
           const whitePlayers = []
           const blackPlayers = []
           const tournament = await this.tournamentDao.findById(tournamentId)
@@ -563,7 +651,7 @@ class PlayersService {
         uuid: fide_ids.concat(withDrawnIds),
       })
 
-      const result = sortByInitialRankings(data)
+      let result = sortByInitialRankings(data)
         .map((p) => {
           return {
             ...p,
@@ -573,6 +661,21 @@ class PlayersService {
         .sort((a, b) => {
           return b.isWithDrawn ? -1 : 1
         })
+
+      if (tournament.pairing_type === 'Team') {
+        const teams = await this.teamsDao.findByWhere({
+          tournament_id: tournamentId,
+        })
+
+        result = teams
+          .sort((a, b) => a.name.localeCompare(b.name))
+          .map((t) => ({
+            ...t,
+            players: result
+              .filter((r) => t.player_uuids.includes(r.uuid))
+              .map((p, i) => ({ ...p, key: i + 1 })),
+          }))
+      }
 
       await this.redisService.setValue(
         `ccm_players_${tournamentId}`,
@@ -604,6 +707,7 @@ class PlayersService {
         message = 'Players details failed to update.'
         return responseHandler.returnError(httpStatus.BAD_REQUEST, message)
       }
+
       return responseHandler.returnSuccess(
         httpStatus.NO_CONTENT,
         message,

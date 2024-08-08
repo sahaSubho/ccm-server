@@ -138,7 +138,7 @@ class PlayerValidator {
     const schema = Joi.object({
       body: Joi.object({
         tournamentId: Joi.number().required(),
-        type: Joi.string().valid('players', 'pairings').required(),
+        type: Joi.string().valid('players', 'pairings', 'team').required(),
       }),
       file: Joi.object({
         fieldname: Joi.string().required(),
