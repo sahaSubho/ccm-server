@@ -5,10 +5,9 @@ module.exports = {
       type: Sequelize.BOOLEAN,
       defaultValue: false,
     })
-    await queryInterface.changeColumn('tournament_pairings', 'result', {
-      type: Sequelize.STRING,
-      defaultValue: '',
-    })
+    await queryInterface.sequelize.query(
+      `ALTER TABLE tournament_pairings ALTER COLUMN result TYPE VARCHAR USING result::TEXT;`
+    )
   },
 
   async down(queryInterface, Sequelize) {
