@@ -98,7 +98,8 @@ class PlayersService {
         gender: PlayersService.parseGender(d.gender),
         uuid: uuidv4(),
         created_by: isChatbot ? 'Chatbot' : userRoles.ORGANIZER,
-        age: moment(tournament.start_date).year() - Number(d.birth_year),
+        age:
+          moment(tournament.start_date).year() - Number(d.birth_year || 2000),
         mobile: d?.mobile_number || '',
         upi_id: d?.upi_address || '',
         title: d?.title || '',
