@@ -267,6 +267,4 @@ const parseChessResultFile = async (filePath, type, format) => {
   })
 }
 
-module.exports = parseFile
-
-module.exports = { parseChessResultFile }
+module.exports = { parseFile, parseChessResultFile }
