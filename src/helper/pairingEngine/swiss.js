@@ -383,6 +383,11 @@ async function javaFoRoundPairing(
         const player = whitePlayers[i]
         const opp = blackPlayers[i]
 
+        console.log(
+          'result',
+          player?.result,
+          player?.result?.replace(/\s/g, '')
+        )
         if (player && !opp) {
           matches[player.player_uuid][index - 1] = `${''.padEnd(1, ' ')} - U`
         } else if (!player && opp) {
@@ -391,7 +396,7 @@ async function javaFoRoundPairing(
           matches[opp.player_uuid][index - 1] = `0000 - Z`
         } else if (opp.is_withdrawn) {
           matches[player.player_uuid][index - 1] = `0000 - Z`
-        } else if (player?.result?.replace(/\s/g, '') === '---') {
+        } else if (String(player?.result || '')?.replace(/\s/g, '') === '---') {
           matches[player.player_uuid][index - 1] = `${
             indexes[opp.player_uuid]
           } w  `
