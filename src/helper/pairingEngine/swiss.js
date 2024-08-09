@@ -391,7 +391,7 @@ async function javaFoRoundPairing(
           matches[opp.player_uuid][index - 1] = `0000 - Z`
         } else if (opp.is_withdrawn) {
           matches[player.player_uuid][index - 1] = `0000 - Z`
-        } else if (player.result.replace(/\s/g, '') === '---') {
+        } else if (player?.result?.replace(/\s/g, '') === '---') {
           matches[player.player_uuid][index - 1] = `${
             indexes[opp.player_uuid]
           } w  `
