@@ -15,7 +15,6 @@ const pair = (input, players) => {
       '-ea',
       '-jar',
       javafoJarPath,
-      '-o',
       trfFilePath,
       '-p',
       outputFilePath,
