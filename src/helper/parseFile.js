@@ -170,11 +170,10 @@ const parseChessResultFile = async (filePath, type, format) => {
           const data = []
           worksheet.eachRow((row, rowNumber) => {
             const heading = format === 'pairings' ? 6 : 5
-            if (format === 'pairings' && rowNumber === 5) {
-              const text = row.values[1].replace(/\s/g, '')
-              if (text.includes('Round')) {
-                round = text.slice(5, 6)
-              }
+            const text = row.values[1].replace(/\s/g, '')
+            if (format === 'pairings' && text.includes('Round')) {
+              round = text.slice(5, 6)
+              heading = rowNumber
             }
             if (rowNumber === heading) {
               for (let i = 0; i <= row.values.length; i += 1) {
