@@ -1189,7 +1189,8 @@ class TournamentService {
         message = `No players found for Round ${round}! Please try again.`
         return responseHandler.returnError(httpStatus.BAD_REQUEST, message)
       }
-      const players = getTieBreaks(data, round)
+      const convertedData = convertPlayersResultInNumeric(data)
+      const players = getTieBreaks(convertedData, round)
 
       return responseHandler.returnSuccess(httpStatus.OK, message, players)
     } catch (e) {
