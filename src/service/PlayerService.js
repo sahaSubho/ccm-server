@@ -420,21 +420,34 @@ class PlayersService {
           )
 
           data.forEach((d) => {
+            console.log('name', d?.white?.name, d?.black?.name)
             whitePlayers.push({
               round,
               tournament_id: tournamentId,
-              player_uuid: playerUuidMapping[d.white['no.']],
+              player_uuid:
+                playerUuidMapping[d.white?.['no.']] ||
+                players.find(
+                  (p) =>
+                    PlayersService.areNamesSimilar(p?.name, d?.white?.name) ||
+                    p?.rating === d?.white?.rating
+                )?.uuid,
               player_name: d.white.name,
               player_rating: d.white.rating,
               player_score: d.white.score,
               result: d.white.result,
               is_scored: true,
             })
-            if (d.black['no.'] !== d.white['no.']) {
+            if (!['bye', 'not paired'].includes(d?.black?.name)) {
               blackPlayers.push({
                 round,
                 tournament_id: tournamentId,
-                player_uuid: playerUuidMapping[d.black['no.']],
+                player_uuid:
+                  playerUuidMapping[d.black?.['no.']] ||
+                  players.find(
+                    (p) =>
+                      PlayersService.areNamesSimilar(p?.name, d?.black?.name) ||
+                      p?.rating === d?.black?.rating
+                  )?.uuid,
                 player_name: d.black.name,
                 player_rating: d.black.rating,
                 player_score: d.black.score,
@@ -445,6 +458,7 @@ class PlayersService {
           })
 
           const res = await this.tournamentPairingDao.bulkCreate(whitePlayers)
+          // console.log(blackPlayers[0], res[0].dataValues)
           if (!res) {
             message = 'Failed to pair players! Please try again.'
             return responseHandler.returnError(httpStatus.BAD_REQUEST, message)
@@ -452,7 +466,7 @@ class PlayersService {
           const newOpponents = blackPlayers.map((b, i) => {
             return {
               ...b,
-              parent_id: res[i].id,
+              parent_id: res[i].dataValues.id,
             }
           })
           const oppRes = await this.tournamentPairingDao.bulkCreate(

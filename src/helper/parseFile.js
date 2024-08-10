@@ -196,6 +196,7 @@ const parseChessResultFile = async (filePath, type, format) => {
             } else if (row?.values?.length > 4) {
               let color = 'white'
               const res = row.values.reduce((a, b, i) => {
+                console.log(data[i - 1], data[i], data[i + 1], b)
                 if (['players', 'team'].includes(format)) {
                   a.gender = 'M'
                   a.birth_year = 2012
@@ -209,9 +210,15 @@ const parseChessResultFile = async (filePath, type, format) => {
                   a[color].result = currentScore
                   color = 'black'
                   a[color] = { ...a.white, result: currentScore }
-                } else if (data[i - 1] === 'Result' && data[i] === 'score') {
+                } else if (
+                  (data[i - 1] === 'Result' && data[i] === 'score') ||
+                  (data[i] === 'score' && data[i + 1] === 'Result')
+                ) {
                   color = 'black'
-                  if (!a[color]) a[color] = {}
+                  if (!a[color]) a[color] = { ...a.white }
+                } else if (data[i] === 'Name' && b === 'bye') {
+                  a[color].name = b
+                  a.white.result = '1-0'
                 } else if (data[i] === 'score') {
                   if (typeof b === 'string' && b.includes('½')) {
                     b = b.split('').reduce((t, c) => {
@@ -228,6 +235,7 @@ const parseChessResultFile = async (filePath, type, format) => {
                 }
                 return a
               }, {})
+              console.log(res)
               results.push(res)
             }
           })
