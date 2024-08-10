@@ -209,15 +209,16 @@ const parseChessResultFile = async (filePath, type, format) => {
                   a[color].result = currentScore
                   color = 'black'
                   a[color] = { ...a.white, result: currentScore }
-                } else if (
-                  (data[i - 1] === 'Result' && data[i] === 'score') ||
-                  (data[i] === 'score' && data[i + 1] === 'Result')
-                ) {
+                } else if (data[i - 1] === 'Result' && data[i] === 'score') {
                   color = 'black'
                   if (!a[color]) a[color] = { ...a.white }
-                } else if (data[i] === 'Name' && b === 'bye') {
-                  a[color].name = b
-                  a.white.result = '1-0'
+                } else if (
+                  data[i] === 'Name' &&
+                  ['bye', 'not paired'].includes(b)
+                ) {
+                  if (b === 'bye') a.white.result = '1-0'
+                  color = 'black'
+                  a.black = { ...a.white, name: b }
                 } else if (data[i] === 'score') {
                   if (typeof b === 'string' && b.includes('½')) {
                     b = b.split('').reduce((t, c) => {
@@ -234,6 +235,7 @@ const parseChessResultFile = async (filePath, type, format) => {
                 }
                 return a
               }, {})
+              console.log(res)
               results.push(res)
             }
           })

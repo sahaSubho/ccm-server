@@ -420,7 +420,6 @@ class PlayersService {
           )
 
           data.forEach((d) => {
-            console.log('name', d?.white?.name, d?.black?.name)
             whitePlayers.push({
               round,
               tournament_id: tournamentId,
