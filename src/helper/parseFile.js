@@ -168,12 +168,15 @@ const parseChessResultFile = async (filePath, type, format) => {
           const worksheet = workbook.getWorksheet(1)
 
           const data = []
+          let heading = format === 'pairings' ? 6 : 5
           worksheet.eachRow((row, rowNumber) => {
-            const heading = format === 'pairings' ? 6 : 5
-            const text = row.values[1].replace(/\s/g, '')
-            if (format === 'pairings' && text.includes('Round')) {
+            if (row.values.length === 0) return
+            const text = (row?.values?.[1] || '').toString()?.replace(/\s/g, '')
+            if (format === 'pairings' && text?.includes('Round')) {
               round = text.slice(5, 6)
-              heading = rowNumber
+              heading = rowNumber + 1
+            } else if (format === 'players' && text?.includes('Starting')) {
+              heading = rowNumber + 1
             }
             if (rowNumber === heading) {
               for (let i = 0; i <= row.values.length; i += 1) {
@@ -190,7 +193,7 @@ const parseChessResultFile = async (filePath, type, format) => {
                   data[i] = v?.trim()
                 }
               }
-            } else if (row?.values?.length > 2) {
+            } else if (row?.values?.length > 4) {
               let color = 'white'
               const res = row.values.reduce((a, b, i) => {
                 if (['players', 'team'].includes(format)) {
@@ -208,7 +211,7 @@ const parseChessResultFile = async (filePath, type, format) => {
                   a[color] = { ...a.white, result: currentScore }
                 } else if (data[i - 1] === 'Result' && data[i] === 'score') {
                   color = 'black'
-                  a[color] = {}
+                  if (!a[color]) a[color] = {}
                 } else if (data[i] === 'score') {
                   if (typeof b === 'string' && b.includes('½')) {
                     b = b.split('').reduce((t, c) => {

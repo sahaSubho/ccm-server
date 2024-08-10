@@ -23,6 +23,7 @@ const PlayersPrizePayoutDao = require('../dao/PlayersPrizePayoutDao')
 const TournamentPrizeCategoryMappingDao = require('../dao/TournamentCategoryMappingDao')
 const parseFile = require('../helper/parseFile')
 const RedisService = require('./RedisService')
+const { convertPlayersResultInNumeric } = require('../helper/tieBreakers/utils')
 // const fetchLatestFidePlayers = require('../helper/fidePlayers')
 
 const fieldsOfType1 = ['address', 'email', 'upi_id']
@@ -738,12 +739,13 @@ class TournamentService {
       let lastRoundPairings = []
 
       if (round > 1) {
-        const pairing = await this.tournamentPairingsDao.findByWhere({
+        let pairing = await this.tournamentPairingsDao.findByWhere({
           round: { [Op.lt]: round },
           tournament_id: tournamentId,
         })
 
         lastRoundPairings = pairing.filter((p) => p.round === round - 1)
+        pairing = convertPlayersResultInNumeric(pairing)
         const playersRanking = getTieBreaks(pairing, round - 1)
 
         ranking = playersRanking.reduce((a, b, i) => {
@@ -758,6 +760,9 @@ class TournamentService {
           return responseHandler.returnError(httpStatus.BAD_REQUEST, message)
         }
         // players = players.concat(newPlayers)
+        console.log(
+          'pairing................................................................'
+        )
         white = pairing
           .filter((p) => {
             return !p.parent_id

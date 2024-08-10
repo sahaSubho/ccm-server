@@ -22,7 +22,7 @@ function formatPlayerData(player, round = 1, tournament_id = undefined) {
     player_fide_id: player.player_fide_id || 0,
     player_name: player.player_name,
     player_rating: player.player_rating || 0,
-    player_score: Number(player.player_score),
+    player_score: player.player_score,
     result: player.result,
   }
 }
@@ -385,8 +385,10 @@ async function javaFoRoundPairing(
 
         console.log(
           'result',
-          player?.result,
-          player?.result?.replace(/\s/g, '')
+          player.player_name,
+          player.player_result,
+          opp?.player_name,
+          opp?.player_result
         )
         if (player && !opp) {
           matches[player.player_uuid][index - 1] = `${''.padEnd(1, ' ')} - U`
@@ -396,14 +398,19 @@ async function javaFoRoundPairing(
           matches[opp.player_uuid][index - 1] = `0000 - Z`
         } else if (opp.is_withdrawn) {
           matches[player.player_uuid][index - 1] = `0000 - Z`
-        } else if (String(player?.result || '')?.replace(/\s/g, '') === '---') {
+        } else if (
+          String(player?.player_result)?.replace(/\s/g, '') === '---'
+        ) {
           matches[player.player_uuid][index - 1] = `${
             indexes[opp.player_uuid]
           } w  `
           matches[opp.player_uuid][index - 1] = `${
             indexes[player.player_uuid]
           } b  `
-        } else if (player.result === '0.5-0.5' || opp.result === '0.5-0.5') {
+        } else if (
+          player?.player_result === '0.5-0.5' ||
+          player?.player_result === '0.5-0.5'
+        ) {
           matches[player.player_uuid][index - 1] = `${
             indexes[opp.player_uuid]
           } w =`
@@ -413,11 +420,11 @@ async function javaFoRoundPairing(
         } else {
           matches[player.player_uuid][index - 1] = `${
             indexes[opp.player_uuid]
-          } w ${player.result?.[0]}`
+          } w ${player?.player_result?.[0]}`
 
           matches[opp.player_uuid][index - 1] = `${
             indexes[player.player_uuid]
-          } b ${opp.result?.[2]}`
+          } b ${opp?.player_result?.[2]}`
         }
       }
     }

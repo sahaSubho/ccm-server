@@ -53,16 +53,19 @@ function findIntervalWithNumber(intervals, number) {
 }
 
 function processResult(result, playersType) {
-  let modifiedResult = result
+  let modifiedResult = [0, 0]
   switch (result) {
     case '--+':
-      modifiedResult = '0-1'
+    case '0-1':
+      modifiedResult = [0, 1]
       break
+    case '1-0':
     case '+--':
-      modifiedResult = '1-0'
+      modifiedResult = [1, 0]
       break
+    case '0.5-0.5':
     case '---':
-      modifiedResult = '0-0'
+      modifiedResult = [0.5, 0.5]
       break
     default:
       break
@@ -70,13 +73,19 @@ function processResult(result, playersType) {
   if (playersType === 'player') {
     return Number(modifiedResult[0])
   }
-  return Number(modifiedResult[2])
+  return Number(modifiedResult[1])
 }
 
 function convertPlayersResultInNumeric(data) {
   return data.reduce((a, b) => {
-    const obj = b
-    obj.result = processResult(b.result, !b.parent_id ? 'player' : 'opponent')
+    const obj = {
+      ...b,
+      player_result: b.result,
+    }
+    if (typeof b.result === 'string') {
+      obj.result = processResult(b.result, !b.parent_id ? 'player' : 'opponent')
+    }
+
     a.push(obj)
     return a
   }, [])

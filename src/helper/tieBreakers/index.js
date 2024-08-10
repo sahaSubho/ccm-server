@@ -87,8 +87,7 @@ function calculateTB1TB2TB3(players) {
   return tiebreaks
 }
 
-function getTieBreaks(playerData, round) {
-  const data = convertPlayersResultInNumeric(playerData)
+function getTieBreaks(data, round) {
   const playersMapping = getPlayerOpponentMapping(data)
   const tieBreakerResult = calculateTB1TB2TB3(playersMapping)
   const directEncounter = calculateDirectEncounter(data)

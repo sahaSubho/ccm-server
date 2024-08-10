@@ -105,6 +105,7 @@ class PlayersService {
         title: d?.title || '',
         entry_fee_category: d?.category || 'Open',
         team: d?.team || '',
+        pId: d?.['no.'] || 0,
       }
     })
 
@@ -132,6 +133,9 @@ class PlayersService {
               if (p.team) {
                 MostMatchedPlayer.team = p.team
               }
+              if (p.pId) {
+                MostMatchedPlayer.pId = p.pId
+              }
               if (p.rating > r.rating) {
                 MostMatchedPlayer.rating = p.rating
                 this.playersDao.updateById({ rating: p.rating }, r.id)
@@ -147,6 +151,9 @@ class PlayersService {
               if (p.team) {
                 MostMatchedPlayer.team = p.team
               }
+              if (p.pId) {
+                MostMatchedPlayer.pId = p.pId
+              }
               if (p.rating > r.rating) {
                 MostMatchedPlayer.rating = p.rating
                 this.playersDao.updateById({ rating: p.rating }, r.id)
@@ -159,6 +166,9 @@ class PlayersService {
             MostMatchedPlayer = r
             if (p.team) {
               MostMatchedPlayer.team = p.team
+            }
+            if (p.pId) {
+              MostMatchedPlayer.pId = p.pId
             }
             if (p.rating > r.rating) {
               MostMatchedPlayer.rating = p.rating
@@ -213,13 +223,22 @@ class PlayersService {
       ),
     ]
 
-    const playerTeamMapping = [...common, ...data].reduce((acc, c) => {
-      if (c.team) {
-        acc[c.uuid] = c.team
+    const playerTeamMapping = {}
+    const playerUuidMapping = {}
+    common.concat(data).forEach((p) => {
+      if (p.team) {
+        playerTeamMapping[p.uuid] = p.team
       }
-      return acc
-    }, {})
+      if (p.pId) {
+        playerUuidMapping[p.pId] = p.uuid
+      }
+    })
 
+    const redisSet = await this.redisService.setValueWithExpiry(
+      `players_${tournamentId}`,
+      43200,
+      JSON.stringify(playerUuidMapping)
+    ) // 5 days expiry
     await this.tournamentDao.updateWhere(
       {
         player_fide_ids: ids.join(),
@@ -396,13 +415,15 @@ class PlayersService {
             uuid: fide_ids.concat(withDrawnIds),
           })
 
+          const playerUuidMapping = JSON.parse(
+            await this.redisService.getValue(`players_${tournamentId}`)
+          )
+
           data.forEach((d) => {
             whitePlayers.push({
               round,
               tournament_id: tournamentId,
-              player_uuid: players.find((p) => {
-                return p.name === d.white.name
-              })?.uuid,
+              player_uuid: playerUuidMapping[d.white['no.']],
               player_name: d.white.name,
               player_rating: d.white.rating,
               player_score: d.white.score,
@@ -413,9 +434,7 @@ class PlayersService {
               blackPlayers.push({
                 round,
                 tournament_id: tournamentId,
-                player_uuid: players.find((p) => {
-                  return p.name === d.black.name
-                })?.uuid,
+                player_uuid: playerUuidMapping[d.black['no.']],
                 player_name: d.black.name,
                 player_rating: d.black.rating,
                 player_score: d.black.score,
