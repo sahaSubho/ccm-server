@@ -33,7 +33,7 @@ const envValidation = Joi.object()
     LOG_FOLDER: Joi.string().required(),
     LOG_FILE: Joi.string().required(),
     LOG_LEVEL: Joi.string().required(),
-    REDIS_HOST: Joi.string().default('127.0.0.1'),
+    REDIS_HOST: Joi.string().default('172.31.43.215'),
     REDIS_PORT: Joi.number().default(6379),
     REDIS_USE_PASSWORD: Joi.string().default('no'),
     REDIS_PASSWORD: Joi.string(),
