@@ -10,10 +10,10 @@ module.exports = {
     host: config.dbHost,
     dialect: 'postgres',
     dialectOptions: {
-        bigNumberStrings: true,
-        ssl: {
-          rejectUnauthorized: false
-        },
+      bigNumberStrings: true,
+      ssl: {
+        rejectUnauthorized: false,
+      },
     },
   },
   test: {
@@ -25,7 +25,7 @@ module.exports = {
     dialectOptions: {
       bigNumberStrings: true,
       ssl: {
-          rejectUnauthorized: false
+        rejectUnauthorized: false,
       },
     },
   },
@@ -39,17 +39,18 @@ module.exports = {
     dialectOptions: {
       bigNumberStrings: true,
       ssl: {
-          rejectUnauthorized: false
+        rejectUnauthorized: false,
       },
     },
     pool: {
       min: 0,
       max: 5,
-    ssl: {
-      rejectUnauthorized: false
-    },
+      ssl: {
+        rejectUnauthorized: false,
+      },
       acquireTimeoutMillis: 60000,
       idleTimeoutMillis: 600000,
     },
+    logging: false,
   },
 }
