@@ -2,9 +2,7 @@ const Redis = require('redis')
 const { redis } = require('./config')
 
 const client = Redis.createClient({
-  host: redis.host, // e.g., '127.0.0.1'
-  port: redis.port, // e.g., 6379
-  password: redis.password,
+  url: `redis://${redis.host}:${redis.port}`,
 })
 
 // if (env === 'production') {
