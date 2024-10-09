@@ -388,6 +388,7 @@ class TournamentService {
             is_mandatory: f.is_mandatory,
             validator_regex: f.validator_regex,
             pincode_regex: f.pincode_regex,
+            answer_options: f.answer_options
           }
         })
         const res = this.ccTournamentFeedbackDao.bulkCreate(data)
@@ -1532,6 +1533,7 @@ class TournamentService {
               is_mandatory: f.is_mandatory,
               validator_regex: f.validator_regex,
               pincode_regex: f.pincode_regex,
+              answer_options: f.answer_options
             })
           }
         })
