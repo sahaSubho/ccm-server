@@ -43,7 +43,7 @@ router.patch(
 )
 
 router.get(
-  '/prize-winning-players/:tournamentId',
+  '/prize-winning-players/:tournamentId/:type?',
   auth(),
   playersController.getPrizeWinningPlayers
 )

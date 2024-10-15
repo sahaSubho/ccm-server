@@ -1,3 +1,4 @@
+/* eslint-disable no-param-reassign */
 const httpStatus = require('http-status')
 const { Op } = require('sequelize')
 const { v4: uuidv4 } = require('uuid')
@@ -6,6 +7,7 @@ const levenshtein = require('fast-levenshtein')
 const PlayersDao = require('../dao/PlayersDao')
 const TeamsDao = require('../dao/TeamsDao')
 const PlayersPrizePayoutDao = require('../dao/PlayersPrizePayoutDao')
+const PayoutTransactionsDao = require('../dao/PayoutTransactionsDao')
 const TournamentDao = require('../dao/TournamentDao')
 const TournamentPairingDao = require('../dao/TournamentPairingDao')
 const responseHandler = require('../helper/responseHandler')
@@ -16,6 +18,7 @@ const { sequelize } = require('../models')
 const { sortByInitialRankings } = require('../helper/pairingEngine/swiss')
 const JuspayService = require('./JuspayService')
 const RedisService = require('./RedisService')
+
 class PlayersService {
   constructor() {
     this.playersDao = new PlayersDao()
@@ -25,6 +28,7 @@ class PlayersService {
     this.playersPrizePayoutDao = new PlayersPrizePayoutDao()
     this.juspayService = new JuspayService()
     this.redisService = new RedisService()
+    this.payoutTransactionsDao = new PayoutTransactionsDao()
   }
 
   static parseGender = (gender) => {
@@ -41,10 +45,10 @@ class PlayersService {
     return ''
   }
 
-  static areNamesSimilar = (name1, name2, threshold = 0.5) => {
+  static areNamesSimilar = (_name1, _name2, threshold = 0.5) => {
     // Convert names to lowercase for case-insensitive comparison
-    name1 = name1.toLowerCase()
-    name2 = name2.toLowerCase()
+    const name1 = _name1.toLowerCase()
+    const name2 = _name2.toLowerCase()
 
     // Calculate the Levenshtein distance
     const distance = levenshtein.get(name1, name2)
@@ -234,7 +238,7 @@ class PlayersService {
       }
     })
 
-    const redisSet = await this.redisService.setValueWithExpiry(
+    this.redisService.setValueWithExpiry(
       `players_${tournamentId}`,
       43200,
       JSON.stringify(playerUuidMapping)
@@ -353,11 +357,11 @@ class PlayersService {
             message,
             finalData
           )
-        } else if (type === 'team') {
+        } if (type === 'team') {
           const { ids, invalidPlayer, playerTeamMapping } =
             await this.processUniquePlayers(data, tournamentId)
 
-          const distinctTeams = new Set(data.map((d) => d.team))
+          // const distinctTeams = new Set(data.map((d) => {return d.team}))
           message = `Successfully uploaded ${ids.length} players`
           if (invalidPlayer.length) {
             message += ` except players with names ${invalidPlayer.join()} due to incorrect Fide Id.`
@@ -366,7 +370,7 @@ class PlayersService {
           const finalData = await this.playersDao.findByWhere({ uuid: ids })
           const teamPlayersMapping = {}
 
-          finalData.forEach((b, i) => {
+          finalData.forEach((b) => {
             const team = playerTeamMapping[b.uuid]
 
             if (team && teamPlayersMapping[team]) {
@@ -377,26 +381,26 @@ class PlayersService {
             b.team = team
           })
 
-          const payload = Object.keys(teamPlayersMapping).map((team) => ({
+          const payload = Object.keys(teamPlayersMapping).map((team) => {return {
             tournament_id: tournamentId,
             name: team,
             player_uuids: teamPlayersMapping[team],
-          }))
+          }})
           await this.teamsDao.bulkCreate(payload)
           const result = payload
-            .sort((a, b) => a.name.localeCompare(b.name))
-            .map((t) => ({
+            .sort((a, b) => {return a.name.localeCompare(b.name)})
+            .map((t) => {return {
               ...t,
               players: finalData
-                .filter((r) => t.player_uuids.includes(r.uuid))
-                .map((p, i) => ({ ...p, key: i + 1 })),
-            }))
+                .filter((r) => {return t.player_uuids.includes(r.uuid)})
+                .map((p, i) => {return { ...p, key: i + 1 }}),
+            }})
           return responseHandler.returnSuccess(
             httpStatus.CREATED,
             message,
             result
           )
-        } else if (type === 'pairings') {
+        } if (type === 'pairings') {
           const whitePlayers = []
           const blackPlayers = []
           const tournament = await this.tournamentDao.findById(tournamentId)
@@ -427,8 +431,8 @@ class PlayersService {
                 playerUuidMapping[d.white?.['no.']] ||
                 players.find(
                   (p) =>
-                    PlayersService.areNamesSimilar(p?.name, d?.white?.name) ||
-                    p?.rating === d?.white?.rating
+                    {return PlayersService.areNamesSimilar(p?.name, d?.white?.name) ||
+                    p?.rating === d?.white?.rating}
                 )?.uuid,
               player_name: d.white.name,
               player_rating: d.white.rating,
@@ -444,8 +448,8 @@ class PlayersService {
                   playerUuidMapping[d.black?.['no.']] ||
                   players.find(
                     (p) =>
-                      PlayersService.areNamesSimilar(p?.name, d?.black?.name) ||
-                      p?.rating === d?.black?.rating
+                      {return PlayersService.areNamesSimilar(p?.name, d?.black?.name) ||
+                      p?.rating === d?.black?.rating}
                   )?.uuid,
                 player_name: d.black.name,
                 player_rating: d.black.rating,
@@ -700,13 +704,13 @@ class PlayersService {
         })
 
         result = teams
-          .sort((a, b) => a.name.localeCompare(b.name))
-          .map((t) => ({
+          .sort((a, b) => {return a.name.localeCompare(b.name)})
+          .map((t) => {return {
             ...t,
             players: result
-              .filter((r) => t.player_uuids.includes(r.uuid))
-              .map((p, i) => ({ ...p, key: i + 1 })),
-          }))
+              .filter((r) => {return t.player_uuids.includes(r.uuid)})
+              .map((p, i) => {return { ...p, key: i + 1 }}),
+          }})
       }
 
       await this.redisService.setValue(
@@ -762,37 +766,39 @@ class PlayersService {
   uploadPrizeWinningPlayers = async (req) => {
     try {
       let message = 'Successfully uploaded winning players.'
-      const filePath = req.file.path
-      const type = req.file.mimetype
-
-      let data = await parseFile(filePath, type)
-
-      if (!data) {
-        message =
-          'Failed to parse data from file! Please upload again with correct format.'
-        return responseHandler.returnError(httpStatus.BAD_REQUEST, message)
-      }
-
-      const { tournamentId } = req.body
+      const { tournamentId, payload } = req.body
+      let data
       const players = await this.playersPrizePayoutDao.findByWhere({
         tournament_id: tournamentId,
       })
+      if (req?.file?.path) {
+        const filePath = req.file.path
+        const type = req.file.mimetype
+        data = await parseFile(filePath, type)
+        if (!data) {
+          message =
+            'Failed to parse data from file! Please upload again with correct format.'
+          return responseHandler.returnError(httpStatus.BAD_REQUEST, message)
+        }
+      } else {
+        data = [payload]
+      }
 
-      data = data
-        .filter((d) => {
+      if (Number(tournamentId) !== 1)
+        {data = data.filter((d) => {
           return !players.some((p) => {
             return p.mobile_number === d.mobile_number || p.name === d.name
           })
-        })
-        .map((e) => {
-          return { ...e, tournament_id: tournamentId }
-        })
+        })}
+
+      data = data.map((e) => {
+        return { ...e, tournament_id: tournamentId }
+      })
 
       if (!data.length) {
         message = 'Players already exists.'
         return responseHandler.returnError(httpStatus.BAD_REQUEST, message)
       }
-
       const result = await this.playersPrizePayoutDao.bulkCreate(data)
 
       if (!result) {
@@ -815,19 +821,40 @@ class PlayersService {
    * @param {Number} tournamentId
    * @returns {Array}
    */
-  getPrizeWinningPlayers = async (tournamentId) => {
+  getPrizeWinningPlayers = async (tournamentId, type) => {
     try {
       let message = 'Successfully fetched players for tournament.'
-      const players = await this.playersPrizePayoutDao.findByWhere({
+      const where = {
         tournament_id: tournamentId,
-      })
+      }
+      if (type === 'new') {
+        where.fulfillment_id = null
+      } else if (type === 'history') {
+        where.fulfillment_id = {
+          [Op.ne]: null,
+        }
+      }
+      const players = await this.playersPrizePayoutDao.findByWhere(where)
 
       if (!players) {
         message = 'No players exist for this tournament!'
         return responseHandler.returnError(httpStatus.BAD_REQUEST, message)
       }
 
-      return responseHandler.returnSuccess(httpStatus.OK, message, players)
+      const messageData = await this.payoutTransactionsDao.findByWhere(
+        { fulfillmentId: players.map((p) => {return p.fulfillment_id}) },
+        ['responseMessage', 'fulfillmentId']
+      )
+
+      const data = players.map((p) => {return {
+        ...p,
+        ...(['FAIL', 'FAILURE', 'PENDING'].includes(p.status) && {
+          message: messageData.find((m) => {return m.fulfillmentId === p.fulfillment_id})
+            ?.responseMessage,
+        }),
+      }})
+
+      return responseHandler.returnSuccess(httpStatus.OK, message, data)
     } catch (e) {
       logger.error(e)
       return responseHandler.returnError(
@@ -895,12 +922,15 @@ class PlayersService {
       }
 
       const random5char = Math.random().toString(36).substr(2, 5)
+      const filter = (p) => {
+        return tournamentId === 1
+          ? !p.status
+          : !p.status || ['FAIL', 'FAILURE'].includes(p.status)
+      }
       const data = {
         orderId: `PAYOUT${moment().format('YYYYMM')}${random5char}`,
         fulfillments: players
-          .filter((p) => {
-            return !p.status || ['FAIL', 'FAILURE'].includes(p.status)
-          })
+          .filter((p) => {return filter(p)})
           .map((p) => {
             return {
               amount: p.amount,
@@ -917,9 +947,7 @@ class PlayersService {
             }
           }),
         amount: players
-          .filter((p) => {
-            return !p.status || ['FAIL', 'FAILURE'].includes(p.status)
-          })
+          .filter((p) => {return filter(p)})
           .reduce((t, s) => {
             return t + s.amount
           }, 0),
@@ -946,9 +974,7 @@ class PlayersService {
       }
       await this.tournamentDao.updateById(updateData, tournamentId)
       const promises = players
-        .filter((p) => {
-          return !p.status || ['FAIL', 'FAILURE'].includes(p.status)
-        })
+        .filter((p) => {return filter(p)})
         .map((s, i) => {
           return this.playersPrizePayoutDao.updateById(
             {

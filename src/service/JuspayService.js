@@ -51,6 +51,30 @@ class JuspayService {
     }
   }
 
+  getPayoutBalance = async () => {
+    try {
+      const message = `Successfully fetched payout balance`
+      const url = `${this.url}merchant/v1/getways/balance`
+      this.options.method = 'GET'
+      const response = await fetch(url, this.options)
+      const juspayResponse = await response.json()
+      if (juspayResponse.error) {
+        return responseHandler.returnError(
+          httpStatus.BAD_REQUEST,
+          juspayResponse.errorMessage
+        )
+      } else {
+        const balance = juspayResponse['YESBIZ_UPI'].balance || 0
+        return responseHandler.returnSuccess(httpStatus.OK, message, balance)
+      }
+    } catch (error) {
+      return responseHandler.returnError(
+        httpStatus.BAD_REQUEST,
+        'Something went wrong!'
+      )
+    }
+  }
+
   orderStatus = async (orderId) => {
     try {
       const message = `Successfully fetched payout order status for ${orderId}`
@@ -60,7 +84,7 @@ class JuspayService {
       const juspayResponse = await response.json()
 
       let data = []
-      if (!['FULFILLMENTS_FAILURE'].includes(juspayResponse.status)) {
+      if (juspayResponse.status) {
         const payoutExists = await this.payoutTransactionsDao.checkExist({
           orderid: orderId,
         })
@@ -111,7 +135,7 @@ class JuspayService {
       if (!data.length) {
         data = juspayResponse
       }
-      return responseHandler.returnSuccess(httpStatus.CREATED, message, data)
+      return responseHandler.returnSuccess(httpStatus.OK, message, data)
     } catch (e) {
       logger.error(e)
       return responseHandler.returnError(
@@ -122,7 +146,6 @@ class JuspayService {
   }
 
   webhookTxnStatusUpdate = async (txn) => {
-    console.log(txn)
     try {
       if (
         txn.label === 'FULFILLMENT_ORDER' &&

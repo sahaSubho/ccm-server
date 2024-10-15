@@ -11,6 +11,9 @@ module.exports = {
     dialect: 'postgres',
     dialectOptions: {
       bigNumberStrings: true,
+      ssl: {
+        rejectUnauthorized: false,
+      },
     },
     logging: false,
   },
@@ -22,6 +25,9 @@ module.exports = {
     dialect: 'postgres',
     dialectOptions: {
       bigNumberStrings: true,
+      ssl: {
+        rejectUnauthorized: false,
+      },
     },
   },
   production: {
@@ -33,10 +39,16 @@ module.exports = {
     dialect: 'postgres',
     dialectOptions: {
       bigNumberStrings: true,
+      ssl: {
+        rejectUnauthorized: false,
+      },
     },
     pool: {
       min: 0,
       max: 5,
+      ssl: {
+        rejectUnauthorized: false,
+      },
       acquireTimeoutMillis: 60000,
       idleTimeoutMillis: 600000,
     },
