@@ -6,11 +6,11 @@ function calculateAPPO(data) {
   const players = getPlayerOpponentMapping(data)
   const PTP = calculatePTP(data)
   const result = {}
-  Object.keys(players).forEach((uuid) => {
-    const totalOppPTP = players[uuid].reduce((t, o) => {
-      return t + PTP[o.player_uuid]
+  Object.keys(players).forEach((id) => {
+    const totalOppPTP = players[id].reduce((t, o) => {
+      return t + PTP[o.player_id]
     }, 0)
-    result[uuid] = Math.round(totalOppPTP / players[uuid].length)
+    result[id] = Math.round(totalOppPTP / players[id].length)
   })
   return result
 }

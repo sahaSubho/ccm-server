@@ -130,7 +130,9 @@ class SuperDao {
   async bulkCreate(data) {
     return this.Model.bulkCreate(data)
       .then((result) => {
-        return result
+        return result.map((r) => {
+          return r.dataValues
+        })
       })
       .catch((e) => {
         logger.error(e)

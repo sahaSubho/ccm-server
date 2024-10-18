@@ -8,10 +8,10 @@ function calculateBGP(data) {
       })
     }
     if (player) {
-      if (p[c.player_uuid]) {
-        p[c.player_uuid] += 1
+      if (p[c.player_id]) {
+        p[c.player_id] += 1
       } else {
-        p[c.player_uuid] = 1
+        p[c.player_id] = 1
       }
     }
     return p

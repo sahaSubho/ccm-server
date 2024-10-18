@@ -235,7 +235,6 @@ const parseChessResultFile = async (filePath, type, format) => {
                 }
                 return a
               }, {})
-              console.log(res)
               results.push(res)
             }
           })

@@ -6,11 +6,11 @@ function calculateAPRO(data) {
   const players = getPlayerOpponentMapping(data)
   const TPR = calculateTPR(data)
   const result = {}
-  Object.keys(players).forEach((uuid) => {
-    const totalOppTPR = players[uuid].reduce((t, o) => {
-      return t + TPR[o.player_uuid]
+  Object.keys(players).forEach((id) => {
+    const totalOppTPR = players[id].reduce((t, o) => {
+      return t + TPR[o.player_id]
     }, 0)
-    result[uuid] = Math.round(totalOppTPR / players[uuid].length)
+    result[id] = Math.round(totalOppTPR / players[id].length)
   })
   return result
 }

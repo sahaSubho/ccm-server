@@ -8,10 +8,10 @@ function calculateBWG(data) {
       })
     }
     if (player && Number(c.result) === 1) {
-      if (p[c.player_uuid]) {
-        p[c.player_uuid] += 1
+      if (p[c.player_id]) {
+        p[c.player_id] += 1
       } else {
-        p[c.player_uuid] = 1
+        p[c.player_id] = 1
       }
     }
     return p

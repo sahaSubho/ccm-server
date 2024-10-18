@@ -17,6 +17,11 @@ module.exports = (sequelize, DataTypes) => {
         foreignKey: 'player_uuid',
         onDelete: 'CASCADE',
       })
+      TournamentPairings.belongsTo(models.ccm_tournament_players, {
+        targetKey: 'id',
+        foreignKey: 'player_id',
+        onDelete: 'CASCADE',
+      })
     }
   }
   TournamentPairings.init(
@@ -27,10 +32,18 @@ module.exports = (sequelize, DataTypes) => {
       player_fide_id: DataTypes.INTEGER,
       player_uuid: {
         type: DataTypes.STRING,
-        allowNull: false,
+        allowNull: true,
         references: {
           model: 'players',
           key: 'uuid',
+        },
+      },
+      player_id: {
+        type: DataTypes.INTEGER,
+        allowNull: true,
+        references: {
+          model: 'ccm_tournament_players',
+          key: 'id',
         },
       },
       player_name: DataTypes.STRING,

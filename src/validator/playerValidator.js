@@ -88,7 +88,7 @@ class PlayerValidator {
       is_withdrawn: Joi.bool().required(),
       tournamentId: Joi.number().required(),
       round: Joi.number().required(),
-      uuid: Joi.string().required(),
+      id: Joi.number().required(),
     })
 
     // validate request body against schema

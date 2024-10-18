@@ -1,18 +1,23 @@
+/* eslint-disable no-shadow */
+/* eslint-disable no-restricted-syntax */
 const cron = require('node-cron')
 const fs = require('fs')
 const path = require('path')
 // schedule tasks to be run on the server
-const directory = `src/helper/pairingEngine/files`
+const directory = `uploads/files`
 
 cron.schedule('0 1 * * *', () => {
-  console.log('cron')
   fs.readdir(directory, (err, files) => {
-    if (err) throw err
+    if (err) {
+      throw err
+    }
 
     for (const file of files) {
-      if (file.startsWith('input') || file.startsWith('output')) {
+      if (!file.startsWith('input') || !file.startsWith('output')) {
         fs.unlink(path.join(directory, file), (err) => {
-          if (err) throw err
+          if (err) {
+            throw err
+          }
         })
       }
     }

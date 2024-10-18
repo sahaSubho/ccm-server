@@ -8,6 +8,7 @@ const fetch = require('node-fetch')
 const TournamentDao = require('../dao/TournamentDao')
 const CCTournamentFeedbackDao = require('../dao/CcTournamentFeedback')
 const PlayersDao = require('../dao/PlayersDao')
+const TournamentPlayersDao = require('../dao/TournamentPlayersDao')
 const TournamentPairingsDao = require('../dao/TournamentPairingDao')
 const responseHandler = require('../helper/responseHandler')
 const logger = require('../config/logger')
@@ -34,6 +35,7 @@ class TournamentService {
     this.prizeCategoryDao = new PrizeCategoryDao()
     this.tournamentPrizeMappingDao = new TournamentPrizeCategoryMappingDao()
     this.playersDao = new PlayersDao()
+    this.trnplayersDao = new TournamentPlayersDao()
     this.tournamentPairingsDao = new TournamentPairingsDao()
     this.ccTournamentFeedbackDao = new CCTournamentFeedbackDao()
     this.playersPrizePayoutDao = new PlayersPrizePayoutDao()
@@ -423,7 +425,7 @@ class TournamentService {
             is_mandatory: f.is_mandatory,
             validator_regex: f.validator_regex,
             pincode_regex: f.pincode_regex,
-            answer_options: f.answer_options
+            answer_options: f.answer_options,
           }
         })
         const res = this.ccTournamentFeedbackDao.bulkCreate(data)
@@ -694,13 +696,16 @@ class TournamentService {
       )} round of the tournament.`
 
       const tournament = await this.tournamentDao.findById(tournamentId)
+      const players = await this.trnplayersDao.findByWhere({
+        tournament_id: tournamentId,
+      })
 
       if (round > tournament.rounds) {
         message = 'Pairing already done for all rounds in the tournament.'
         return responseHandler.returnError(httpStatus.BAD_REQUEST, message)
       }
 
-      if (!tournament.player_fide_ids) {
+      if (!players.length) {
         message =
           'The pairing process cannot be initiated as there are no players available for matching. Please upload player information first.'
         return responseHandler.returnError(httpStatus.BAD_REQUEST, message)
@@ -719,21 +724,7 @@ class TournamentService {
       }
 
       let data = []
-      const fide_ids = tournament.player_fide_ids.split(',')
-      let withDrawnIds = []
-      if (tournament.withdrawn_uuid) {
-        withDrawnIds = tournament.withdrawn_uuid.split(',')
-      }
-      let players = await this.playersDao.findByWhere({
-        uuid: fide_ids.concat(withDrawnIds),
-        is_active: true,
-      })
-      players = players.map((p) => {
-        return {
-          ...p,
-          is_withdrawn: withDrawnIds.includes(p.uuid),
-        }
-      })
+
       let white = []
       let black = []
       let ranking = {}
@@ -745,7 +736,9 @@ class TournamentService {
           tournament_id: tournamentId,
         })
 
-        lastRoundPairings = pairing.filter((p) => p.round === round - 1)
+        lastRoundPairings = pairing.filter((p) => {
+          return p.round === round - 1
+        })
         pairing = convertPlayersResultInNumeric(pairing)
         const playersRanking = getTieBreaks(pairing, round - 1)
 
@@ -761,9 +754,7 @@ class TournamentService {
           return responseHandler.returnError(httpStatus.BAD_REQUEST, message)
         }
         // players = players.concat(newPlayers)
-        console.log(
-          'pairing................................................................'
-        )
+
         white = pairing
           .filter((p) => {
             return !p.parent_id
@@ -796,25 +787,41 @@ class TournamentService {
       if (tournament.pairing_type === 'Team') {
         teams = await this.teamsDao.findByWhere({ tournament_id: tournamentId })
         const minPlayerCount = Math.min(
-          ...teams.map((t) => t.player_uuids.length)
+          ...teams.map((t) => {
+            return t.player_uuids.length
+          })
         )
         teams.forEach((t) => {
           let teamPlayerUuids = t.player_uuids
           if (lastRoundPairings.length) {
             teamPlayerUuids = lastRoundPairings
-              .filter((lrp) => teamPlayerUuids.includes(lrp.player_uuid))
-              .map((lrp) => lrp.player_uuid)
+              .filter((lrp) => {
+                return teamPlayerUuids.includes(lrp.player_uuid)
+              })
+              .map((lrp) => {
+                return lrp.player_uuid
+              })
           }
           const totalRatings = players
-            .filter((p) => teamPlayerUuids.includes(p.uuid))
-            .reduce((t, p) => t + Number(p.rating || 0), 0)
-          const existingPlayerIds = t.player_uuids.filter(
-            (p) => !teamPlayerUuids.includes(p)
-          )
+            .filter((p) => {
+              return teamPlayerUuids.includes(p.id)
+            })
+            .reduce((tr, p) => {
+              return tr + Number(p.rating || 0)
+            }, 0)
+          const existingPlayerIds = t.player_uuids.filter((p) => {
+            return !teamPlayerUuids.includes(p)
+          })
           const playerUuids = players
-            .filter((p) => teamPlayerUuids.includes(p.uuid))
-            .sort((a, b) => b.rating - a.rating)
-            .map((p) => p.uuid)
+            .filter((p) => {
+              return teamPlayerUuids.includes(p.id)
+            })
+            .sort((a, b) => {
+              return b.rating - a.rating
+            })
+            .map((p) => {
+              return p.id
+            })
           t.player_uuids = existingPlayerIds
             .concat(playerUuids)
             .slice(0, minPlayerCount)
@@ -1020,7 +1027,7 @@ class TournamentService {
       const teams = await this.teamsDao.findByWhere({
         tournament_id: tournamentId,
       })
-      let players = data
+      const players = data
         .filter((p) => {
           return !p.parent_id && !p.is_unpaired
         })
@@ -1031,15 +1038,16 @@ class TournamentService {
               return d.parent_id === e.id
             }),
             unpaired: e.is_unpaired ? e : undefined,
-            teamA: teams?.find((t) => t.player_uuids.includes(e.player_uuid))
-              ?.name,
-            teamB: teams?.find((t) =>
-              t.player_uuids.includes(
+            teamA: teams?.find((t) => {
+              return t.player_uuids.includes(e.player_uuid)
+            })?.name,
+            teamB: teams?.find((t) => {
+              return t.player_uuids.includes(
                 data?.find((d) => {
                   return d.parent_id === e.id
                 })?.player_uuid
               )
-            )?.name,
+            })?.name,
           }
         })
         .concat(
@@ -1213,10 +1221,10 @@ class TournamentService {
       //   return responseHandler.returnError(httpStatus.BAD_REQUEST, message)
       // }
 
-      const promises = scores.map((s) => {
+      const promises = Object.keys(scores).map((id) => {
         return this.tournamentPairingsDao.updateById(
-          { result: s.score, is_scored: true },
-          s.id
+          { result: scores[id], is_scored: true },
+          id
         )
       })
       const result = await Promise.allSettled(promises)
@@ -1505,13 +1513,7 @@ class TournamentService {
         created_by: userId,
       })
 
-      const allPlayers = tournaments
-        .map((b) => {
-          return b?.player_fide_ids?.split(',') || []
-        })
-        .flat()
-      const uniquePlayers = [...new Set(allPlayers)]
-      const players = await this.playersDao.findByWhere({ uuid: uniquePlayers })
+      const players = await this.trnplayersDao.findAll()
 
       const yesterdayPlayers = players.filter((p) => {
         return moment().diff(p.createdAt, 'd') === 1
@@ -1523,13 +1525,8 @@ class TournamentService {
 
       const revenue = tournaments.reduce((t, ta) => {
         const total = players.reduce((a, b) => {
-          if (ta?.player_fide_ids?.includes(b.uuid)) {
-            a +=
-              Number(
-                ta.entry_fee.find((e) => {
-                  return e.category === b.entry_fee_category
-                })?.fee
-              ) || 0
+          if (b.tournament_id === ta.id) {
+            a += Number(ta.entry_fee[b.entry_fee_category]) || 0
           }
           return a
         }, 0)
@@ -1745,7 +1742,7 @@ class TournamentService {
               is_mandatory: f.is_mandatory,
               validator_regex: f.validator_regex,
               pincode_regex: f.pincode_regex,
-              answer_options: f.answer_options
+              answer_options: f.answer_options,
             })
           }
         })

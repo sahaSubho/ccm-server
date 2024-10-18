@@ -5,11 +5,11 @@ const { fractionalScore } = require('./constants')
 function calculateTPR(data) {
   const ARO = calculateARO(data)
   const playersScore = data.reduce((p, c) => {
-    if (p[c.player_uuid]) {
-      p[c.player_uuid].score += Number(c.result)
-      p[c.player_uuid].count += 1
+    if (p[c.player_id]) {
+      p[c.player_id].score += Number(c.result)
+      p[c.player_id].count += 1
     } else {
-      p[c.player_uuid] = {
+      p[c.player_id] = {
         score: Number(c.result),
         count: 1,
       }
@@ -17,12 +17,12 @@ function calculateTPR(data) {
     return p
   }, {})
   const result = {}
-  Object.keys(playersScore).forEach((uuid) => {
-    const playerScore = playersScore[uuid]
+  Object.keys(playersScore).forEach((id) => {
+    const playerScore = playersScore[id]
     const avg = Number(playerScore.score / playerScore.count).toFixed(2)
     const dp = fractionalScore[avg]
-    console.log(avg, dp, ARO[uuid])
-    result[uuid] = ARO[uuid] + dp
+    console.log(avg, dp, ARO[id])
+    result[id] = ARO[id] + dp
   })
   return result
 }

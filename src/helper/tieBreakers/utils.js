@@ -3,11 +3,11 @@ const getPlayerOpponentMapping = (data) => {
   const playersMapping = data.reduce((p, c) => {
     const opponent = {
       id: c.id,
-      player_uuid: c.player_uuid,
+      player_id: c.player_id,
       rating: c.player_rating,
       scores: data
         .filter((d) => {
-          return d.player_uuid === c.player_uuid
+          return d.player_id === c.player_id
         })
         .map((o) => {
           return {
@@ -28,11 +28,11 @@ const getPlayerOpponentMapping = (data) => {
       })
     }
     if (player) {
-      p[player.player_uuid] = p[player.player_uuid]
-        ? [...p[player.player_uuid], opponent]
+      p[player.player_id] = p[player.player_id]
+        ? [...p[player.player_id], opponent]
         : [opponent]
     } else {
-      p[c.player_uuid] = p[c.player_uuid] ? [...p[c.player_uuid]] : []
+      p[c.player_id] = p[c.player_id] ? [...p[c.player_id]] : []
     }
     return p
   }, {})

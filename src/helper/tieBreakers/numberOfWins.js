@@ -10,10 +10,10 @@ function calculateNumberOfWins(data) {
     ) {
       c.result = 0
     }
-    if (p[c.player_uuid]) {
-      p[c.player_uuid] += Number(c.result)
+    if (p[c.player_id]) {
+      p[c.player_id] += Number(c.result)
     } else {
-      p[c.player_uuid] = Number(c.result)
+      p[c.player_id] = Number(c.result)
     }
     return p
   }, {})

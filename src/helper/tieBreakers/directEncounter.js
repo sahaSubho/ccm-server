@@ -2,8 +2,8 @@
 const { getPlayerOpponentMapping } = require('./utils')
 
 const getDEOponentScores = (players) => {
-  const result = Object.keys(players).reduce((acc, uuid) => {
-    const oppScores = players[uuid].reduce((p, c) => {
+  const result = Object.keys(players).reduce((acc, id) => {
+    const oppScores = players[id].reduce((p, c) => {
       let score = 0
       if (c) {
         score = c.scores.reduce((a, b) => {
@@ -14,9 +14,9 @@ const getDEOponentScores = (players) => {
       return p
     }, 0)
     if (acc[oppScores]) {
-      acc[oppScores].push({ id: uuid, score: oppScores })
+      acc[oppScores].push({ id, score: oppScores })
     } else {
-      acc[oppScores] = [{ id: uuid, score: oppScores }]
+      acc[oppScores] = [{ id, score: oppScores }]
     }
     return acc
   }, {})
@@ -34,7 +34,7 @@ const getDEtieBreaks = (result, data, tieBreaks) => {
           .map((p) => {
             return p.id
           })
-          .includes(d.player_uuid)
+          .includes(d.player_id)
       })
       const mapping = getPlayerOpponentMapping(filteredPlayers)
       const updatedResult = getDEOponentScores(mapping)
