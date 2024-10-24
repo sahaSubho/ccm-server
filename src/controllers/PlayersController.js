@@ -145,6 +145,18 @@ class PlayerController {
       res.status(httpStatus.BAD_GATEWAY).send(e)
     }
   }
+
+  searchFidePlayers = async (req, res) => {
+    try {
+      const { fideId, name } = req.query
+      const player = await this.playerService.searchFidePlayers(fideId, name)
+      const { status, message, data } = player.response
+      res.status(player.statusCode).send({ status, message, data })
+    } catch (e) {
+      logger.error(e)
+      res.status(httpStatus.BAD_GATEWAY).send(e)
+    }
+  }
 }
 
 module.exports = PlayerController

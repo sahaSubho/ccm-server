@@ -3,6 +3,7 @@
 const cron = require('node-cron')
 const fs = require('fs')
 const path = require('path')
+const syncUpdatedFidePlayersData = require('./helper/syncfidePlayers')
 // schedule tasks to be run on the server
 const directory = `uploads/files`
 
@@ -22,4 +23,9 @@ cron.schedule('0 1 * * *', () => {
       }
     }
   })
+})
+
+cron.schedule('0 17 * * *', () => {
+  console.log('cron started for fetching fide players')
+  syncUpdatedFidePlayersData()
 })

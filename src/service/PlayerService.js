@@ -1066,6 +1066,38 @@ class PlayersService {
       )
     }
   }
+
+  searchFidePlayers = async (fideId, name) => {
+    try {
+      const message = 'Found players based on search input'
+      const where = {}
+      if (name) {
+        where.name = { [Op.iLike]: `%${name}%` }
+      }
+      if (fideId) {
+        where.fide_id = fideId
+      }
+      const result = await this.playersDao.findByWhere(
+        where,
+        null,
+        ['rating', 'desc'],
+        10
+      )
+      if (!result) {
+        return responseHandler.returnError(
+          httpStatus.BAD_REQUEST,
+          'No macthing players!'
+        )
+      }
+      return responseHandler.returnSuccess(httpStatus.OK, message, result)
+    } catch (error) {
+      logger.error(error)
+      return responseHandler.returnError(
+        httpStatus.BAD_REQUEST,
+        'Something went wrong!'
+      )
+    }
+  }
 }
 
 module.exports = PlayersService

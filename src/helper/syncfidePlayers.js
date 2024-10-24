@@ -10,16 +10,48 @@ const RedisService = require('../service/RedisService')
 const playersDao = new PlayersDao()
 const redisService = new RedisService()
 
+let timer
+
+function debounce(func, timeout = 100) {
+  return (...args) => {
+    clearTimeout(timer)
+    timer = setTimeout(() => {
+      func.apply(this, args)
+    }, timeout)
+  }
+}
+
 function delay(ms) {
   return new Promise((resolve) => {
+    // eslint-disable-next-line no-promise-executor-return
     return setTimeout(resolve, ms)
   })
 }
+// Error handling wrapper for DB insertion
+async function processBatch(batch) {
+  try {
+    console.log(`Processing batch of ${batch.length} players`)
 
-async function fetchLatestFidePlayers() {
+    await playersDao.bulkCreate(batch, {
+      updateOnDuplicate: ['name', 'title', 'gender', 'age', 'rating'], // Specify fields to update on duplicate
+    })
+
+    console.log(`Inserted or Updated total ${batch.length} players`)
+  } catch (error) {
+    console.error('Error inserting batch:', error)
+    // Log the error or save the failed batch somewhere for reprocessing
+  }
+}
+
+async function processdata(result) {
+  await processBatch(result)
+}
+
+async function syncUpdatedFidePlayersData() {
   const dest = 'uploads/fidePlayers.zip'
   const url = 'https://ratings.fide.com/download/players_list_xml.zip'
   try {
+    console.log('Started fetching fide Players')
     let result = []
     const response = await fetch(url)
 
@@ -29,7 +61,8 @@ async function fetchLatestFidePlayers() {
       lastDate = lastDate ? moment.utc(lastDate) : moment.utc()
 
       if (date.isSame(lastDate)) {
-        return { success: true, message: 'Already Updated' }
+        console.log('Already Updated')
+        return
       }
       await redisService.setValue(
         'lastfidePlayersFetchedDate',
@@ -44,9 +77,11 @@ async function fetchLatestFidePlayers() {
       )
     }
 
+    console.log('Write zip file')
     // Create a writable stream to save the zip file
     const fileStream = fs.createWriteStream(dest)
 
+    console.log('Write pipe file stream')
     // Pipe the response body to the file stream
     response.body.pipe(fileStream)
 
@@ -58,6 +93,7 @@ async function fetchLatestFidePlayers() {
       })
       // Handle any errors that occur during the download
       fileStream.on('error', (error) => {
+        console.log('filestream error', error)
         reject(error) // Reject the promise with the error
       })
     })
@@ -98,44 +134,36 @@ async function fetchLatestFidePlayers() {
         rapid_rating: item.rapid_rating,
         blitz_rating: item.blitz_rating,
       }
-      await delay(100)
       result.push(data)
-      if (result.length > 1000) {
-        console.log('len', result.length)
-        await playersDao.bulkCreate(result, {
-          updateOnDuplicate: ['name', 'title', 'gender', 'age', 'rating'], // Specify fields to update on duplicate
-        })
-        console.log(`Inserted or Updated total ${result.length} players`)
+
+      // Check if result buffer has reached the batch size
+      if (result.length >= 1000) {
+        // Process and insert the batch, then clear the buffer
+        debounce(processdata(result))
+
         result = []
-        await delay(2000)
+        await delay(500) // Introduce delay to reduce DB load (optional)
       }
     })
 
     // Handle errors
     parser.on('error', (error) => {
       console.error('Error parsing XML:', error)
-      return {
-        success: false,
-        message:
-          'Error in fetching details of fide-rated players. Please Try after some time.',
-      }
     })
 
     // Start parsing
     parser.on('end', async () => {
       console.log('XML parsing completed')
-      await playersDao.bulkCreate(result, {
-        updateOnDuplicate: ['name', 'title', 'gender', 'age', 'rating'], // Specify fields to update on duplicate
-      })
-      console.log(`Inserted or Updated total ${result.length} players`)
-      return {
-        success: true,
-        message: 'Fetched updated details of fide-rated players',
+      // Process any remaining players in the result buffer
+      if (result.length > 0) {
+        await processBatch(result)
       }
+
+      console.log('All players processed successfully.')
     })
   } catch (error) {
     console.error('Error fetching zip file:', error.message)
   }
 }
 
-module.exports = fetchLatestFidePlayers
+module.exports = syncUpdatedFidePlayersData

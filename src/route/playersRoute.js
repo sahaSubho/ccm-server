@@ -77,6 +77,12 @@ router.patch(
   playersController.withDrawPlayer
 )
 
+router.get(
+  '/search-fide-players',
+  playerValidator.searchFidePlayers,
+  playersController.searchFidePlayers
+)
+
 router.get('/details', playersController.getPlayersDetails)
 
 router.get('/:id', playersController.getPlayersByTournament)
