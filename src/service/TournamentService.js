@@ -433,12 +433,13 @@ class TournamentService {
    * Get Tournament List
    * @returns {Object}
    */
-  getTournaments = async (limit = 10, offset = 0) => {
+  getTournaments = async (limit = 10, offset = 0, country='India') => {
     try {
       const message = 'Fetched tournaments successfully.'
       const data = await this.tournamentDao.findByWhere(
         {
           is_active: true,
+          country: country,
           cct_id: {
             [Op.ne]: null,
           },
