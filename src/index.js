@@ -1,6 +1,5 @@
 if (process.env.NODE_ENV === 'production') {
-  const getSecret = require('./getEnv')
-  await getSecret()
+  await require('./getEnv')
 }
 const app = require('./app')
 const config = require('./config/config')
