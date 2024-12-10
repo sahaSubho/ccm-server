@@ -7,7 +7,7 @@ const {
     GetSecretValueCommand,
   } =  require("@aws-sdk/client-secrets-manager");
 
-async function getSecret() {
+const getSecret = async () => {
     const secret_name = "prod/event";
 
     const client = new SecretsManagerClient({
@@ -36,5 +36,5 @@ async function getSecret() {
     require('fs').writeFileSync(`${__dirname}/../../.env`, secret);
 }
 
-getSecret();
+module.exports = getSecret
 
