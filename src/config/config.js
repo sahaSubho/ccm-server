@@ -2,12 +2,6 @@ const dotenv = require('dotenv')
 const path = require('path')
 const Joi = require('joi')
 
-if (process.env.NODE_ENV === 'production') {
-  const getSecret = require('./getEnv')
-
-  await getSecret()
-}
-
 dotenv.config({ path: path.join(__dirname, '../../.env') })
 
 const envValidation = Joi.object()
