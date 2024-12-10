@@ -3,7 +3,7 @@ const path = require('path')
 const Joi = require('joi')
 
 if (process.env.NODE_ENV === 'production') {
-  require('getEnv')
+  require('./getEnv')
 }
 
 dotenv.config({ path: path.join(__dirname, '../../.env') })
