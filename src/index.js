@@ -1,8 +1,7 @@
 
 (async () => {
   if (process.env.NODE_ENV === 'production') {
-    const getEnv = await require('./config/getEnv')
-    await getEnv()
+    await require('./config/getEnv')
   }
   const app = require('./app')
   const config = require('./config/config')
