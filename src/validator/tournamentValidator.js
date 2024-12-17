@@ -33,7 +33,7 @@ class TournamentValidator {
       stakeholders_mobile_number: Joi.string().required(),
       start_date: Joi.date().required(),
       end_date: Joi.date().greater(Joi.ref('start_date')).required(),
-      pairing_type: Joi.string(),
+      pairing_type: Joi.string().default('Individual'),
     })
 
     const fileSchema = Joi.object({

@@ -148,8 +148,7 @@ class PlayerController {
 
   searchFidePlayers = async (req, res) => {
     try {
-      const { fideId, name } = req.query
-      const player = await this.playerService.searchFidePlayers(fideId, name)
+      const player = await this.playerService.searchFidePlayers(req.body)
       const { status, message, data } = player.response
       res.status(player.statusCode).send({ status, message, data })
     } catch (e) {

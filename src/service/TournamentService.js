@@ -6,6 +6,7 @@ const moment = require('moment')
 const sharp = require('sharp')
 const fetch = require('node-fetch')
 const TournamentDao = require('../dao/TournamentDao')
+const TournamentConfigurationDao = require('../dao/TournamentConfigurationDao')
 const CCTournamentFeedbackDao = require('../dao/CcTournamentFeedback')
 const PlayersDao = require('../dao/PlayersDao')
 const TournamentPlayersDao = require('../dao/TournamentPlayersDao')
@@ -20,6 +21,7 @@ const getTieBreaks = require('../helper/tieBreakers')
 const UserService = require('./UserService')
 const PrizeCategoryDao = require('../dao/PrizeCategoryDao')
 const TeamsDao = require('../dao/TeamsDao')
+const TeamPairingsDao = require('../dao/TeamPairingsDao')
 const PlayersPrizePayoutDao = require('../dao/PlayersPrizePayoutDao')
 const TournamentPrizeCategoryMappingDao = require('../dao/TournamentCategoryMappingDao')
 const parseFile = require('../helper/parseFile')
@@ -42,6 +44,8 @@ class TournamentService {
     this.userService = new UserService() // This is specifically to for querying the lichess token information from DB
     this.redisService = new RedisService()
     this.teamsDao = new TeamsDao()
+    this.teamPairingsDao = new TeamPairingsDao()
+    this.tournamentConfigurationDao = new TournamentConfigurationDao()
   }
 
   static convertToTeamPairings = (data) => {
@@ -743,7 +747,7 @@ class TournamentService {
         const playersRanking = getTieBreaks(pairing, round - 1)
 
         ranking = playersRanking.reduce((a, b, i) => {
-          a[b.player_uuid] = i + 1
+          a[b.player_id] = i + 1
           return a
         }, {})
 
@@ -791,24 +795,24 @@ class TournamentService {
             return t.player_uuids.length
           })
         )
+        const teamPairings = []
         teams.forEach((t) => {
+          teamPairings.push({
+            team_id: t.id,
+            tournament_id: tournamentId,
+            round,
+          })
           let teamPlayerUuids = t.player_uuids
           if (lastRoundPairings.length) {
             teamPlayerUuids = lastRoundPairings
               .filter((lrp) => {
-                return teamPlayerUuids.includes(lrp.player_uuid)
+                return teamPlayerUuids.includes(lrp.player_id)
               })
               .map((lrp) => {
-                return lrp.player_uuid
+                return lrp.player_id
               })
           }
-          const totalRatings = players
-            .filter((p) => {
-              return teamPlayerUuids.includes(p.id)
-            })
-            .reduce((tr, p) => {
-              return tr + Number(p.rating || 0)
-            }, 0)
+
           const existingPlayerIds = t.player_uuids.filter((p) => {
             return !teamPlayerUuids.includes(p)
           })
@@ -825,19 +829,27 @@ class TournamentService {
           t.player_uuids = existingPlayerIds
             .concat(playerUuids)
             .slice(0, minPlayerCount)
+          const totalRatings = players
+            .filter((p) => {
+              return t?.player_uuids?.includes(p.id)
+            })
+            .reduce((tr, p) => {
+              return tr + Number(p.rating || 0)
+            }, 0)
           t.rating = totalRatings / minPlayerCount
         })
       }
 
-      const { whitePlayers, blackPlayers } = await javaFoRoundPairing(
-        players,
-        round,
-        tournament,
-        white,
-        black,
-        ranking,
-        teams
-      )
+      const { whitePlayers, blackPlayers, leftTeams, rightTeams } =
+        await javaFoRoundPairing(
+          players,
+          round,
+          tournament,
+          white,
+          black,
+          ranking,
+          teams
+        )
 
       const res = await this.tournamentPairingsDao.bulkCreate(whitePlayers)
       if (!res) {
@@ -857,10 +869,40 @@ class TournamentService {
         tournamentId
       )
 
+      if (leftTeams.length) {
+        const whiteTeams = leftTeams.map((lt) => {
+          return {
+            team_id: lt,
+            tournament_id: tournamentId,
+            round,
+          }
+        })
+        const teamsRes = await this.teamPairingsDao.bulkCreate(whiteTeams)
+
+        if (teamsRes) {
+          const blackTeams = rightTeams.map((lt, i) => {
+            return {
+              team_id: lt,
+              tournament_id: tournamentId,
+              round,
+              parent_id: teamsRes[i].id,
+            }
+          })
+          await this.teamPairingsDao.bulkCreate(blackTeams)
+        }
+      }
+
       data = res.map((w, i) => {
         return {
           player: w,
           opponent: oppRes[i] || null,
+          unpaired: w.is_unpaired ? w : undefined,
+          teamA: teams?.find((t) => {
+            return t.player_uuids.includes(w.player_id)
+          })?.name,
+          teamB: teams?.find((t) => {
+            return t.player_uuids.includes(oppRes[i]?.player_id)
+          })?.name,
         }
       })
 
@@ -1039,13 +1081,13 @@ class TournamentService {
             }),
             unpaired: e.is_unpaired ? e : undefined,
             teamA: teams?.find((t) => {
-              return t.player_uuids.includes(e.player_uuid)
+              return t.player_uuids.includes(e.player_id)
             })?.name,
             teamB: teams?.find((t) => {
               return t.player_uuids.includes(
                 data?.find((d) => {
                   return d.parent_id === e.id
-                })?.player_uuid
+                })?.player_id
               )
             })?.name,
           }
@@ -1139,7 +1181,7 @@ class TournamentService {
             'round',
             'tournament_id',
             'player_fide_id',
-            'player_uuid',
+            'player_id',
             'player_name',
             'player_rating',
             'player_score',
@@ -1198,10 +1240,18 @@ class TournamentService {
         message = `No players found for Round ${round}! Please try again.`
         return responseHandler.returnError(httpStatus.BAD_REQUEST, message)
       }
-      const convertedData = convertPlayersResultInNumeric(data)
-      const players = getTieBreaks(convertedData, round)
-
-      return responseHandler.returnSuccess(httpStatus.OK, message, players)
+      const teamsData = await this.tournamentPairingsDao.findByWhere({
+        round: { [Op.lte]: round },
+        tournament_id: tournamentId,
+      })
+      let result
+      if (teamsData) {
+        result = getTieBreaks(teamsData, round)
+      } else {
+        const convertedData = convertPlayersResultInNumeric(data)
+        result = getTieBreaks(convertedData, round)
+      }
+      return responseHandler.returnSuccess(httpStatus.OK, message, result)
     } catch (e) {
       logger.error(e)
       return responseHandler.returnError(
@@ -1389,6 +1439,51 @@ class TournamentService {
       const data = await this.tournamentPrizeMappingDao.bulkCreate(payload)
       if (!data) {
         message = 'Tournament prizes update failed! Please Try again.'
+        return responseHandler.returnError(httpStatus.BAD_REQUEST, message)
+      }
+
+      return responseHandler.returnSuccess(httpStatus.CREATED, message, data)
+    } catch (error) {
+      logger.error(error)
+      return responseHandler.returnError(
+        httpStatus.BAD_REQUEST,
+        'Something went wrong!'
+      )
+    }
+  }
+
+  getConfiguration = async (id) => {
+    try {
+      let message = 'Successfully fetched configuration for tournament.'
+      const data = await this.tournamentConfigurationDao.findByWhere({
+        tournament_id: id,
+      })
+      if (!data) {
+        message = 'Fetching Tournament configuration failed! Please Try again.'
+        return responseHandler.returnError(httpStatus.BAD_REQUEST, message)
+      }
+
+      return responseHandler.returnSuccess(httpStatus.OK, message, data)
+    } catch (error) {
+      logger.error(error)
+      return responseHandler.returnError(
+        httpStatus.BAD_REQUEST,
+        'Something went wrong!'
+      )
+    }
+  }
+
+  setConfiguration = async (id, payload) => {
+    try {
+      let message = 'Successfully updated configuration for tournament.'
+      const data = await this.tournamentConfigurationDao.updateOrCreate(
+        payload,
+        {
+          tournament_id: id,
+        }
+      )
+      if (!data) {
+        message = 'Tournament configuration update failed! Please Try again.'
         return responseHandler.returnError(httpStatus.BAD_REQUEST, message)
       }
 

@@ -22,6 +22,12 @@ module.exports = (sequelize, DataTypes) => {
       Tournament.hasMany(models.ccm_teams, {
         foreignKey: 'tournament_id',
       })
+      Tournament.hasMany(models.ccm_team_pairings, {
+        foreignKey: 'tournament_id',
+      })
+      Tournament.hasMany(models.ccm_tournament_configuration, {
+        foreignKey: 'tournament_id',
+      })
     }
   }
 

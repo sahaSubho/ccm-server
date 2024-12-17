@@ -48,24 +48,29 @@ class PlayerValidator {
   }
 
   static addPlayer(req, res, next) {
+    const playerSchema = Joi.object({
+      name: Joi.string().required(),
+      age: Joi.number().required(),
+      gender: Joi.string().valid('M', 'F').required(),
+      mobile: Joi.string().allow(null).default(''),
+      upi_id: Joi.string().allow(null).default(''),
+      fide_id: Joi.number(),
+      rating: Joi.number(),
+    })
     // create schema object
     const schema = Joi.object({
       params: Joi.object({
         id: Joi.number().required(),
       }),
-      body: Joi.object({
-        name: Joi.string().required(),
-        age: Joi.number().required(),
-        gender: Joi.string().valid('M', 'F').required(),
-        mobile: Joi.string(),
-        upi_id: Joi.string(),
-        fide_id: Joi.number(),
-        rating: Joi.number(),
-      }),
+      body: Joi.alternatives().try(
+        playerSchema,
+        Joi.array().items(playerSchema)
+      ),
     })
 
     // validate request body against schema
     const { error, value } = schema.validate(req, options)
+    console.log('req', req.body, error)
 
     if (error) {
       // on fail return comma separated errors
@@ -174,7 +179,25 @@ class PlayerValidator {
     // create schema object
     const schema = Joi.object({
       fideId: Joi.number(),
-      name: Joi.string(),
+      name: Joi.string().allow(''),
+      rating: Joi.object({
+        min: Joi.number(),
+        max: Joi.number(),
+      }),
+      rapid_rating: Joi.object({
+        min: Joi.number(),
+        max: Joi.number(),
+      }),
+      blitz_rating: Joi.object({
+        min: Joi.number(),
+        max: Joi.number(),
+      }),
+      year: Joi.object({
+        min: Joi.number(),
+        max: Joi.number(),
+      }),
+      federation: Joi.string(),
+      gender: Joi.string().valid('M', 'F'),
     })
 
     // validate request body against schema

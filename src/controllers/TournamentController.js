@@ -271,6 +271,30 @@ class TournamentController {
       res.status(httpStatus.BAD_GATEWAY).send(e)
     }
   }
+
+  setConfiguration = async (req, res) => {
+    try {
+      const { id } = req.params
+      const resp = await this.tournamentService.setConfiguration(id, req.body)
+      const { status, message, data } = resp.response
+      res.status(resp.statusCode).send({ status, message, data })
+    } catch (e) {
+      logger.error(e)
+      res.status(httpStatus.BAD_GATEWAY).send(e)
+    }
+  }
+
+  getConfiguration = async (req, res) => {
+    try {
+      const { id } = req.params
+      const resp = await this.tournamentService.getConfiguration(id)
+      const { status, message, data } = resp.response
+      res.status(resp.statusCode).send({ status, message, data })
+    } catch (e) {
+      logger.error(e)
+      res.status(httpStatus.BAD_GATEWAY).send(e)
+    }
+  }
 }
 
 module.exports = TournamentController

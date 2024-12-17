@@ -1,7 +1,7 @@
 const { spawn } = require('child_process')
 const fs = require('fs')
 
-const pair = (input, players, fileName) => {
+const pair = (input, players, teams = [], fileName = '') => {
   const javafoJarPath = 'src/helper/pairingEngine/files/javafo.jar' // Path to javafo.jar in your project
   const trfFilePath = `uploads/files/input_${fileName}.trf` // Path to your input TRF file
   const outputFilePath = `uploads/files/output_${fileName}.trf` // Path to the output file
@@ -36,6 +36,8 @@ const pair = (input, players, fileName) => {
             const lines = data.trim().split('\n')
             const whitePlayers = []
             const blackPlayers = []
+            const leftTeams = []
+            const rightTeams = []
             // Process each line of data
             lines.forEach((line, index) => {
               if (index > 0) {
@@ -44,19 +46,31 @@ const pair = (input, players, fileName) => {
                   const value = players.find((p) => {
                     return p.key === Number(pIndex)
                   })
+                  const teamId = teams.find((t) => {
+                    return t.player_uuids.includes(value.player_id)
+                  })?.id
                   delete value?.id
                   whitePlayers.push(value)
+                  if (!leftTeams.includes(teamId)) {
+                    leftTeams.push(teamId)
+                  }
                 }
                 if (Number(oppIndex) > 0) {
                   const value = players.find((p) => {
                     return p.key === Number(oppIndex)
                   })
+                  const teamId = teams.find((t) => {
+                    return t.player_uuids.includes(value.player_id)
+                  })?.id
                   delete value?.id
                   blackPlayers.push(value)
+                  if (!rightTeams.includes(teamId)) {
+                    rightTeams.push(teamId)
+                  }
                 }
               }
             })
-            resolve({ whitePlayers, blackPlayers })
+            resolve({ whitePlayers, blackPlayers, leftTeams, rightTeams })
           } else {
             reject(err)
           }

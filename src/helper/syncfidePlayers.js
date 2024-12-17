@@ -32,9 +32,25 @@ async function processBatch(batch) {
   try {
     console.log(`Processing batch of ${batch.length} players`)
 
-    await playersDao.bulkCreate(batch, {
-      updateOnDuplicate: ['name', 'title', 'gender', 'age', 'rating'], // Specify fields to update on duplicate
+    const promises = batch.map((p) => {
+      return playersDao.updateOrCreate(p, { fide_id: p.fide_id })
     })
+
+    await Promise.allSettled(promises)
+    // await playersDao.bulkCreate(batch, {
+    //   updateOnDuplicate: [
+    //     'name',
+    //     'title',
+    //     'w_title',
+    //     'o_title',
+    //     'foa_title',
+    //     'gender',
+    //     'age',
+    //     'rating',
+    //     'rapid_rating',
+    //     'blitz_rating',
+    //   ], // Specify fields to update on duplicate
+    // })
 
     console.log(`Inserted or Updated total ${batch.length} players`)
   } catch (error) {

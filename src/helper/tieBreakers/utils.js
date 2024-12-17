@@ -91,8 +91,58 @@ function convertPlayersResultInNumeric(data) {
   }, [])
 }
 
+const getTeamOpponentMapping = (data, round) => {
+  const teamsScoreData = data
+    .filter((d) => {
+      return d.round === round
+    })
+    .reduce((a, b) => {
+      a[b.team_id] = b
+      return a
+    }, {})
+  const teamsMapping = data.reduce((p, c) => {
+    const opponent = teamsScoreData[c.team_id]
+    let team
+    if (c.parent_id) {
+      team = data.find((d) => {
+        return d.id === c.parent_id && d.round === c.round
+      })
+    } else {
+      team = data.find((d) => {
+        return d.parent_id === c.id && d.round === c.round
+      })
+    }
+    if (team) {
+      p[team.id] = p[team.id] ? [...p[team.id], opponent] : [opponent]
+    } else {
+      p[c.id] = p[c.id] ? [...p[c.id]] : []
+    }
+    return p
+  }, {})
+  return teamsMapping
+}
+
+const getTeamScorePerRound = (data) => {
+  const teamScores = {}
+  data.forEach((team) => {
+    const obj = {
+      ...team,
+      opp_id: data.find((d) => {
+        return d.id === team.parent_id || d.parent_id === team.id
+      })?.team_id,
+    }
+    if (teamScores[team.team_id]) {
+      teamScores[team.team_id].push(obj)
+    } else {
+      teamScores[team.team_id] = [obj]
+    }
+  })
+}
+
 module.exports = {
   getPlayerOpponentMapping,
   findIntervalWithNumber,
   convertPlayersResultInNumeric,
+  getTeamOpponentMapping,
+  getTeamScorePerRound,
 }

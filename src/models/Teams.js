@@ -12,6 +12,9 @@ module.exports = (sequelize, DataTypes) => {
       Teams.belongsTo(models.cc_tournament_chessmasters, {
         foreignKey: 'tournament_id',
       })
+      Teams.hasMany(models.ccm_team_pairings, {
+        foreignKey: 'team_id',
+      })
     }
   }
   Teams.init(

@@ -77,7 +77,7 @@ router.patch(
   playersController.withDrawPlayer
 )
 
-router.get(
+router.post(
   '/search-fide-players',
   playerValidator.searchFidePlayers,
   playersController.searchFidePlayers

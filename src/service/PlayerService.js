@@ -159,6 +159,11 @@ class PlayersService {
 
     data = newPlayers
 
+    const teamMappingByName = data.reduce((a, b) => {
+      a[b.name] = b.team
+      return a
+    }, {})
+
     if (!data.length && common.length) {
       message = 'Players are already registered in this tournament.'
       throw Error(message)
@@ -168,7 +173,6 @@ class PlayersService {
     if (data.length) {
       result = await this.trnplayersDao.bulkCreate(data)
 
-      console.log('result', result)
       // result = result.dataValues
       if (!result.length) {
         message = 'Failed to upload players! Please try again.'
@@ -186,14 +190,16 @@ class PlayersService {
 
     const playerTeamMapping = {}
     const playerUuidMapping = {}
-    common.concat(data).forEach((p) => {
-      if (p.team) {
-        playerTeamMapping[p.id] = p.team
+    common.concat(result).forEach((p) => {
+      if (teamMappingByName[p.name]) {
+        playerTeamMapping[p.id] = teamMappingByName[p.name]
       }
       if (p.pId) {
         playerUuidMapping[p.pId] = p.id
       }
     })
+
+    console.log(common.concat(result)[0], playerTeamMapping)
 
     this.redisService.setValueWithExpiry(
       `cr_players_${tournamentId}`,
@@ -326,6 +332,7 @@ class PlayersService {
           const finalData = await this.trnplayersDao.findByWhere({
             tournament_id: tournamentId,
           })
+
           const teamPlayersMapping = {}
 
           finalData.forEach((b) => {
@@ -491,15 +498,27 @@ class PlayersService {
     try {
       let message = 'Successfully added player.'
 
-      const data = {
-        ...body,
-        title: body.title || '',
-        registered_from: 'CCM',
+      let payload
+      if (Array.isArray(body)) {
+        payload = body.map((e) => {
+          return { ...e, registered_from: 'CCM' }
+        })
+      } else {
+        const data = {
+          ...body,
+          title: body.title || '',
+          registered_from: 'CCM',
+        }
+        payload = [data]
       }
 
-      const { ids, invalidPlayer } = await this.processUniquePlayers([data], id)
+      const { ids, invalidPlayer } = await this.processUniquePlayers(
+        payload,
+        id
+      )
+      console.log('process players', ids, invalidPlayer)
 
-      if (invalidPlayer) {
+      if (invalidPlayer.length > 0) {
         message = 'Player already exists with same Fide Id.'
         return responseHandler.returnError(httpStatus.BAD_REQUEST, message)
       }
@@ -510,7 +529,7 @@ class PlayersService {
       }
 
       this.redisService.removeKey(`ccm_players_${id}`)
-      return responseHandler.returnSuccess(httpStatus.CREATED, message, data)
+      return responseHandler.returnSuccess(httpStatus.CREATED, message, payload)
     } catch (e) {
       logger.error(e)
       return responseHandler.returnError(
@@ -1067,15 +1086,61 @@ class PlayersService {
     }
   }
 
-  searchFidePlayers = async (fideId, name) => {
+  searchFidePlayers = async ({
+    fideId,
+    name,
+    rating,
+    blitz_rating,
+    rapid_rating,
+    year,
+  }) => {
     try {
       const message = 'Found players based on search input'
       const where = {}
-      if (name) {
+      if (name.length) {
         where.name = { [Op.iLike]: `%${name}%` }
       }
       if (fideId) {
         where.fide_id = fideId
+      }
+      if (Object.keys(rating).length) {
+        if (rating.min && rating.max) {
+          where.rating = { [Op.between]: [rating?.min, rating?.max] }
+        } else if (rating.min) {
+          where.rating = { [Op.gte]: rating.min }
+        } else {
+          where.rating = { [Op.lte]: rating.max }
+        }
+      }
+      if (Object.keys(blitz_rating).length) {
+        if (blitz_rating.min && blitz_rating.max) {
+          where.blitz_rating = {
+            [Op.between]: [blitz_rating?.min, blitz_rating?.max],
+          }
+        } else if (blitz_rating.min) {
+          where.blitz_rating = { [Op.gte]: blitz_rating.min }
+        } else {
+          where.blitz_rating = { [Op.lte]: blitz_rating.max }
+        }
+      }
+      if (Object.keys(rapid_rating).length) {
+        if (rapid_rating.min && rapid_rating.max) {
+          where.rapid_rating = {
+            [Op.between]: [rapid_rating?.min, rapid_rating?.max],
+          }
+        } else if (rapid_rating.min) {
+          where.rapid_rating = { [Op.gte]: rapid_rating.min }
+        } else {
+          where.rapid_rating = { [Op.lte]: rapid_rating.max }
+        }
+      }
+      if (year?.min) {
+        where.age = {
+          [Op.between]: [
+            moment().year() - Number(year?.max) || 0,
+            moment().year() - year.min,
+          ],
+        }
       }
       const result = await this.playersDao.findByWhere(
         where,
@@ -1089,7 +1154,25 @@ class PlayersService {
           'No macthing players!'
         )
       }
-      return responseHandler.returnSuccess(httpStatus.OK, message, result)
+      const data = result.reduce((acc, curr) => {
+        acc.push({ ...curr, rating_type: 'Standard' })
+        if (Number(curr?.rapid_rating) > 0) {
+          acc.push({
+            ...curr,
+            rating_type: 'Rapid',
+            rating: curr?.rapid_rating,
+          })
+        }
+        if (Number(curr?.blitz_rating) > 0) {
+          acc.push({
+            ...curr,
+            rating_type: 'Blitz',
+            rating: curr?.blitz_rating,
+          })
+        }
+        return acc
+      }, [])
+      return responseHandler.returnSuccess(httpStatus.OK, message, data)
     } catch (error) {
       logger.error(error)
       return responseHandler.returnError(

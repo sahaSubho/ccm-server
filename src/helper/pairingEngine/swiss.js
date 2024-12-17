@@ -53,13 +53,13 @@ const sortByInitialRankings = (players) => {
         return (
           orderTitles.indexOf(a.title.toUpperCase()) -
             orderTitles.indexOf(b.title.toUpperCase()) ||
-          a.name.localeCompare(b.name)
+          a.name?.localeCompare(b.name)
         )
       }
       if (b?.title?.length || a?.title?.length) {
         return b.title.length - a.title.length
       }
-      return a.name.localeCompare(b.name)
+      return a.name?.localeCompare(b?.name)
     }
     return b.rating - a.rating
   })
@@ -326,7 +326,7 @@ async function javaFoRoundPairing(
     `042  ${tournament.start_date}\n` +
     `052  ${tournament.end_date}\n` +
     `062  ${numberOfPlayers}\n` +
-    `092  Individual: Swiss-System\n` +
+    `092  ${tournament.pairing_type}: Swiss-System\n` +
     `XXR  ${tournament.rounds}\n`
   const lastRoundPlayers = white.concat(black).filter((p) => {
     return p?.round === round - 1
@@ -339,7 +339,7 @@ async function javaFoRoundPairing(
       })
       .reduce((a, b) => {
         const teamPlayers = players.filter((p) => {
-          return b.player_ids.includes(p.id)
+          return b.player_uuids.includes(p.id)
         })
         const sortedPlayers = sortByInitialRankings(teamPlayers)
         a.push(...sortedPlayers)
@@ -384,14 +384,6 @@ async function javaFoRoundPairing(
       for (let i = 0; i < count; i++) {
         const player = whitePlayers[i]
         const opp = blackPlayers[i]
-
-        console.log(
-          'result',
-          player.player_name,
-          player.player_result,
-          opp?.player_name,
-          opp?.player_result
-        )
         if (player && !opp) {
           matches[player.player_id][index - 1] = `${''.padEnd(1, ' ')} - U`
         } else if (!player && opp) {
@@ -451,7 +443,7 @@ async function javaFoRoundPairing(
     // refer trf_format.txt file
     if (teams.length > 0) {
       const tp = teams.find((t) => {
-        return t.player_ids.includes(p.player_id)
+        return t.player_uuids.includes(p.player_id)
       })
       if (tp) {
         teamPlayers[tp.name] = [...(teamPlayers[tp.name] || []), p.key]
@@ -493,6 +485,7 @@ async function javaFoRoundPairing(
   const pairings = await pair(
     result,
     formatedPlayers,
+    teams,
     `tournament_${tournament.id}_${round}`
   )
   return pairings
