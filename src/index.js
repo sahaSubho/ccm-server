@@ -1,6 +1,8 @@
 
 (async () => {
-  console.log("ENV : ", process.env.NODE_ENV);
+  console.log("NODE_ENV : ", process.env.NODE_ENV);
+  console.log("ENV : ", process.env.ENV);
+  
   
   if (process.env.NODE_ENV === 'production' || process.env.NODE_ENV === 'preprod') {
     console.log("Retrieving secret from secrets manager");
