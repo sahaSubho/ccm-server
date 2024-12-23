@@ -9,7 +9,12 @@ const {
 
 
   module.exports = (async function() {
-    const secret_name = "prod/event";
+
+    let prefix = "prod"
+    if (process.env.ENV === 'preprod') {
+        prefix = "preprod"
+    }
+    const secret_name = prefix+"/event";
 
     const client = new SecretsManagerClient({
     region: "ap-south-1",
