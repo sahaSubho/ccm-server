@@ -1,6 +1,10 @@
 
 (async () => {
+  console.log("ENV : ", process.env.NODE_ENV);
+  
   if (process.env.NODE_ENV === 'production' || process.env.NODE_ENV === 'preprod') {
+    console.log("Retrieving secret from secrets manager");
+    
     await require('./config/getEnv')
   }
   const app = require('./app')
