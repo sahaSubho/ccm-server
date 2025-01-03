@@ -17,17 +17,37 @@ module.exports = (sequelize, DataTypes) => {
   TournamentConfiguration.init(
     {
       tournament_id: DataTypes.INTEGER,
-      tiebreaks: DataTypes.JSONB,
-      tiebreak_settings: DataTypes.JSONB,
-      sorting: DataTypes.BOOLEAN,
-      sorting_type: DataTypes.STRING,
-      pairings: DataTypes.STRING,
-      bye_point: DataTypes.DECIMAL(10, 2),
-      color: DataTypes.STRING,
+      tiebreaks: {
+        type: DataTypes.JSONB,
+        defaultValue: '["BH-C1", "BH", "SB"]',
+      },
+      tiebreak_settings: {
+        type: DataTypes.JSONB,
+      },
+      sorting: {
+        type: DataTypes.BOOLEAN,
+        defaultValue: true,
+      },
+      sorting_type: {
+        type: DataTypes.STRING,
+        defaultValue: 'nat',
+      },
+      pairings: {
+        type: DataTypes.STRING,
+        defaultValue: '1,1/2,0',
+      },
+      bye_point: {
+        type: DataTypes.DECIMAL(10, 2),
+        defaultValue: '1.0',
+      },
+      color: {
+        type: DataTypes.STRING,
+        defaultValue: 'white',
+      },
     },
     {
       sequelize,
-      modelName: 'ccm_tournament_configuration',
+      modelName: 'ccm_tournament_configurations',
     }
   )
   return TournamentConfiguration

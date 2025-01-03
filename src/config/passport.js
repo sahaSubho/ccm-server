@@ -4,9 +4,7 @@ const config = require('./config')
 const { tokenTypes } = require('./tokens')
 const TokenDao = require('../dao/TokenDao')
 const RedisService = require('../service/RedisService')
-const models = require('../models')
 
-const User = models.user
 const jwtOptions = {
   secretOrKey: config.jwt.secret,
   jwtFromRequest: ExtractJwt.fromAuthHeaderAsBearerToken(),

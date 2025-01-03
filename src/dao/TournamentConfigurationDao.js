@@ -2,7 +2,7 @@
 const SuperDao = require('./SuperDao')
 const models = require('../models')
 
-const TournamentConfiguration = models.ccm_tournament_configuration
+const TournamentConfiguration = models.ccm_tournament_configurations
 
 class TournamentConfigurationDao extends SuperDao {
   constructor() {

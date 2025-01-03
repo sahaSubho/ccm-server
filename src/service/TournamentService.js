@@ -1476,6 +1476,7 @@ class TournamentService {
   setConfiguration = async (id, payload) => {
     try {
       let message = 'Successfully updated configuration for tournament.'
+      payload.tournament_id = id
       const data = await this.tournamentConfigurationDao.updateOrCreate(
         payload,
         {
