@@ -34,10 +34,11 @@ class TournamentController {
 
   getTournaments = async (req, res) => {
     try {
-      const { limit, offset } = req.query
+      const { limit, offset, country} = req.query
       const tournaments = await this.tournamentService.getTournaments(
         limit,
-        offset
+        offset,
+        country
       )
       const { status, message, data } = tournaments.response
       res.status(tournaments.statusCode).send({ status, message, data })
