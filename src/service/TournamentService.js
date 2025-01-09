@@ -1,5 +1,6 @@
 /* eslint-disable no-param-reassign */
 const httpStatus = require('http-status')
+const path = require('path')
 const { Op, literal } = require('sequelize')
 const { v4: uuidv4 } = require('uuid')
 const moment = require('moment')
@@ -21,6 +22,7 @@ const PrizeCategoryDao = require('../dao/PrizeCategoryDao')
 const PlayersPrizePayoutDao = require('../dao/PlayersPrizePayoutDao')
 const TournamentPrizeCategoryMappingDao = require('../dao/TournamentCategoryMappingDao')
 const parseFile = require('../helper/parseFile')
+const s3Helper = require('../helper/s3Helper')
 // const fetchLatestFidePlayers = require('../helper/fidePlayers')
 
 const fieldsOfType1 = ['address', 'email', 'upi_id']
@@ -388,7 +390,7 @@ class TournamentService {
             is_mandatory: f.is_mandatory,
             validator_regex: f.validator_regex,
             pincode_regex: f.pincode_regex,
-            answer_options: f.answer_options
+            answer_options: f.answer_options,
           }
         })
         const res = this.ccTournamentFeedbackDao.bulkCreate(data)
@@ -399,16 +401,6 @@ class TournamentService {
         this.tournamentDao.updateById({ feedback_key: key }, tournamentBody?.id)
         return responseHandler.returnSuccess(httpStatus.CREATED, message, data)
       }
-      if (req?.files?.length) {
-        req.files.forEach((f) => {
-          if (f.path.includes('brochure')) {
-            tournamentBody.brochure = f.path
-          }
-          if (f.path.includes('image')) {
-            tournamentBody.display_pic = f.path
-          }
-        })
-      }
 
       tournamentBody.created_by = req.user.id
       tournamentBody.is_active = true
@@ -418,6 +410,28 @@ class TournamentService {
       if (!data) {
         message = 'Tournament creation failed! Please Try again.'
         return responseHandler.returnError(httpStatus.BAD_REQUEST, message)
+      }
+
+      const tournamentId = data.id
+      if (req?.files?.length) {
+        const promise = req.files.map(async (f) => {
+          const fileExtension = path.extname(f.originalname)
+          if (f.path.includes('brochure')) {
+            tournamentBody.brochure = await s3Helper.uploadFilesToS3(
+              f,
+              `brochures/ccm_${tournamentId}${fileExtension}`
+            )
+          }
+          if (f.path.includes('image')) {
+            tournamentBody.display_pic = await s3Helper.uploadFilesToS3(
+              f,
+              `images/ccm_${tournamentId}${fileExtension}`
+            )
+          }
+          return tournamentBody
+        })
+        await Promise.allSettled(promise)
+        await this.tournamentDao.updateById(tournamentBody, tournamentId)
       }
       return responseHandler.returnSuccess(httpStatus.CREATED, message, data)
     } catch (e) {
@@ -433,13 +447,13 @@ class TournamentService {
    * Get Tournament List
    * @returns {Object}
    */
-  getTournaments = async (limit = 10, offset = 0, country='India') => {
+  getTournaments = async (limit = 10, offset = 0, country = 'India') => {
     try {
       const message = 'Fetched tournaments successfully.'
       const data = await this.tournamentDao.findByWhere(
         {
           is_active: true,
-          country: country,
+          country,
           cct_id: {
             [Op.ne]: null,
           },
@@ -1534,7 +1548,7 @@ class TournamentService {
               is_mandatory: f.is_mandatory,
               validator_regex: f.validator_regex,
               pincode_regex: f.pincode_regex,
-              answer_options: f.answer_options
+              answer_options: f.answer_options,
             })
           }
         })
@@ -1551,8 +1565,12 @@ class TournamentService {
 
       if (req?.files?.length) {
         const promises = req.files.map(async (f) => {
+          const fileExtension = path.extname(f.originalname)
           if (f.path.includes('brochure')) {
-            tournamentBody.brochure = f.path
+            const key = tournament.cct_id
+              ? `brochures/${tournament.cct_id}${fileExtension}`
+              : `brochures/ccm_${id}${fileExtension}`
+            tournamentBody.brochure = await s3Helper.uploadFilesToS3(f, key)
           }
           if (f.path.includes('image')) {
             if (tournamentBody.is_brochure) {
@@ -1594,7 +1612,10 @@ class TournamentService {
                 tournamentBody[key] = newPath
               }
             } else {
-              tournamentBody.display_pic = f.path
+              tournamentBody.display_pic = await s3Helper.uploadFilesToS3(
+                f,
+                `images/ccm_${id}${fileExtension}`
+              )
             }
           }
         })
@@ -1647,8 +1668,22 @@ class TournamentService {
             throw new Error(`HTTP error! status: ${response.status}`)
           }
           if (!tournament.cct_id) {
+            let brochure = tournament?.brochure
+            if (tournament?.brochure?.length > 0) {
+              const oldKey = `brochures/${
+                tournament.brochure.split('/').slice(-1)[0]
+              }`
+              const fileExtension = path.extname(oldKey)
+              const newKey = `brochures/${response.id}${fileExtension}`
+              await s3Helper.renameFile(oldKey, newKey)
+              brochure = brochure?.replace(oldKey, newKey)
+            }
             await this.tournamentDao.updateById(
-              { cct_id: response.id, feedback_key: response.tournament_key },
+              {
+                cct_id: response.id,
+                feedback_key: response.tournament_key,
+                brochure,
+              },
               id
             )
           }
