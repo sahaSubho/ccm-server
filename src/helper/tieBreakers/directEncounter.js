@@ -34,7 +34,7 @@ const getDEtieBreaks = (result, data, tieBreaks) => {
           .map((p) => {
             return p.id
           })
-          .includes(d.player_id)
+          .includes(String(d.player_id))
       })
       const mapping = getPlayerOpponentMapping(filteredPlayers)
       const updatedResult = getDEOponentScores(mapping)

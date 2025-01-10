@@ -1,9 +1,13 @@
-const {
-  getPlayerOpponentMapping,
-  convertPlayersResultInNumeric,
-} = require('./utils')
+const { getPlayerOpponentMapping } = require('./utils')
 const calculateDirectEncounter = require('./directEncounter')
 const calculateNumberOfWins = require('./numberOfWins')
+const calculateBGP = require('./BGP')
+const calculateBWG = require('./BWG')
+const calculateARO = require('./ARO')
+const calculateTPR = require('./TPR')
+const calculatePTP = require('./PTP')
+const calculateAPRO = require('./APRO')
+const calculateAPPO = require('./APPO')
 // const calculatePTP = require('./PTP')
 
 function calculateTB1TB2TB3(players) {
@@ -54,7 +58,7 @@ function calculateTB1TB2TB3(players) {
     const tb2 = modifiedOppScores.reduce((acc, score) => {
       return acc + score
     }, 0)
-    tiebreaks[id] = { TB1: 0, TB2: tb2, TB3: 0 }
+    tiebreaks[id] = { 'BH-C1': 0, BH: tb2, SB: 0 }
 
     // Calculate TB1 - Sum of Opponent Scores excluding the lowest opponent score
     const tb1 =
@@ -62,7 +66,7 @@ function calculateTB1TB2TB3(players) {
       (modifiedOppScores.length > 0
         ? modifiedOppScores[modifiedOppScores.length - 1]
         : 0)
-    tiebreaks[id].TB1 = tb1
+    tiebreaks[id]['BH-C1'] = tb1
 
     // Step 4: Calculate TB3 - Sonneborn-Berger score
     const tb3 =
@@ -81,17 +85,47 @@ function calculateTB1TB2TB3(players) {
           .reduce((acc, p) => {
             return acc + p.score
           }, 0)
-    tiebreaks[id].TB3 = tb3
+    tiebreaks[id].SB = tb3
   })
 
   return tiebreaks
 }
 
-function getTieBreaks(data, round) {
+const getTieBreakByCode = (code, data) => {
+  switch (code) {
+    case 'DE':
+      return calculateDirectEncounter(data)
+    case 'REP':
+      return calculateNumberOfWins(data)
+    case 'BGP':
+      return calculateBGP(data)
+    case 'BWG':
+      return calculateBWG(data)
+    case 'ARO':
+      return calculateARO(data)
+    case 'TPR':
+      return calculateTPR(data)
+    case 'PTP':
+      return calculatePTP(data)
+    case 'APRO':
+      return calculateAPRO(data)
+    case 'APPO':
+      return calculateAPPO(data)
+    default:
+      break
+  }
+}
+
+function getTieBreaks(data, round, trnConfig) {
   const playersMapping = getPlayerOpponentMapping(data)
   const tieBreakerResult = calculateTB1TB2TB3(playersMapping)
-  const directEncounter = calculateDirectEncounter(data)
-  const noOfWins = calculateNumberOfWins(data)
+
+  const othertieBreaks = trnConfig?.tiebreaks?.reduce((acc, code) => {
+    acc[code] = getTieBreakByCode(code, data)
+    return acc
+  }, {})
+
+  console.log(othertieBreaks)
 
   const players = data
     .filter((d) => {
@@ -100,9 +134,12 @@ function getTieBreaks(data, round) {
     .map((e) => {
       return {
         ...e,
-        ...tieBreakerResult[e.player_id],
-        TB4: directEncounter[e.player_id],
-        TB5: noOfWins[e.player_id],
+        ...trnConfig?.tiebreaks?.reduce((acc, code, i) => {
+          acc[`TB${i + 1}`] = othertieBreaks[code]
+            ? othertieBreaks[code][e.player_id]
+            : tieBreakerResult[e.player_id][code]
+          return acc
+        }, {}),
         tieSum: Object.values(tieBreakerResult[e.player_id]).reduce((a, b) => {
           return a + b
         }, 0),

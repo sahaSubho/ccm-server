@@ -53,6 +53,7 @@ function findIntervalWithNumber(intervals, number) {
 }
 
 function processResult(result, playersType) {
+  console.log(result, playersType)
   let modifiedResult = [0, 0]
   switch (result) {
     case '--+':
@@ -77,7 +78,7 @@ function processResult(result, playersType) {
 }
 
 function convertPlayersResultInNumeric(data) {
-  return data.reduce((a, b) => {
+  const result = data.reduce((a, b) => {
     const obj = {
       ...b,
       player_result: b.result,
@@ -85,10 +86,10 @@ function convertPlayersResultInNumeric(data) {
     if (typeof b.result === 'string') {
       obj.result = processResult(b.result, !b.parent_id ? 'player' : 'opponent')
     }
-
     a.push(obj)
     return a
   }, [])
+  return result
 }
 
 const getTeamOpponentMapping = (data, round) => {

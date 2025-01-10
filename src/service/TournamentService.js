@@ -754,12 +754,15 @@ class TournamentService {
           round: { [Op.lt]: round },
           tournament_id: tournamentId,
         })
+        const trnConfig = await this.tournamentConfigurationDao.findOneByWhere({
+          tournament_id: tournamentId,
+        })
 
         lastRoundPairings = pairing.filter((p) => {
           return p.round === round - 1
         })
         pairing = convertPlayersResultInNumeric(pairing)
-        const playersRanking = getTieBreaks(pairing, round - 1)
+        const playersRanking = getTieBreaks(pairing, round - 1, trnConfig)
 
         ranking = playersRanking.reduce((a, b, i) => {
           a[b.player_id] = i + 1
@@ -855,6 +858,9 @@ class TournamentService {
         })
       }
 
+      const tnrConfig = await this.tournamentConfigurationDao.findOneByWhere({
+        tournament_id: tournamentId,
+      })
       const { whitePlayers, blackPlayers, leftTeams, rightTeams } =
         await javaFoRoundPairing(
           players,
@@ -863,6 +869,7 @@ class TournamentService {
           white,
           black,
           ranking,
+          tnrConfig,
           teams
         )
 
@@ -1255,16 +1262,20 @@ class TournamentService {
         message = `No players found for Round ${round}! Please try again.`
         return responseHandler.returnError(httpStatus.BAD_REQUEST, message)
       }
-      const teamsData = await this.tournamentPairingsDao.findByWhere({
+      const teamsData = await this.teamPairingsDao.findByWhere({
         round: { [Op.lte]: round },
         tournament_id: tournamentId,
       })
+      const trnConfig = await this.tournamentConfigurationDao.findOneByWhere({
+        tournament_id: tournamentId,
+      })
       let result
-      if (teamsData) {
-        result = getTieBreaks(teamsData, round)
+      if (teamsData.length) {
+        result = getTieBreaks(teamsData, round, trnConfig)
       } else {
         const convertedData = convertPlayersResultInNumeric(data)
-        result = getTieBreaks(convertedData, round)
+        // console.log('convertedData', convertedData)
+        result = getTieBreaks(convertedData, round, trnConfig)
       }
       return responseHandler.returnSuccess(httpStatus.OK, message, result)
     } catch (e) {
@@ -1314,7 +1325,11 @@ class TournamentService {
             message = `No players found for Round ${round}! Please try again.`
             return responseHandler.returnError(httpStatus.BAD_REQUEST, message)
           }
-          const players = getTieBreaks(data, Number(round))
+          const trnConfig =
+            await this.tournamentConfigurationDao.findOneByWhere({
+              tournament_id: tournamentId,
+            })
+          const players = getTieBreaks(data, Number(round), trnConfig)
           const tournamentPrizeCategoryMappings =
             await this.tournamentPrizeMappingDao.findAllWithCategory({
               tournament_id: tournamentId,
@@ -1470,7 +1485,7 @@ class TournamentService {
   getConfiguration = async (id) => {
     try {
       let message = 'Successfully fetched configuration for tournament.'
-      const data = await this.tournamentConfigurationDao.findByWhere({
+      const data = await this.tournamentConfigurationDao.findOneByWhere({
         tournament_id: id,
       })
       if (!data) {

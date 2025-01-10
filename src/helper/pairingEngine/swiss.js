@@ -318,6 +318,7 @@ async function javaFoRoundPairing(
   white,
   black,
   ranking,
+  config,
   teams = []
 ) {
   const numberOfPlayers = players.length
@@ -331,7 +332,11 @@ async function javaFoRoundPairing(
   const lastRoundPlayers = white.concat(black).filter((p) => {
     return p?.round === round - 1
   })
-  let stats = sortByInitialRankings(players)
+
+  let stats = players
+  if (config.sorting) {
+    stats = sortByInitialRankings(players)
+  }
   if (teams.length > 0) {
     stats = teams
       .sort((a, b) => {
@@ -341,7 +346,10 @@ async function javaFoRoundPairing(
         const teamPlayers = players.filter((p) => {
           return b.player_uuids.includes(p.id)
         })
-        const sortedPlayers = sortByInitialRankings(teamPlayers)
+        let sortedPlayers = teamPlayers
+        if (config.sorting) {
+          sortedPlayers = sortByInitialRankings(teamPlayers)
+        }
         a.push(...sortedPlayers)
         return a
       }, [])
@@ -479,8 +487,8 @@ async function javaFoRoundPairing(
         .join(' ')}`
       result += `\n${ans}`
     })
-  } else {
-    result += 'XXC white1'
+  } else if (config.color !== 'random') {
+    result += `XXC ${config.color}1`
   }
   const pairings = await pair(
     result,
