@@ -355,7 +355,7 @@ class PlayersService {
       let message = 'Successfully fetched players for tournament.'
       let tournament = await this.tournamentDao.findById(tournamentId)
 
-      if (tournament.cct_id) {
+      if (tournament.cct_id && tournament.enable_registration) {
         try {
           const newPlayers = await sequelize.query(
             `Select b.player_name as name,
