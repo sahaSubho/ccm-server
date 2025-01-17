@@ -794,7 +794,7 @@ class PlayersService {
       let tournamentName = ''
 
       if (tournamentId) {
-        query += ` and tournament_id=${tournamentId}`
+        query += ` and tournament_id=${tournamentId} `
         where.tournament_id = tournamentId
         const tournament = await this.tournamentDao.findById(tournamentId)
         tournamentName = tournament.name
