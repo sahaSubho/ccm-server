@@ -373,7 +373,7 @@ class PlayersService {
               WHEN b.dob = '' THEN (select birth_year from fide_player_profile c where c.fide_id=b.fide_id)::text
               ELSE RIGHT(b.dob,4)
           END AS birth_year 
-          from cc_registration_orders as a join tournament_notification_registrations as b on a.player_id=b.id where a.tournament_id=${tournament.cct_id};`,
+          from cc_registration_orders as a join tournament_notification_registrations as b on a.player_id=b.id where a.tournament_id=${tournament.cct_id} and a.cancelled=0;`,
             {
               type: sequelize.QueryTypes.SELECT,
             }
