@@ -52,6 +52,6 @@ module.exports = {
       acquireTimeoutMillis: 60000,
       idleTimeoutMillis: 600000,
     },
-    logging: true,
+    logging: false,
   },
 }
