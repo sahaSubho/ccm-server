@@ -21,7 +21,6 @@ function calculateTPR(data) {
     const playerScore = playersScore[id]
     const avg = Number(playerScore.score / playerScore.count).toFixed(2)
     const dp = fractionalScore[avg]
-    console.log(avg, dp, ARO[id])
     result[id] = ARO[id] + dp
   })
   return result

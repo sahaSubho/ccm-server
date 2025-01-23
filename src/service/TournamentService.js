@@ -1276,9 +1276,7 @@ class TournamentService {
       if (teamsData.length) {
         result = getTieBreaks(teamsData, round, trnConfig)
       } else {
-        console.log('trnConfig', trnConfig)
         const convertedData = convertPlayersResultInNumeric(data, trnConfig)
-        // console.log('convertedData', convertedData)
         result = getTieBreaks(convertedData, round, trnConfig)
       }
       return responseHandler.returnSuccess(httpStatus.OK, message, result)

@@ -70,7 +70,6 @@ class PlayerValidator {
 
     // validate request body against schema
     const { error, value } = schema.validate(req, options)
-    console.log('req', req.body, error)
 
     if (error) {
       // on fail return comma separated errors
@@ -178,26 +177,26 @@ class PlayerValidator {
   static searchFidePlayers(req, res, next) {
     // create schema object
     const schema = Joi.object({
-      fideId: Joi.number(),
+      fideId: Joi.number().default(0),
       name: Joi.string().allow(''),
       rating: Joi.object({
         min: Joi.number(),
         max: Joi.number(),
-      }),
+      }).default({}),
       rapid_rating: Joi.object({
         min: Joi.number(),
         max: Joi.number(),
-      }),
+      }).default({}),
       blitz_rating: Joi.object({
         min: Joi.number(),
         max: Joi.number(),
-      }),
+      }).default({}),
       year: Joi.object({
         min: Joi.number(),
         max: Joi.number(),
-      }),
-      federation: Joi.string(),
-      gender: Joi.string().valid('M', 'F'),
+      }).default({}),
+      federation: Joi.string().default(''),
+      gender: Joi.string().valid('M', 'F').default(''),
     })
 
     // validate request body against schema

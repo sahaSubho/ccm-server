@@ -199,8 +199,6 @@ class PlayersService {
       }
     })
 
-    console.log(common.concat(result)[0], playerTeamMapping)
-
     this.redisService.setValueWithExpiry(
       `cr_players_${tournamentId}`,
       43200,
@@ -516,7 +514,6 @@ class PlayersService {
         payload,
         id
       )
-      console.log('process players', ids, invalidPlayer)
 
       if (invalidPlayer.length > 0) {
         message = 'Player already exists with same Fide Id.'
@@ -1093,6 +1090,7 @@ class PlayersService {
     blitz_rating,
     rapid_rating,
     year,
+    gender,
   }) => {
     try {
       const message = 'Found players based on search input'
@@ -1102,6 +1100,9 @@ class PlayersService {
       }
       if (fideId) {
         where.fide_id = fideId
+      }
+      if (gender.length) {
+        where.gender = gender
       }
       if (Object.keys(rating).length) {
         if (rating.min && rating.max) {

@@ -181,7 +181,6 @@ class TournamentController {
   getStaticPrizeCategories = async (req, res) => {
     // Return static values only, no fancy processing
     const { id } = req.params
-    console.log('ID = ', id)
     const prizeCats = await this.tournamentService.getStaticPrizeCategories(id)
     const { status, message, data } = prizeCats.response
     res.status(prizeCats.statusCode).send({ status, message, data })

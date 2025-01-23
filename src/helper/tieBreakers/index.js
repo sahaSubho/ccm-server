@@ -125,8 +125,6 @@ function getTieBreaks(data, round, trnConfig) {
     return acc
   }, {})
 
-  console.log(othertieBreaks)
-
   const players = data
     .filter((d) => {
       return d.round === round
