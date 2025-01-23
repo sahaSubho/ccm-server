@@ -1,50 +1,42 @@
 const { Model } = require('sequelize')
-const { userRoles } = require('../config/constant')
 
 module.exports = (sequelize, DataTypes) => {
-  class Players extends Model {
+  class TournamentPlayers extends Model {
     /**
      * Helper method for defining associations.
      * This method is not a part of Sequelize lifecycle.
      * The `models/index` file will call this method automatically.
      */
     static associate(models) {
-      Players.hasMany(models.tournament_pairings, {
-        foreignKey: 'player_uuid',
+      // define association here
+      TournamentPlayers.belongsTo(models.cc_tournament_chessmasters, {
+        foreignKey: 'tournament_id',
       })
     }
   }
-  Players.init(
+  TournamentPlayers.init(
     {
       name: DataTypes.STRING,
-      uuid: {
-        type: DataTypes.UUID,
-        unique: true,
-      },
+      tournament_id: DataTypes.INTEGER,
       title: DataTypes.STRING,
-      w_title: DataTypes.STRING,
-      o_title: DataTypes.STRING,
-      foa_title: DataTypes.STRING,
       fide_id: DataTypes.INTEGER,
       rating: DataTypes.INTEGER,
-      rapid_rating: DataTypes.INTEGER,
-      blitz_rating: DataTypes.INTEGER,
       age: DataTypes.INTEGER,
       gender: DataTypes.STRING,
       mobile: DataTypes.STRING,
       upi_id: DataTypes.STRING,
-      created_by: DataTypes.ENUM([userRoles.ORGANIZER, 'self']),
       entry_fee_category: DataTypes.STRING,
-      is_active: {
+      registered_from: DataTypes.STRING,
+      is_withdrawn: {
         type: DataTypes.BOOLEAN,
         allowNull: false,
-        defaultValue: true,
+        defaultValue: false,
       },
     },
     {
       sequelize,
-      modelName: 'players',
+      modelName: 'ccm_tournament_players',
     }
   )
-  return Players
+  return TournamentPlayers
 }

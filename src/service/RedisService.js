@@ -67,7 +67,7 @@ class RedisService {
    */
   setUser = async (user) => {
     const setUser = await this.redisHelper.set(
-      `user:${user.id}`,
+      `user:${user?.id}`,
       JSON.stringify(user)
     )
     if (!setUser) {
@@ -96,6 +96,19 @@ class RedisService {
    */
   setValue = async (key, value) => {
     const setValue = await this.redisHelper.set(key, value)
+    if (!setValue) {
+      return true
+    }
+    return false
+  }
+
+  /**
+   * Set Value with expiry
+   * @param {Object} key
+   * @returns {boolean}
+   */
+  setValueWithExpiry = async (key, seconds, value) => {
+    const setValue = await this.redisHelper.setEx(key, seconds, value)
     if (!setValue) {
       return true
     }

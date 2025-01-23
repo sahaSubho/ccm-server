@@ -15,6 +15,7 @@ module.exports = {
         rejectUnauthorized: false,
       },
     },
+    logging: false,
   },
   test: {
     username: config.dbUser,

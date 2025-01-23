@@ -19,6 +19,15 @@ module.exports = (sequelize, DataTypes) => {
       Tournament.hasMany(models.tournament_prize_mappings, {
         foreignKey: 'tournament_id',
       })
+      Tournament.hasMany(models.ccm_teams, {
+        foreignKey: 'tournament_id',
+      })
+      Tournament.hasMany(models.ccm_team_pairings, {
+        foreignKey: 'tournament_id',
+      })
+      Tournament.hasMany(models.ccm_tournament_configurations, {
+        foreignKey: 'tournament_id',
+      })
     }
   }
 
@@ -75,6 +84,7 @@ module.exports = (sequelize, DataTypes) => {
       enable_registration: DataTypes.BOOLEAN,
       stakeholders_mobile_number: DataTypes.STRING,
       feedback_key: DataTypes.UUID,
+      pairing_type: DataTypes.STRING,
     },
     {
       sequelize,

@@ -18,6 +18,17 @@ class PlayerController {
     }
   }
 
+  uploadSheet = async (req, res) => {
+    try {
+      const user = await this.playerService.uploadSheet(req)
+      const { status, message, data } = user.response
+      res.status(user.statusCode).send({ status, message, data })
+    } catch (e) {
+      logger.error(e)
+      res.status(httpStatus.BAD_GATEWAY).send(e)
+    }
+  }
+
   getPlayersByTournament = async (req, res) => {
     try {
       const { id } = req.params
@@ -127,6 +138,17 @@ class PlayerController {
         uuid,
         tournamentId
       )
+      const { status, message, data } = player.response
+      res.status(player.statusCode).send({ status, message, data })
+    } catch (e) {
+      logger.error(e)
+      res.status(httpStatus.BAD_GATEWAY).send(e)
+    }
+  }
+
+  searchFidePlayers = async (req, res) => {
+    try {
+      const player = await this.playerService.searchFidePlayers(req.body)
       const { status, message, data } = player.response
       res.status(player.statusCode).send({ status, message, data })
     } catch (e) {

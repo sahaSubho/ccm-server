@@ -107,6 +107,7 @@ class TournamentController {
     try {
       const { round, tournamentId } = req.body
       const pairing = await this.tournamentService.uploadTournamentPairing(
+        req,
         round,
         tournamentId
       )
@@ -180,7 +181,6 @@ class TournamentController {
   getStaticPrizeCategories = async (req, res) => {
     // Return static values only, no fancy processing
     const { id } = req.params
-    console.log('ID = ', id)
     const prizeCats = await this.tournamentService.getStaticPrizeCategories(id)
     const { status, message, data } = prizeCats.response
     res.status(prizeCats.statusCode).send({ status, message, data })
@@ -231,6 +231,65 @@ class TournamentController {
       )
       const { status, message, data } = user.response
       res.status(user.statusCode).send({ status, message, data })
+    } catch (e) {
+      logger.error(e)
+      res.status(httpStatus.BAD_GATEWAY).send(e)
+    }
+  }
+
+  removePairings = async (req, res) => {
+    try {
+      const { round, tournamentId, player_id, opponent_id } = req.body
+      const pairing = await this.tournamentService.removePairings(
+        round,
+        tournamentId,
+        player_id,
+        opponent_id
+      )
+      const { status, message } = pairing.response
+      res.status(pairing.statusCode).send({ status, message })
+    } catch (e) {
+      logger.error(e)
+      res.status(httpStatus.BAD_GATEWAY).send(e)
+    }
+  }
+
+  addPairings = async (req, res) => {
+    try {
+      const { round, tournamentId, player_id, opponent_id, type } = req.body
+      const pairing = await this.tournamentService.addPairings(
+        round,
+        tournamentId,
+        player_id,
+        opponent_id,
+        type
+      )
+      const { status, message } = pairing.response
+      res.status(pairing.statusCode).send({ status, message })
+    } catch (e) {
+      logger.error(e)
+      res.status(httpStatus.BAD_GATEWAY).send(e)
+    }
+  }
+
+  setConfiguration = async (req, res) => {
+    try {
+      const { id } = req.params
+      const resp = await this.tournamentService.setConfiguration(id, req.body)
+      const { status, message, data } = resp.response
+      res.status(resp.statusCode).send({ status, message, data })
+    } catch (e) {
+      logger.error(e)
+      res.status(httpStatus.BAD_GATEWAY).send(e)
+    }
+  }
+
+  getConfiguration = async (req, res) => {
+    try {
+      const { id } = req.params
+      const resp = await this.tournamentService.getConfiguration(id)
+      const { status, message, data } = resp.response
+      res.status(resp.statusCode).send({ status, message, data })
     } catch (e) {
       logger.error(e)
       res.status(httpStatus.BAD_GATEWAY).send(e)

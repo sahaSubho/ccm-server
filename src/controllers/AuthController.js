@@ -102,7 +102,7 @@ class AuthController {
 
   getUserDetails = async (req, res, next) => {
     try {
-      const user = req.user
+      const { user } = req
       // const tokenDoc = await this.tokenService.verifyToken(
       //   req.body.token,
       //   tokenTypes.ACCESS
@@ -141,7 +141,7 @@ class AuthController {
       } else {
         lichess_username = user.lic_name
         if (lichess_username) {
-          let lichessUser = await this.userService.getLichessUserById(
+          const lichessUser = await this.userService.getLichessUserById(
             lichess_username
           )
           if (lichessUser && lichessUser.lichess_token) {
@@ -173,7 +173,7 @@ class AuthController {
           .send('Token is expired Please Login again!')
       }
 
-      let lichess_username = req.body.lichess_username
+      const { lichess_username } = req.body
 
       const user = await this.userService.updateLichessUserDetails(
         tokenDoc.user_id,

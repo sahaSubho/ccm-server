@@ -16,6 +16,13 @@ router.post(
   playerValidator.uploadValidator,
   playersController.uploadPlayers
 )
+
+router.post(
+  '/upload-sheet',
+  upload.single('file'),
+  playerValidator.uploadCRValidator,
+  playersController.uploadSheet
+)
 router.patch(
   '/update-player-info/:id',
   auth(),
@@ -68,6 +75,12 @@ router.patch(
   auth(),
   playerValidator.withDrawPlayer,
   playersController.withDrawPlayer
+)
+
+router.post(
+  '/search-fide-players',
+  playerValidator.searchFidePlayers,
+  playersController.searchFidePlayers
 )
 
 router.get('/details', playersController.getPlayersDetails)

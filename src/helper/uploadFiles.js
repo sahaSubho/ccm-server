@@ -4,6 +4,9 @@ const multer = require('multer')
 const storage = multer.diskStorage({
   destination(req, file, cb) {
     let dest = 'uploads/'
+    if (!fs.existsSync(dest)) {
+      fs.mkdirSync(dest)
+    }
     if (
       ['image/png', 'image/jpeg', 'image/jpg', 'image/webp'].includes(
         file.mimetype

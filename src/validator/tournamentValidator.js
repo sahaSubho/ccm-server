@@ -33,6 +33,7 @@ class TournamentValidator {
       stakeholders_mobile_number: Joi.string().required(),
       start_date: Joi.date().required(),
       end_date: Joi.date().greater(Joi.ref('start_date')).required(),
+      pairing_type: Joi.string().default('Individual'),
     })
 
     const fileSchema = Joi.object({
@@ -214,6 +215,58 @@ class TournamentValidator {
       })
     )
 
+    // validate request body against schema
+    const { error, value } = schema.validate(req.body, options)
+
+    if (error) {
+      // on fail return comma separated errors
+      const errorMessage = error.details
+        .map((details) => {
+          return details.message
+        })
+        .join(', ')
+      next(new ApiError(httpStatus.BAD_REQUEST, errorMessage))
+    } else {
+      // on success replace req.body with validated value and trigger next middleware function
+      req.body = value
+      return next()
+    }
+  }
+
+  static removePairings(req, res, next) {
+    const schema = Joi.object({
+      round: Joi.number().required(),
+      tournamentId: Joi.number().required(),
+      player_id: Joi.number(),
+      opponent_id: Joi.number(),
+    }).or('player_id', 'opponent_id')
+
+    // validate request body against schema
+    const { error, value } = schema.validate(req.body, options)
+
+    if (error) {
+      // on fail return comma separated errors
+      const errorMessage = error.details
+        .map((details) => {
+          return details.message
+        })
+        .join(', ')
+      next(new ApiError(httpStatus.BAD_REQUEST, errorMessage))
+    } else {
+      // on success replace req.body with validated value and trigger next middleware function
+      req.body = value
+      return next()
+    }
+  }
+
+  static addPairings(req, res, next) {
+    const schema = Joi.object({
+      round: Joi.number().required(),
+      tournamentId: Joi.number().required(),
+      player_id: Joi.number().required(),
+      opponent_id: Joi.number().required(),
+      type: Joi.string(),
+    })
     // validate request body against schema
     const { error, value } = schema.validate(req.body, options)
 
