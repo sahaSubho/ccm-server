@@ -52,8 +52,7 @@ function findIntervalWithNumber(intervals, number) {
   return null
 }
 
-function processResult(result, playersType) {
-  console.log(result, playersType)
+function processResult(result, playersType, config = { bye_point: 1 }) {
   let modifiedResult = [0, 0]
   switch (result) {
     case '--+':
@@ -68,6 +67,9 @@ function processResult(result, playersType) {
     case '---':
       modifiedResult = [0.5, 0.5]
       break
+    case '+-':
+      modifiedResult = [Number(config?.bye_point), 0]
+      break
     default:
       break
   }
@@ -77,14 +79,18 @@ function processResult(result, playersType) {
   return Number(modifiedResult[1])
 }
 
-function convertPlayersResultInNumeric(data) {
+function convertPlayersResultInNumeric(data, config) {
   const result = data.reduce((a, b) => {
     const obj = {
       ...b,
       player_result: b.result,
     }
     if (typeof b.result === 'string') {
-      obj.result = processResult(b.result, !b.parent_id ? 'player' : 'opponent')
+      obj.result = processResult(
+        b.result,
+        !b.parent_id ? 'player' : 'opponent',
+        config
+      )
     }
     a.push(obj)
     return a
@@ -141,6 +147,7 @@ const getTeamScorePerRound = (data) => {
 }
 
 module.exports = {
+  processResult,
   getPlayerOpponentMapping,
   findIntervalWithNumber,
   convertPlayersResultInNumeric,

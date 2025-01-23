@@ -33,6 +33,7 @@ class SuperDao {
       return this.Model.findOne({
         where,
         order: [order],
+        raw: true,
       })
         .then((result) => {
           return result

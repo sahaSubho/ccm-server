@@ -27,7 +27,10 @@ const PlayersPrizePayoutDao = require('../dao/PlayersPrizePayoutDao')
 const TournamentPrizeCategoryMappingDao = require('../dao/TournamentCategoryMappingDao')
 const parseFile = require('../helper/parseFile')
 const RedisService = require('./RedisService')
-const { convertPlayersResultInNumeric } = require('../helper/tieBreakers/utils')
+const {
+  convertPlayersResultInNumeric,
+  processResult,
+} = require('../helper/tieBreakers/utils')
 const s3Helper = require('../helper/s3Helper')
 // const fetchLatestFidePlayers = require('../helper/fidePlayers')
 
@@ -761,7 +764,7 @@ class TournamentService {
         lastRoundPairings = pairing.filter((p) => {
           return p.round === round - 1
         })
-        pairing = convertPlayersResultInNumeric(pairing)
+        pairing = convertPlayersResultInNumeric(pairing, trnConfig)
         const playersRanking = getTieBreaks(pairing, round - 1, trnConfig)
 
         ranking = playersRanking.reduce((a, b, i) => {
@@ -891,7 +894,7 @@ class TournamentService {
         tournamentId
       )
 
-      if (leftTeams.length) {
+      if (teams.length) {
         const whiteTeams = leftTeams.map((lt) => {
           return {
             team_id: lt,
@@ -1273,7 +1276,8 @@ class TournamentService {
       if (teamsData.length) {
         result = getTieBreaks(teamsData, round, trnConfig)
       } else {
-        const convertedData = convertPlayersResultInNumeric(data)
+        console.log('trnConfig', trnConfig)
+        const convertedData = convertPlayersResultInNumeric(data, trnConfig)
         // console.log('convertedData', convertedData)
         result = getTieBreaks(convertedData, round, trnConfig)
       }
@@ -1292,17 +1296,52 @@ class TournamentService {
       let message = `Updated scores of matches for Round ${round} successfully.`
       const tournament = await this.tournamentDao.findById(tournamentId)
 
-      // if (tournament.current_round > round) {
-      //   message = `Scores of round ${round} can't be updated since it is already completed!`
-      //   return responseHandler.returnError(httpStatus.BAD_REQUEST, message)
-      // }
+      let promises
+      if (tournament.current_round > round) {
+        promises = Object.keys(scores).map(async (id) => {
+          const player = await this.tournamentPairingsDao.findById(id)
+          const prevResult = processResult(
+            player.result,
+            !player.parent_id ? 'player' : 'opponent'
+          )
+          const result = processResult(
+            scores[id],
+            !player.parent_id ? 'player' : 'opponent'
+          )
+          const score = result - prevResult
+          try {
+            await this.tournamentPairingsDao.updateWhere(
+              { player_score: sequelize.literal(`player_score + ${score}`) },
+              {
+                round: { [Op.gt]: round },
+                player_id: player.player_id,
+              }
+            )
+          } catch (error) {
+            console.log('error', error)
+          }
+          return this.tournamentPairingsDao.updateById(
+            { result: scores[id], is_scored: true },
+            id
+          )
+        })
+        //   message = `Scores of round ${round} can't be updated since it is already completed!`
+        //   return responseHandler.returnError(httpStatus.BAD_REQUEST, message)
+      } else {
+        promises = Object.keys(scores).map((id) => {
+          return this.tournamentPairingsDao.updateById(
+            { result: scores[id], is_scored: true },
+            id
+          )
+        })
+      }
 
-      const promises = Object.keys(scores).map((id) => {
-        return this.tournamentPairingsDao.updateById(
-          { result: scores[id], is_scored: true },
-          id
-        )
-      })
+      // const promises = Object.keys(scores).map((id) => {
+      //   return this.tournamentPairingsDao.updateById(
+      //     { result: scores[id], is_scored: true },
+      //     id
+      //   )
+      // })
       const result = await Promise.allSettled(promises)
       if (!result.length) {
         message = `Updating scores of Round ${round} is failed! Please try again.`
@@ -1842,6 +1881,7 @@ class TournamentService {
           })
         const existing = []
         const newData = []
+        const key = uuidv4()
         feedbacks.forEach((f, i) => {
           if (
             currentFeedbacks
@@ -1862,10 +1902,10 @@ class TournamentService {
               question_type: f.question_type,
               rank: i + 1,
               field_to_update: f.field,
-              tournament_key: tournament.feedback_key,
+              tournament_key: tournament.feedback_key || key,
               flow_id: 2,
               field_type: fieldsOfType1.includes(f.field) ? 1 : 2,
-              is_mandatory: f.is_mandatory,
+              is_mandatory: f?.is_mandatory ? f.is_mandatory : 0,
               validator_regex: f.validator_regex,
               pincode_regex: f.pincode_regex,
               answer_options: f.answer_options,
@@ -1873,6 +1913,9 @@ class TournamentService {
           }
         })
         if (newData.length) {
+          if (!tournament?.feedback_key) {
+            tournamentBody.feedback_key = key
+          }
           await this.ccTournamentFeedbackDao.bulkCreate(newData)
         }
         if (existing.length) {
