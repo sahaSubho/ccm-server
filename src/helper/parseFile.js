@@ -170,7 +170,9 @@ const parseChessResultFile = async (filePath, type, format) => {
           const data = []
           let heading = format === 'pairings' ? 6 : 5
           worksheet.eachRow((row, rowNumber) => {
-            if (row.values.length === 0) return
+            if (row.values.length === 0) {
+              return
+            }
             const text = (row?.values?.[1] || '').toString()?.replace(/\s/g, '')
             if (format === 'pairings' && text?.includes('Round')) {
               round = text.slice(5, 6)
@@ -211,12 +213,16 @@ const parseChessResultFile = async (filePath, type, format) => {
                   a[color] = { ...a.white, result: currentScore }
                 } else if (data[i - 1] === 'Result' && data[i] === 'score') {
                   color = 'black'
-                  if (!a[color]) a[color] = { ...a.white }
+                  if (!a[color]) {
+                    a[color] = { ...a.white }
+                  }
                 } else if (
                   data[i] === 'Name' &&
                   ['bye', 'not paired'].includes(b)
                 ) {
-                  if (b === 'bye') a.white.result = '1-0'
+                  if (b === 'bye') {
+                    a.white.result = '1-0'
+                  }
                   color = 'black'
                   a.black = { ...a.white, name: b }
                 } else if (data[i] === 'score') {
