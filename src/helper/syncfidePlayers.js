@@ -115,19 +115,28 @@ async function syncUpdatedFidePlayersData() {
     })
 
     //   fs.mkdirSync(extractPath, { recursive: true })
+    const xmlPath = 'uploads/fidePlayers.xml'
+
     // Unzip the file
-    try {
-      await fs
+    await new Promise((resolve, reject) => {
+      const extractStream = fs
         .createReadStream(dest)
         .pipe(unzipper.ParseOne())
-        .pipe(fs.createWriteStream('uploads/fidePlayers.xml'))
-    } catch (error) {
-      console.log('err', error)
-    }
+        .pipe(fs.createWriteStream(xmlPath))
 
-    await delay(5000)
+      extractStream.on('finish', () => {
+        console.log('XML file extracted successfully')
+        resolve()
+      })
 
-    const xmlPath = 'uploads/fidePlayers.xml'
+      extractStream.on('error', (error) => {
+        console.error('Error extracting XML:', error)
+        reject(error)
+      })
+    })
+
+    // await delay(5000)
+
     // Create a readable stream to read the XML file
     const xmlStream = fs.createReadStream(xmlPath)
 
@@ -158,7 +167,7 @@ async function syncUpdatedFidePlayersData() {
         debounce(processdata(result))
 
         result = []
-        await delay(500) // Introduce delay to reduce DB load (optional)
+        // await delay(500) // Introduce delay to reduce DB load (optional)
       }
     })
 

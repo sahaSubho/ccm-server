@@ -169,7 +169,7 @@ class PlayersService {
       throw Error(message)
     }
 
-    let result
+    let result = []
     if (data.length) {
       result = await this.trnplayersDao.bulkCreate(data)
 
