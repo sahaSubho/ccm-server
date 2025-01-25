@@ -606,7 +606,7 @@ class PlayersService {
         return responseHandler.returnError(httpStatus.BAD_REQUEST, message)
       }
 
-      let result = sortByInitialRankings(data)
+      let result = data
         .map((p) => {
           return {
             ...p,
