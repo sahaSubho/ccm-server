@@ -73,7 +73,8 @@ class PlayersService {
         registered_from: isChatbot ? 'Chatbot' : 'CCM',
         age: d?.age
           ? d.age
-          : moment(tournament.start_date).year() - Number(d?.birth_year || 2000),
+          : moment(tournament.start_date).year() -
+            Number(d?.birth_year || 2000),
         mobile: d?.mobile_number || '',
         upi_id: d?.upi_address || '',
         title: d?.title || '',
@@ -672,6 +673,9 @@ class PlayersService {
         return responseHandler.returnError(httpStatus.BAD_REQUEST, message)
       }
 
+      await this.redisService.removeKey(
+        `ccm_players_${playerBody.tournamentId}`
+      )
       return responseHandler.returnSuccess(
         httpStatus.NO_CONTENT,
         message,
