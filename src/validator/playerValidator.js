@@ -50,7 +50,7 @@ class PlayerValidator {
   static addPlayer(req, res, next) {
     const playerSchema = Joi.object({
       name: Joi.string().required(),
-      birth_year: Joi.number().required(),
+      age: Joi.number().required(),
       gender: Joi.string().valid('M', 'F').required(),
       mobile: Joi.string().allow(null).default(''),
       upi_id: Joi.string().allow(null).default(''),

@@ -71,8 +71,9 @@ class PlayersService {
         rating: Number(d.rating) || 0,
         gender: PlayersService.parseGender(d.gender),
         registered_from: isChatbot ? 'Chatbot' : 'CCM',
-        age:
-          moment(tournament.start_date).year() - Number(d.birth_year || 2000),
+        age: d?.age
+          ? d.age
+          : moment(tournament.start_date).year() - Number(d?.birth_year || 2000),
         mobile: d?.mobile_number || '',
         upi_id: d?.upi_address || '',
         title: d?.title || '',
@@ -1060,7 +1061,7 @@ class PlayersService {
               t.result ===
                 data.find((p) => {
                   return p.parent_id === t.id || t.parent_id === p.id
-                })?.result && Number(t.result) === 0
+                })?.result && t.result === ''
             )
           }),
         },
@@ -1069,7 +1070,7 @@ class PlayersService {
             t.result ===
               tournaments.find((p) => {
                 return p.parent_id === t.id || t.parent_id === p.id
-              })?.result && Number(t.result) === 0
+              })?.result && t.result === ''
           )
         }),
       }
@@ -1095,7 +1096,7 @@ class PlayersService {
     try {
       const message = 'Found players based on search input'
       const where = {}
-      if (name.length) {
+      if (name?.length) {
         where.name = { [Op.iLike]: `%${name}%` }
       }
       if (fideId) {
