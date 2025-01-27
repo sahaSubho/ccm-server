@@ -32,8 +32,8 @@ const {
   convertPlayersResultInNumeric,
   processResult,
 } = require('../helper/tieBreakers/utils')
-const s3Helper = ""
-const request = require('request');
+
+const s3Helper = require('../helper/s3Helper')
 // const fetchLatestFidePlayers = require('../helper/fidePlayers')
 
 const fieldsOfType1 = ['address', 'email', 'upi_id']
@@ -112,6 +112,38 @@ class TournamentService {
           message =
             'Tournament creation is limited to organizers. Kindly sign up or log in as an organizer to continue.'
           return responseHandler.returnError(httpStatus.BAD_REQUEST, message)
+        }
+
+        if (tournamentBody.tournament_type === 'Circlechess_Online') {
+          tournamentBody.time_control = `${tournamentBody.initial_time}+${tournamentBody.increment_time}`
+          tournamentBody.start_date = tournamentBody.startDate
+          tournamentBody.end_date = tournamentBody.startDate
+          const url = `${config.gameService.endpoint}/createTournament`
+          const options = {
+            method: 'POST',
+            json: true,
+            body: { tournamentData: tournamentBody }, // Include the tournament data
+            headers: {
+              'Content-Type': 'application/json',
+              'x-api-key': 'your-api-key', // Include any required API key
+            },
+          }
+
+          try {
+            const response = await fetch(url, options)
+            const jsonResponse = await response.json()
+            if (jsonResponse.status === 200) {
+              const data = await this.tournamentDao.create(tournamentBody)
+              return responseHandler.returnSuccess(
+                httpStatus.CREATED,
+                message,
+                data
+              )
+            }
+          } catch (error) {
+            console.error('Error while notifying game service:', error.message)
+            // Optionally, handle the failure (e.g., rollback tournament creation or log)
+          }
         }
 
         // fetch the lichess token
@@ -414,14 +446,14 @@ class TournamentService {
   createTournament = async (tournamentBody, req) => {
     try {
       let message = 'Successfully created tournament.'
-      // if (
-      //   req.user.role !== userRoles.ORGANIZER &&
-      //   req.user.role !== userRoles.ADMIN
-      // ) {
-      //   message =
-      //     'Tournament creation is limited to organizers. Kindly sign up or log in as an organizer to continue.'
-      //   return responseHandler.returnError(httpStatus.BAD_REQUEST, message)
-      // }
+      if (
+        req.user.role !== userRoles.ORGANIZER &&
+        req.user.role !== userRoles.ADMIN
+      ) {
+        message =
+          'Tournament creation is limited to organizers. Kindly sign up or log in as an organizer to continue.'
+        return responseHandler.returnError(httpStatus.BAD_REQUEST, message)
+      }
       if (tournamentBody?.feedback?.length && tournamentBody?.id) {
         message = 'Successfully created tournament feedback.'
         const key = uuidv4()
@@ -449,9 +481,8 @@ class TournamentService {
         return responseHandler.returnSuccess(httpStatus.CREATED, message, data)
       }
 
-      tournamentBody.created_by = 4
+      tournamentBody.created_by = req.user.id
       tournamentBody.is_active = true
-      tournamentBody.tournament_type = 'Ciclechess_Online'
 
       const data = await this.tournamentDao.create(tournamentBody)
 
@@ -482,31 +513,6 @@ class TournamentService {
         await this.tournamentDao.updateById(tournamentBody, tournamentId)
       }
 
-      const options = {
-        url: 'http://localhost:3000/createTournament', // Replace with actual URL
-        method: 'POST',
-        json: true,
-        body: { tournamentData: data }, // Include the tournament data
-        headers: {
-          'Content-Type': 'application/json',
-          'x-api-key': 'your-api-key', // Include any required API key
-        },
-      };
-  
-      try {
-        request(options, (error, response, body) => {
-          if (error) {
-            console.error('Error while notifying game service:', error);
-          } else {
-            console.log('Game service notified successfully:', body);
-          }
-        });
-      } catch (error) {
-        console.error('Error while notifying game service:', error.message);
-        // Optionally, handle the failure (e.g., rollback tournament creation or log)
-      }
-
-
       return responseHandler.returnSuccess(httpStatus.CREATED, message, data)
     } catch (e) {
       logger.error(e)
@@ -527,9 +533,10 @@ class TournamentService {
       const data = await this.tournamentDao.findByWhere(
         {
           is_active: true,
-          // cct_id: {
-          //   [Op.ne]: null,
-          // },
+          country,
+          cct_id: {
+            [Op.ne]: null,
+          },
         },
         undefined,
         [
@@ -559,51 +566,54 @@ class TournamentService {
   getJoinedTournaments = async (userId) => {
     try {
       // Fetch all player entries in the TournamentPlayers table for the given user ID
-      console.log("inside getJoinedTournaments userId:",userId);
-      const playerEntries = await this.trnplayersDao.findByWhere(
-        { cc_userid: +userId }
-      );
-  
-      if (!playerEntries || playerEntries.length === 0) {
-        const message = `No tournaments found for user with cc_userId ${userId}`;
-        return responseHandler.returnSuccess(httpStatus.OK, message, []);
-      }
-  
-      // Extract tournament IDs from the player entries
-      const tournamentIds = playerEntries.map((entry) => entry.tournament_id);
+      console.log('inside getJoinedTournaments userId:', userId)
+      const playerEntries = await this.trnplayersDao.findByWhere({
+        cc_userid: +userId,
+      })
 
-      console.log(tournamentIds);
-  
+      if (!playerEntries || playerEntries.length === 0) {
+        const message = `No tournaments found for user with cc_userId ${userId}`
+        return responseHandler.returnSuccess(httpStatus.OK, message, [])
+      }
+
+      // Extract tournament IDs from the player entries
+      const tournamentIds = playerEntries.map((entry) => {
+        return entry.tournament_id
+      })
+
+      console.log(tournamentIds)
+
       // Fetch tournament details for these tournament IDs
       const tournaments = await this.tournamentDao.findByWhere(
         { id: tournamentIds } // The 'where' condition to match tournament IDs
-      );
-  
+      )
+
       // Structure the response
-      const response = tournaments.map((tournament) => ({
-        id: tournament.id,
-        name: tournament.name,
-        start_date: tournament.start_date,
-        end_date: tournament.end_date,
-        location: tournament.location,
-        rounds: tournament.rounds,
-        time_control: tournament.time_control,
-      }));
-  
+      const response = tournaments.map((tournament) => {
+        return {
+          id: tournament.id,
+          name: tournament.name,
+          start_date: tournament.start_date,
+          end_date: tournament.end_date,
+          location: tournament.location,
+          rounds: tournament.rounds,
+          time_control: tournament.time_control,
+        }
+      })
+
       return responseHandler.returnSuccess(
         httpStatus.OK,
         'Successfully fetched joined tournaments',
         response
-      );
+      )
     } catch (e) {
-      logger.error(e);
+      logger.error(e)
       return responseHandler.returnError(
         httpStatus.BAD_REQUEST,
         'Something went wrong while fetching joined tournaments!'
-      );
+      )
     }
-  };
-  
+  }
 
   getTournamentById = async (id) => {
     try {
@@ -624,15 +634,17 @@ class TournamentService {
         fide_ids = data.player_fide_ids.split(',')
       }
 
-      const players = await this.CCUserDao.findByWhere({ user_id: fide_ids });
+      const players = await this.CCUserDao.findByWhere({ user_id: fide_ids })
 
       let joinedPlayers = []
       if (players.length > 0) {
-        joinedPlayers = players.map(player => ({
+        joinedPlayers = players.map((player) => {
+          return {
             username: player.username,
             rating: player.gameplay_rating,
-        }));
-        data.setDataValue('players_joined', joinedPlayers);
+          }
+        })
+        data.setDataValue('players_joined', joinedPlayers)
       }
 
       if (data.feedback_key) {
@@ -874,7 +886,7 @@ class TournamentService {
           return responseHandler.returnError(httpStatus.BAD_REQUEST, message)
         }
         // players = players.concat(newPlayers)
-        console.log("111111 pairing:", pairing);
+        console.log('111111 pairing:', pairing)
         white = pairing
           .filter((p) => {
             return !p.parent_id
@@ -896,8 +908,8 @@ class TournamentService {
             }
           })
 
-        console.log("22222 white:", white);
-        console.log("33333 black:", black);
+        console.log('22222 white:', white)
+        console.log('33333 black:', black)
       }
       //   const { whitePlayers, blackPlayers } = swissOtherRoundPairings(
       //     players.concat(newPlayers),
@@ -973,8 +985,8 @@ class TournamentService {
           tnrConfig,
           teams
         )
-      console.log("44444 whiteplayers", whitePlayers);
-      console.log("55555 blackPlayers", blackPlayers);
+      console.log('44444 whiteplayers', whitePlayers)
+      console.log('55555 blackPlayers', blackPlayers)
       const res = await this.tournamentPairingsDao.bulkCreate(whitePlayers)
       if (!res) {
         message = 'Failed to pair players! Please try again.'
@@ -1376,10 +1388,7 @@ class TournamentService {
         result = getTieBreaks(teamsData, round, trnConfig)
       } else {
         const convertedData = convertPlayersResultInNumeric(data, trnConfig)
-        console.log("hgjg", convertedData);
         result = getTieBreaks(convertedData, round, trnConfig)
-
-        console.log("result is:", result);
       }
       return responseHandler.returnSuccess(httpStatus.OK, message, result)
     } catch (e) {
@@ -1391,10 +1400,13 @@ class TournamentService {
     }
   }
 
-  updateTournamentstatus = async(tournamentId) => {
+  updateTournamentstatus = async (tournamentId) => {
     try {
-      let message = `Updated tournament Status successfully.`
-      const tournamentUpdate =  await this.tournamentDao.updateById({is_active : false},tournamentId);
+      const message = `Updated tournament Status successfully.`
+      const tournamentUpdate = await this.tournamentDao.updateById(
+        { is_active: false },
+        tournamentId
+      )
     } catch (e) {
       logger.error(e)
       return responseHandler.returnError(
@@ -1461,7 +1473,10 @@ class TournamentService {
         return responseHandler.returnError(httpStatus.BAD_REQUEST, message)
       }
 
-      if (tournament.rounds === Number(round) && !tournament.tournament_type == 'Ciclechess_Online') {
+      if (
+        tournament.rounds === Number(round) &&
+        !tournament.tournament_type === 'Ciclechess_Online'
+      ) {
         const pendingScoreToUpload =
           await this.tournamentPairingsDao.checkExist({
             round,
