@@ -69,7 +69,7 @@ class TournamentValidator {
       })
       body = { ...req.body, feedback: JSON.parse(req.body.feedback) }
     } else {
-      const entry_fee = 0
+      const entry_fee = JSON.parse(req.body.entry_fee)
       if (Array.isArray(entry_fee)) {
         entry_fee.forEach((e) => {
           if (e.fee === '') {
@@ -79,7 +79,6 @@ class TournamentValidator {
       }
       body = { ...req.body, entry_fee }
     }
-    console.log("inside create validator, body:", req.body);
     const { error, value } = schema.validate(body, options)
 
     if (error || fileResult.error) {
