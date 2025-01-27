@@ -5,7 +5,7 @@ const pair = (input, players, teams = [], fileName = '') => {
   const javafoJarPath = 'src/helper/pairingEngine/files/javafo.jar' // Path to javafo.jar in your project
   const trfFilePath = `uploads/files/input_${fileName}.trf` // Path to your input TRF file
   const outputFilePath = `uploads/files/output_${fileName}.trf` // Path to the output file
-  console.log("inside pair", input);
+  
   fs.writeFileSync(trfFilePath, input)
   fs.writeFileSync(outputFilePath, '')
 

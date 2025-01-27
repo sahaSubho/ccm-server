@@ -48,6 +48,21 @@ class TournamentController {
     }
   }
 
+  getCirclechessTournaments = async (req, res) => {
+    try {
+      const { limit, offset,} = req.query
+      const tournaments = await this.tournamentService.getTournaments(
+        limit,
+        offset,
+      )
+      const { status, message, data } = tournaments.response
+      res.status(tournaments.statusCode).send({ status, message, data })
+    } catch (e) {
+      logger.error(e)
+      res.status(httpStatus.BAD_GATEWAY).send(e)
+    }
+  }
+
   getTournamentById = async (req, res) => {
     try {
       const { id } = req.params

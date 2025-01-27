@@ -3,7 +3,6 @@ const ApiError = require('../helper/ApiError')
 const config = require('../config/config')
 
 const check = async (req, res, next) => {
-  console.log("api key is:", req.headers['api-key'], "expected key :", config.apiKey)
   if (!req.headers['api-key']) {
     return next(new ApiError(httpStatus.BAD_REQUEST, 'Please provide API-KEY'))
   }

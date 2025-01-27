@@ -115,34 +115,54 @@ class TournamentService {
         }
 
         if (tournamentBody.tournament_type === 'Circlechess_Online') {
-          tournamentBody.time_control = `${tournamentBody.initial_time}+${tournamentBody.increment_time}`
-          tournamentBody.start_date = tournamentBody.startDate
-          tournamentBody.end_date = tournamentBody.startDate
-          const url = `${config.gameService.endpoint}/createTournament`
-          const options = {
-            method: 'POST',
-            json: true,
-            body: { tournamentData: tournamentBody }, // Include the tournament data
-            headers: {
-              'Content-Type': 'application/json',
-              'x-api-key': 'your-api-key', // Include any required API key
-            },
-          }
-
+          // Set additional tournament properties
+          tournamentBody.time_control = `${tournamentBody.initial_time}+${tournamentBody.increment_time}`;
+          tournamentBody.start_date = tournamentBody.startDate;
+          tournamentBody.end_date = tournamentBody.startDate;
+          tournamentBody.country = 'Online Lichess'
+          tournamentBody.federation = 'Online Lichess'
+          tournamentBody.is_active = true,
+          tournamentBody.created_by = req.user.id
+        
           try {
-            const response = await fetch(url, options)
-            const jsonResponse = await response.json()
+            // Step 1: Create the tournament in the database
+            const data = await this.tournamentDao.create(tournamentBody);
+        
+            // Step 2: Notify the game service with the created tournament data
+            const url = `${config.gameService.endpoint}/createTournament`;
+            const options = {
+              method: 'POST',
+              headers: {
+                'Content-Type': 'application/json',
+                'x-api-key': config.XapiKey, // Include any required API key
+              },
+              body: JSON.stringify({ tournamentData: data }), // Include the tournament data
+            };
+        
+            const response = await fetch(url, options);
+            const jsonResponse = await response.json();
+            console.log(response, jsonResponse);
+        
+            // Handle game service response
             if (jsonResponse.status === 200) {
-              const data = await this.tournamentDao.create(tournamentBody)
               return responseHandler.returnSuccess(
                 httpStatus.CREATED,
-                message,
+                'Tournament created and game service notified successfully.',
                 data
-              )
+              );
+            } else {
+              console.error('Game service returned an error:', jsonResponse);
+              return responseHandler.returnError(
+                httpStatus.INTERNAL_SERVER_ERROR,
+                'Tournament created, but failed to notify game service.'
+              );
             }
           } catch (error) {
-            console.error('Error while notifying game service:', error.message)
-            // Optionally, handle the failure (e.g., rollback tournament creation or log)
+            console.error('Error during tournament creation or notification:', error.message);
+            return responseHandler.returnError(
+              httpStatus.INTERNAL_SERVER_ERROR,
+              'Failed to create tournament or notify game service.'
+            );
           }
         } else {
           // fetch the lichess token
@@ -432,7 +452,7 @@ class TournamentService {
 
   createLichessTournament = async (tournamentBody, req) => {
     const { tournament_type } = tournamentBody
-    if (tournament_type === 'Swiss') {
+    if (tournament_type === 'Swiss' || tournament_type === 'Circlechess_Online') {
       return this.createLichessSwissTournament(tournamentBody, req)
     }
     return this.createLichessArenaTournament(tournamentBody, req)
@@ -547,6 +567,35 @@ class TournamentService {
         limit,
         offset
       )
+      console.log("tournaments data:",data)
+      return responseHandler.returnSuccess(httpStatus.OK, message, data)
+    } catch (e) {
+      logger.error(e)
+      return responseHandler.returnError(
+        httpStatus.BAD_REQUEST,
+        'Something went wrong!'
+      )
+    }
+  }
+
+  getCirclechesssTournaments = async (limit = 10, offset = 0) => {
+    try {
+      const message = 'Fetched tournaments successfully.'
+      const data = await this.tournamentDao.findByWhere(
+        {
+          is_active: true,
+          tournament_type: 'Circlechess_Online'
+        },
+        undefined,
+        [
+          literal(
+            `CASE WHEN "start_date" >= CURRENT_DATE THEN "start_date" ELSE NULL END ASC,CASE WHEN "start_date" < CURRENT_DATE THEN "start_date" ELSE NULL END DESC`
+          ),
+        ],
+        limit,
+        offset
+      )
+      console.log("tournaments data:",data)
       return responseHandler.returnSuccess(httpStatus.OK, message, data)
     } catch (e) {
       logger.error(e)
@@ -886,7 +935,6 @@ class TournamentService {
           return responseHandler.returnError(httpStatus.BAD_REQUEST, message)
         }
         // players = players.concat(newPlayers)
-        console.log('111111 pairing:', pairing)
         white = pairing
           .filter((p) => {
             return !p.parent_id
@@ -907,9 +955,6 @@ class TournamentService {
               player_score: Number(e.player_score) + Number(e.result),
             }
           })
-
-        console.log('22222 white:', white)
-        console.log('33333 black:', black)
       }
       //   const { whitePlayers, blackPlayers } = swissOtherRoundPairings(
       //     players.concat(newPlayers),
@@ -985,8 +1030,6 @@ class TournamentService {
           tnrConfig,
           teams
         )
-      console.log('44444 whiteplayers', whitePlayers)
-      console.log('55555 blackPlayers', blackPlayers)
       const res = await this.tournamentPairingsDao.bulkCreate(whitePlayers)
       if (!res) {
         message = 'Failed to pair players! Please try again.'

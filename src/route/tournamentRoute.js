@@ -19,10 +19,10 @@ router.post(
 )
 router.post(
   '/create-lichess-tournament',
-  auth(),
   tournamentController.createLichessTournament
 )
 router.get('/get-tournaments', tournamentController.getTournaments)
+router.get('/get-circlechess-tournaments', tournamentController.getCirclechessTournaments)
 router.get('/get-joined-tournaments', tournamentController.getJoinedTournamentByUserId)
 router.get(
   '/get-tournament-list',
@@ -97,7 +97,7 @@ router.patch(
   tournamentController.addPairings
 )
 
-router.post('/config/:id',auth(), tournamentController.setConfiguration)
+router.post('/config/:id', auth(), tournamentController.setConfiguration)
 router.get('/config/:id', auth(), tournamentController.getConfiguration)
 
 router.get('/:id', tournamentController.getTournamentById)
