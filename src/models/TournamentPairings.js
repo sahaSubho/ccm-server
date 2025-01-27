@@ -48,6 +48,7 @@ module.exports = (sequelize, DataTypes) => {
       },
       player_name: DataTypes.STRING,
       player_rating: DataTypes.INTEGER,
+      cc_userid: DataTypes.INTEGER,
       player_score: {
         type: DataTypes.DECIMAL(10, 2),
         defaultValue: '0.0',

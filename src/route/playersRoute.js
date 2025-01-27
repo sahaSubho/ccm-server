@@ -5,6 +5,7 @@ const upload = require('../helper/uploadFiles')
 
 const router = express.Router()
 const auth = require('../middlewares/auth')
+const gsApiCheck = require('../middlewares/gsapiKeyCheck')
 
 const playersController = new PlayersController()
 const playerValidator = PlayerValidator
@@ -68,6 +69,12 @@ router.post(
   auth(),
   playerValidator.addPlayer,
   playersController.addPlayer
+)
+
+router.post(
+  '/join-tournament/:id',
+  gsApiCheck,
+  playersController.joinTournament
 )
 
 router.patch(

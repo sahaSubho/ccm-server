@@ -57,6 +57,7 @@ module.exports = {
   env: envVar.NODE_ENV,
   port: envVar.PORT,
   apiKey: envVar.API_KEY,
+  XapiKey: envVar.X_API_KEY,
   filePath: envVar.FILE_PATH || `http://localhost:${envVar.PORT}/`,
   dbHost: envVar.DB_HOST,
   dbUser: envVar.DB_USER,

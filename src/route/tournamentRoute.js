@@ -5,6 +5,7 @@ const upload = require('../helper/uploadFiles')
 
 const router = express.Router()
 const auth = require('../middlewares/auth')
+const gsApiCheck = require('../middlewares/gsapiKeyCheck')
 
 const tournamentController = new TournamentController()
 const tournamentValidator = TournamentValidator
@@ -22,6 +23,7 @@ router.post(
   tournamentController.createLichessTournament
 )
 router.get('/get-tournaments', tournamentController.getTournaments)
+router.get('/get-joined-tournaments', tournamentController.getJoinedTournamentByUserId)
 router.get(
   '/get-tournament-list',
   auth(),
@@ -30,6 +32,12 @@ router.get(
 router.get(
   '/generate-pairing',
   auth(),
+  tournamentValidator.pairingValidator,
+  tournamentController.createTournamentPairing
+)
+router.get(
+  '/gs-generate-pairing',
+  gsApiCheck,
   tournamentValidator.pairingValidator,
   tournamentController.createTournamentPairing
 )
@@ -73,6 +81,7 @@ router.get(
 )
 router.post('/upload', auth(), tournamentController.uploadWinners)
 router.post('/score-upload', auth(), tournamentController.updateScoring)
+router.post('/gs-score-upload', gsApiCheck, tournamentController.updateScoring)
 router.get('/statistics', auth(), tournamentController.getStatistics)
 
 router.patch(
@@ -88,7 +97,7 @@ router.patch(
   tournamentController.addPairings
 )
 
-router.post('/config/:id', auth(), tournamentController.setConfiguration)
+router.post('/config/:id',auth(), tournamentController.setConfiguration)
 router.get('/config/:id', auth(), tournamentController.getConfiguration)
 
 router.get('/:id', tournamentController.getTournamentById)
