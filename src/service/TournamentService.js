@@ -119,10 +119,12 @@ class TournamentService {
           tournamentBody.time_control = `${tournamentBody.initial_time}+${tournamentBody.increment_time}`;
           tournamentBody.start_date = tournamentBody.startDate;
           tournamentBody.end_date = tournamentBody.startDate;
-          tournamentBody.country = 'Online Lichess'
-          tournamentBody.federation = 'Online Lichess'
-          tournamentBody.is_active = true,
+          tournamentBody.country = 'Online Circlechess'
+          tournamentBody.federation = 'Online Circlechess'
+          tournamentBody.is_active = true;
           tournamentBody.created_by = req.user.id
+          tournamentBody.address = 'Online Circlechess'
+          tournamentBody.state = 'Online Circlechess'
         
           try {
             // Step 1: Create the tournament in the database
