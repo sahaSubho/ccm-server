@@ -51,7 +51,7 @@ class TournamentController {
   getCirclechessTournaments = async (req, res) => {
     try {
       const { limit, offset,} = req.query
-      const tournaments = await this.tournamentService.getTournaments(
+      const tournaments = await this.tournamentService.getCirclechesssTournaments(
         limit,
         offset,
       )
