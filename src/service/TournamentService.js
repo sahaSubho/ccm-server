@@ -1445,13 +1445,14 @@ class TournamentService {
     }
   }
 
-  updateTournamentstatus = async (tournamentId) => {
+  updateTournamentEndstatus = async (tournamentId) => {
     try {
       const message = `Updated tournament Status successfully.`
       const tournamentUpdate = await this.tournamentDao.updateById(
         { is_active: false },
         tournamentId
       )
+      return responseHandler.returnSuccess(httpStatus.OK, message)
     } catch (e) {
       logger.error(e)
       return responseHandler.returnError(

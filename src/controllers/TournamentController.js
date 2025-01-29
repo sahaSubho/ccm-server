@@ -87,6 +87,18 @@ class TournamentController {
     }
   }
 
+  updateTournamentEndstatus = async (req,res) => {
+    try {
+      const { id } = req.params
+      const update = await this.tournamentService.updateTournamentEndstatus(id)
+      const { status, message } = update.response 
+      res.status(update.statusCode).send({ status, message,})
+    } catch (e) {
+      logger.error(e)
+      res.status(httpStatus.BAD_GATEWAY).send(e)
+    }
+  }
+
   getTournamentsByUser = async (req, res) => {
     try {
       const tournaments = await this.tournamentService.getTournamentsByUser(
