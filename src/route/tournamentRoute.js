@@ -101,7 +101,7 @@ router.post('/config/:id', auth(), tournamentController.setConfiguration)
 router.get('/config/:id', auth(), tournamentController.getConfiguration)
 
 router.get('/:id', tournamentController.getTournamentById)
-router.get('/update-tournament-end/:id', gsApiCheck, tournamentController.updateTournamentEndstatus)
+router.post('/update-circlechess-tournament/:id', gsApiCheck, tournamentController.updateCirclechessTournament)
 router.patch(
   '/:id',
   auth(),
