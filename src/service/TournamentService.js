@@ -117,8 +117,8 @@ class TournamentService {
         if (tournamentBody.tournament_type === 'Circlechess_Online') {
           // Set additional tournament properties
           tournamentBody.time_control = `${tournamentBody.initial_time}+${tournamentBody.increment_time}`;
-          tournamentBody.start_date = tournamentBody.startDate;
-          tournamentBody.end_date = tournamentBody.startDate;
+          tournamentBody.start_date = tournamentBody.startTime;
+          tournamentBody.end_date = new Date(new Date(tournamentBody.startTime).getTime() + 12 * 60 * 60 * 1000).toISOString();
           tournamentBody.country = 'Online Circlechess'
           tournamentBody.federation = 'Online Circlechess'
           tournamentBody.is_active = true;
