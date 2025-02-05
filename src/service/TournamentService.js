@@ -582,7 +582,7 @@ class TournamentService {
 
 
 
-  getCirclechesssTournaments = async (filters = {}, limit = 10, offset = 0) => {
+  getCirclechesssTournaments = async (limit = 10, offset = 0) => {
     try {
       const message = 'Fetched tournaments successfully.'
       const data = await this.tournamentDao.findByWhere(
