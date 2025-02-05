@@ -1,5 +1,6 @@
 const express = require('express')
 const cors = require('cors')
+const fs = require('fs')
 const passport = require('passport')
 const httpStatus = require('http-status')
 const routes = require('./route')
@@ -19,6 +20,10 @@ app.use(
   })
 )
 // app.options('*', cors())
+const dest = 'uploads/'
+if (!fs.existsSync(dest)) {
+  fs.mkdirSync(dest)
+}
 
 app.use(express.static(`${process.env.PWD}/public`))
 app.use('/uploads', express.static(`${process.env.PWD}/uploads`))
