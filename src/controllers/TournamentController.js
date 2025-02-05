@@ -50,18 +50,17 @@ class TournamentController {
 
   getCirclechessTournaments = async (req, res) => {
     try {
-        const { limit = 10, offset = 0, ...filters } = req.query;
+        const { limit = 10, offset = 0 } = req.query;
 
         // Convert comma-separated query params into arrays (for multi-select filters)
-        const formattedFilters = Object.keys(filters).reduce((acc, key) => {
-            acc[key] = filters[key].split(','); // Convert "Blitz,Rapid" -> ["Blitz", "Rapid"]
-            return acc;
-        }, {});
+        // const formattedFilters = Object.keys(filters).reduce((acc, key) => {
+        //     acc[key] = filters[key].split(','); // Convert "Blitz,Rapid" -> ["Blitz", "Rapid"]
+        //     return acc;
+        // }, {});
 
         const tournaments = await this.tournamentService.getCirclechesssTournaments(
             limit,
             offset,
-            formattedFilters
         );
 
         const { status, message, data } = tournaments.response;
