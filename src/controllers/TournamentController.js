@@ -203,8 +203,8 @@ class TournamentController {
       const pairing = await this.tournamentService.updateScoring(
         round,
         tournamentId,
-        gameId,
-        req.body
+        req.body,
+        gameId
       )
       const { status, message, data } = pairing.response
       res.status(pairing.statusCode).send({ status, message, data })
