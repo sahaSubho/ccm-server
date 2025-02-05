@@ -584,113 +584,31 @@ class TournamentService {
 
   getCirclechesssTournaments = async (filters = {}, limit = 10, offset = 0) => {
     try {
-      const message = 'Fetched tournaments successfully.';
-
-      // Initialize base condition
-      const whereClause = {
-        is_active: true,
-        tournament_type: 'Circlechess_Online',
-      };
-
-      // Apply filters dynamically
-      // if (filters.tournament_category?.length) {
-      //   whereClause.tournament_category = { [Op.in]: filters.tournament_category };
-      // }
-
-      // if (filters.rating?.length) {
-      //   whereClause.rating = { [Op.in]: filters.rating };
-      // }
-
-      // // if (filters.tournament_type?.length) {
-      // //   whereClause.tournament_type = { [Op.in]: filters.tournament_type };
-      // // }
-
-      // // Tournament status mapping
-      // if (filters.tournament_status?.length) {
-      //   const statusConditions = [];
-      //   if (filters.tournament_status.includes('Upcoming')) {
-      //     statusConditions.push({ start_date: { [Op.gte]: new Date() } });
-      //   }
-      //   if (filters.tournament_status.includes('Ongoing')) {
-      //     statusConditions.push({
-      //       start_date: { [Op.lte]: new Date() },
-      //       end_date: { [Op.gte]: new Date() },
-      //     });
-      //   }
-      //   if (filters.tournament_status.includes('Completed')) {
-      //     statusConditions.push({ end_date: { [Op.lt]: new Date() } });
-      //   }
-
-      //   if (statusConditions.length) {
-      //     whereClause[Op.or] = statusConditions;
-      //   }
-      // }
-
-      // // "Starting in" filter (calculates upcoming tournaments)
-      // if (filters.starting_in?.length) {
-      //   const now = new Date();
-      //   const startDateConditions = [];
-      //   filters.starting_in.forEach((time) => {
-      //     switch (time) {
-      //       case '30 min':
-      //         startDateConditions.push({
-      //           start_date: {
-      //             [Op.between]: [now, new Date(now.getTime() + 30 * 60 * 1000)],
-      //           },
-      //         });
-      //         break;
-      //       case '1 hr':
-      //         startDateConditions.push({
-      //           start_date: {
-      //             [Op.between]: [now, new Date(now.getTime() + 60 * 60 * 1000)],
-      //           },
-      //         });
-      //         break;
-      //       case '2 hr':
-      //         startDateConditions.push({
-      //           start_date: {
-      //             [Op.between]: [now, new Date(now.getTime() + 2 * 60 * 60 * 1000)],
-      //           },
-      //         });
-      //         break;
-      //       case '3 hr':
-      //         startDateConditions.push({
-      //           start_date: {
-      //             [Op.between]: [now, new Date(now.getTime() + 3 * 60 * 60 * 1000)],
-      //           },
-      //         });
-      //         break;
-      //       case '1 day':
-      //         startDateConditions.push({
-      //           start_date: {
-      //             [Op.between]: [now, new Date(now.getTime() + 24 * 60 * 60 * 1000)],
-      //           },
-      //         });
-      //         break;
-      //     }
-      //   });
-
-      //   if (startDateConditions.length) {
-      //     whereClause[Op.or] = startDateConditions;
-      //   }
-      // }
-
-      // Sorting logic (Upcoming tournaments first, then others)
-      const orderBy = [
-        literal(`CASE WHEN "start_date" >= CURRENT_DATE THEN "start_date" ELSE NULL END ASC`),
-        literal(`CASE WHEN "start_date" < CURRENT_DATE THEN "start_date" ELSE NULL END DESC`),
-      ];
-
-      // Fetch tournaments
-      const data = await this.tournamentDao.findByWhere(whereClause, undefined, orderBy, limit, offset);
-      console.log("Tournaments Data:", data);
-
-      return responseHandler.returnSuccess(httpStatus.OK, message, data);
+      const message = 'Fetched tournaments successfully.'
+      const data = await this.tournamentDao.findByWhere(
+        {
+          is_active: true,
+          tournament_type: 'Circlechess_Online'
+        },
+        undefined,
+        [
+          literal(
+            `CASE WHEN "start_date" >= CURRENT_DATE THEN "start_date" ELSE NULL END ASC,CASE WHEN "start_date" < CURRENT_DATE THEN "start_date" ELSE NULL END DESC`
+          ),
+        ],
+        limit,
+        offset
+      )
+      console.log("tournaments data:",data)
+      return responseHandler.returnSuccess(httpStatus.OK, message, data)
     } catch (e) {
-      logger.error(e);
-      return responseHandler.returnError(httpStatus.BAD_REQUEST, 'Something went wrong!');
+      logger.error(e)
+      return responseHandler.returnError(
+        httpStatus.BAD_REQUEST,
+        'Something went wrong!'
+      )
     }
-  };
+  }
 
 
   /**
