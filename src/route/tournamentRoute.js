@@ -19,6 +19,7 @@ router.post(
 )
 router.post(
   '/create-lichess-tournament',
+  auth(),
   tournamentController.createLichessTournament
 )
 router.get('/get-tournaments', tournamentController.getTournaments)
