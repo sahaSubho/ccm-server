@@ -129,6 +129,8 @@ class TournamentService {
           try {
             // Step 1: Create the tournament in the database
             const data = await this.tournamentDao.create(tournamentBody);
+            const defaultConfig = {"tiebreaks":["BH-C1","BH","SB"],"tiebreak_settings":{"BH":{"games":{"best":"1","worst":"0"}},"SB":{"games":{"best":"1","worst":"0"}},"BH-C1":{"games":{"best":"1","worst":"0"}}}};
+            const config = await this.setConfiguration(data.id, defaultConfig );
         
             // Step 2: Notify the game service with the created tournament data
             const url = `${config.gameService.endpoint}/createTournament`;
