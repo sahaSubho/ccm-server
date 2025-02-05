@@ -269,8 +269,8 @@ class TournamentService {
           tournamentBody.federation = 'Online Lichess'
           tournamentBody.director = tournamentBody.organizer
           tournamentBody.time_control = `${tournamentBody.initial_time}+${tournamentBody.increment_time}`
-          tournamentBody.start_date = tournamentBody.startDate
-          tournamentBody.end_date = tournamentBody.startDate
+          tournamentBody.start_date = tournamentBody.startTime;
+          tournamentBody.end_date = new Date(new Date(tournamentBody.startTime).getTime() + 12 * 60 * 60 * 1000).toISOString();
           tournamentBody.tournament_type = 'Swiss'
           tournamentBody.address = lichessUrl || 'Online Lichess'
           tournamentBody.state = 'Online Lichess'
