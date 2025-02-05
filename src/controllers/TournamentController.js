@@ -99,7 +99,7 @@ class TournamentController {
   updateCirclechessTournament = async (req,res) => {
     try {
       const { id } = req.params
-      const update = await this.tournamentService.updateTournamentEndstatus(id, req.body)
+      const update = await this.tournamentService.updateCirclechessTournament(id, req.body)
       const { status, message } = update.response 
       res.status(update.statusCode).send({ status, message,})
     } catch (e) {
