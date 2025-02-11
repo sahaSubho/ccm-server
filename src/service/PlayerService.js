@@ -567,14 +567,14 @@ class PlayersService {
           b.mobile_number as mobile_number,
           b.sex as gender,
           b.fide_id as fide_id,
-          (select fide_title from fide_player_profile c where c.fide_id=b.fide_id) as title,
+          (select title from players c where c.fide_id=b.fide_id) as title,
           CASE
-              WHEN b.fide_id > 0 THEN (select current_rapid_rating from fide_player_profile c where c.fide_id=b.fide_id)
+              WHEN b.fide_id > 0 THEN (select rapid_rating from players c where c.fide_id=b.fide_id)
               ELSE 0
           END AS rating, 
           CASE
-              WHEN b.dob is null THEN (select birth_year from fide_player_profile c where c.fide_id=b.fide_id)::text
-              WHEN b.dob = '' THEN (select birth_year from fide_player_profile c where c.fide_id=b.fide_id)::text
+              WHEN b.dob is null THEN (select birth_year from players c where c.fide_id=b.fide_id)::text
+              WHEN b.dob = '' THEN (select birth_year from players c where c.fide_id=b.fide_id)::text
               ELSE RIGHT(b.dob,4)
           END AS birth_year 
           from cc_registration_orders as a join tournament_notification_registrations as b on a.player_id=b.id where a.tournament_id=${tournament.cct_id} and a.cancelled=0;`,
