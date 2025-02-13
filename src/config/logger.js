@@ -30,12 +30,42 @@ transport.on('rotate', (oldFilename, newFilename) => {
 })
 
 const logger = winston.createLogger({
-  format: winston.format.combine(enumerateErrorFormat(), winston.format.json()),
+  format: winston.format.combine(
+    enumerateErrorFormat(), // Include custom error format
+    winston.format.timestamp({ format: 'YYYY-MM-DD HH:mm:ss' }), // Timestamp
+    winston.format.errors({ stack: true }), // Include stack trace
+    winston.format.json() // JSON for file transport
+  ),
   transports: [
     transport,
     new winston.transports.Console({
       level: 'info',
+      format: winston.format.combine(
+        enumerateErrorFormat(), // Reuse error formatter for console
+        winston.format.colorize(), // Colorized console output
+        winston.format.printf(({ timestamp, level, message, stack }) => {
+          if (stack) {
+            // Print stack trace for errors
+            return `[${timestamp}] [${level}] ${message}\nStack: ${stack}`
+          }
+          return `[${timestamp}] [${level}] ${message}`
+        })
+      ),
     }),
   ],
 })
+
+console.log = (...args) => {
+  return logger.info(args.join(' '))
+}
+console.error = (...args) => {
+  return logger.error(args.join(' '))
+}
+console.warn = (...args) => {
+  return logger.warn(args.join(' '))
+}
+console.debug = (...args) => {
+  return logger.debug(args.join(' '))
+}
+
 module.exports = logger
