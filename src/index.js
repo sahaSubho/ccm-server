@@ -1,12 +1,14 @@
+/* eslint-disable global-require */
+;(async () => {
+  console.log('NODE_ENV : ', process.env.NODE_ENV)
+  console.log('ENV : ', process.env.ENV)
 
-(async () => {
-  console.log("NODE_ENV : ", process.env.NODE_ENV);
-  console.log("ENV : ", process.env.ENV);
-  
-  
-  if (process.env.NODE_ENV === 'production' || process.env.NODE_ENV === 'preprod') {
-    console.log("Retrieving secret from secrets manager");
-    
+  if (
+    process.env.NODE_ENV === 'production' ||
+    process.env.NODE_ENV === 'preprod'
+  ) {
+    console.log('Retrieving secret from secrets manager')
+
     await require('./config/getEnv')
   }
   const app = require('./app')
@@ -19,10 +21,10 @@
   // socket initialization
   const server = http.createServer(app)
   // eslint-disable-next-line import/order
-  const io = require('socket.io')(server, { cors: { origin: '*' } })
+  // const io = require('socket.io')(server, { cors: { origin: '*' } })
 
-  global.io = io
-  require('./config/rootSocket')(io)
+  // global.io = io
+  // require('./config/rootSocket')(io)
 
   server.listen(config.port, () => {
     console.log('SERVER')

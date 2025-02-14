@@ -530,11 +530,7 @@ class PlayersService {
       this.redisService.removeKey(`ccm_players_${id}`)
       return responseHandler.returnSuccess(httpStatus.CREATED, message, payload)
     } catch (e) {
-      logger.error(e)
-      return responseHandler.returnError(
-        httpStatus.BAD_REQUEST,
-        'Something went wrong!'
-      )
+      return responseHandler.returnError(httpStatus.BAD_REQUEST, e.message)
     }
   }
 
