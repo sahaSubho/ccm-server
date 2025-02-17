@@ -1111,7 +1111,10 @@ class TournamentService {
         round: tournament.current_round,
       })
       await this.tournamentDao.updateById(
-        { current_round: tournament.current_round - 1 },
+        {
+          current_round:
+            tournament.current_round > 0 ? tournament.current_round - 1 : 0,
+        },
         tournamentId
       )
       return responseHandler.returnSuccess(httpStatus.OK, message)
