@@ -24,6 +24,7 @@ const PrizeCategoryDao = require('../dao/PrizeCategoryDao')
 const TeamsDao = require('../dao/TeamsDao')
 const TeamPairingsDao = require('../dao/TeamPairingsDao')
 const PlayersPrizePayoutDao = require('../dao/PlayersPrizePayoutDao')
+const CCUserDao = require('../dao/CCUserDao')
 const TournamentPrizeCategoryMappingDao = require('../dao/TournamentCategoryMappingDao')
 const parseFile = require('../helper/parseFile')
 const RedisService = require('./RedisService')
@@ -31,6 +32,7 @@ const {
   convertPlayersResultInNumeric,
   processResult,
 } = require('../helper/tieBreakers/utils')
+
 const s3Helper = require('../helper/s3Helper')
 // const fetchLatestFidePlayers = require('../helper/fidePlayers')
 
@@ -51,6 +53,7 @@ class TournamentService {
     this.teamsDao = new TeamsDao()
     this.teamPairingsDao = new TeamPairingsDao()
     this.tournamentConfigurationDao = new TournamentConfigurationDao()
+    this.CCUserDao = new CCUserDao()
   }
 
   static convertToTeamPairings = (data) => {
@@ -111,122 +114,178 @@ class TournamentService {
           return responseHandler.returnError(httpStatus.BAD_REQUEST, message)
         }
 
-        // fetch the lichess token
-        let lichess_bearer_token = 'Bearer '
-        const lichess_username = req.user.lic_name
-        if (lichess_username) {
-          const lichessUser = await this.userService.getLichessUserById(
-            lichess_username
-          )
-          if (lichessUser && lichessUser.lichess_token) {
-            // the user has lichess account integrated
-            // TODO: Here we should put an additional logic to validate the token
-            lichess_bearer_token += lichessUser.lichess_token
+        if (tournamentBody.tournament_type === 'Circlechess_Online') {
+          // Set additional tournament properties
+          tournamentBody.time_control = `${tournamentBody.initial_time}+${tournamentBody.increment_time}`;
+          tournamentBody.start_date = tournamentBody.startTime;
+          tournamentBody.end_date = new Date(new Date(tournamentBody.startTime).getTime() + 12 * 60 * 60 * 1000).toISOString();
+          tournamentBody.country = 'Online Circlechess'
+          tournamentBody.federation = 'Online Circlechess'
+          tournamentBody.is_active = true;
+          tournamentBody.created_by = req.user.id
+          tournamentBody.address = 'Online Circlechess'
+          tournamentBody.state = 'Online Circlechess'
+        
+          try {
+            // Step 1: Create the tournament in the database
+            const data = await this.tournamentDao.create(tournamentBody);
+            const defaultConfig = {"tiebreaks":["BH-C1","BH","SB"],"tiebreak_settings":{"BH":{"games":{"best":"1","worst":"0"}},"SB":{"games":{"best":"1","worst":"0"}},"BH-C1":{"games":{"best":"1","worst":"0"}}}};
+            const reponse = await this.setConfiguration(data.id, defaultConfig );
+        
+            // Step 2: Notify the game service with the created tournament data
+            const url = `${config.gameService.endpoint}/createTournament`;
+            const options = {
+              method: 'POST',
+              headers: {
+                'Content-Type': 'application/json',
+                'x-api-key': config.XapiKey, // Include any required API key
+              },
+              body: JSON.stringify({ tournamentData: data }), // Include the tournament data
+            };
+        
+            const response = await fetch(url, options);
+            const jsonResponse = await response.json();
+            console.log(response, jsonResponse);
+        
+            // Handle game service response
+            if (jsonResponse.status === 200) {
+              return responseHandler.returnSuccess(
+                httpStatus.CREATED,
+                'Tournament created and game service notified successfully.',
+                data
+              );
+            } else {
+              console.error('Game service returned an error:', jsonResponse);
+              return responseHandler.returnError(
+                httpStatus.INTERNAL_SERVER_ERROR,
+                'Tournament created, but failed to notify game service.'
+              );
+            }
+          } catch (error) {
+            console.error('Error during tournament creation or notification:', error.message);
+            return responseHandler.returnError(
+              httpStatus.INTERNAL_SERVER_ERROR,
+              'Failed to create tournament or notify game service.'
+            );
+          }
+        } else {
+          // fetch the lichess token
+          let lichess_bearer_token = 'Bearer '
+          const lichess_username = req.user.lic_name
+          if (lichess_username) {
+            const lichessUser = await this.userService.getLichessUserById(
+              lichess_username
+            )
+            if (lichessUser && lichessUser.lichess_token) {
+              // the user has lichess account integrated
+              // TODO: Here we should put an additional logic to validate the token
+              lichess_bearer_token += lichessUser.lichess_token
+            } else {
+              return responseHandler.returnError(
+                httpStatus.BAD_REQUEST,
+                'You dont have a connected Lichess account'
+              )
+            }
           } else {
             return responseHandler.returnError(
               httpStatus.BAD_REQUEST,
               'You dont have a connected Lichess account'
             )
           }
-        } else {
-          return responseHandler.returnError(
-            httpStatus.BAD_REQUEST,
-            'You dont have a connected Lichess account'
-          )
-        }
 
-        tournamentBody.created_by = req.user.id
-        tournamentBody.is_active = true
+          tournamentBody.created_by = req.user.id
+          tournamentBody.is_active = true
 
-        const lichessRequestBody = {
-          name: tournamentBody.name,
-          'clock.limit': tournamentBody.initial_time,
-          'clock.increment': tournamentBody.increment_time,
-          nbRounds: tournamentBody.rounds,
-          startsAt: tournamentBody.startDate,
-          variant: 'standard',
-          rated: tournamentBody.rated,
-          berserkable: false, // Should this be true
-          streakable: false, // Should this be true
-          hasChat: true,
-          description: tournamentBody.description,
-          // password: Should we have the tournament password here?
-        }
-
-        const name_len = tournamentBody.name?.length
-
-        if (name_len && name_len > 30) {
-          return responseHandler.returnError(
-            httpStatus.BAD_REQUEST,
-            'Name cannot exceed 30 characters'
-          )
-        }
-
-        // Options to be given as parameter
-        // in fetch for making requests
-        // other then GET
-        const options = {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/x-www-form-urlencoded',
-            // The authorization token has to be picked from the DB
-            Authorization: lichess_bearer_token,
-            Accept: 'application/json',
-          },
-          body: new URLSearchParams(lichessRequestBody),
-        }
-
-        let lichessUrl = ''
-
-        try {
-          const lichessResponse = await fetch(
-            'https://lichess.org/api/swiss/new/circlechess',
-            options
-          )
-          const json = await lichessResponse.json()
-          console.log(json)
-          if (!json.id) {
-            if (json.global && json.global.length > 0) {
-              responseHandler.returnError(
-                httpStatus.BAD_REQUEST,
-                json.global[0]
-              )
-            } else if (
-              json.error &&
-              json.error.global &&
-              json.error.global.length > 0
-            ) {
-              responseHandler.returnError(
-                httpStatus.BAD_REQUEST,
-                json.error.global[0]
-              )
-            }
+          const lichessRequestBody = {
+            name: tournamentBody.name,
+            'clock.limit': tournamentBody.initial_time,
+            'clock.increment': tournamentBody.increment_time,
+            nbRounds: tournamentBody.rounds,
+            startsAt: tournamentBody.startDate,
+            variant: 'standard',
+            rated: tournamentBody.rated,
+            berserkable: false, // Should this be true
+            streakable: false, // Should this be true
+            hasChat: true,
+            description: tournamentBody.description,
+            // password: Should we have the tournament password here?
           }
-          lichessUrl = `https://lichess.org/swiss/${json.id}`
-        } catch (e) {
-          console.log('Lichess tournament creation failed', e)
-          message = 'Tournament creation failed! Please Try again.'
-          return responseHandler.returnError(httpStatus.BAD_REQUEST, message)
+
+          const name_len = tournamentBody.name?.length
+
+          if (name_len && name_len > 30) {
+            return responseHandler.returnError(
+              httpStatus.BAD_REQUEST,
+              'Name cannot exceed 30 characters'
+            )
+          }
+
+          // Options to be given as parameter
+          // in fetch for making requests
+          // other then GET
+          const options = {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/x-www-form-urlencoded',
+              // The authorization token has to be picked from the DB
+              Authorization: lichess_bearer_token,
+              Accept: 'application/json',
+            },
+            body: new URLSearchParams(lichessRequestBody),
+          }
+
+          let lichessUrl = ''
+
+          try {
+            const lichessResponse = await fetch(
+              'https://lichess.org/api/swiss/new/circlechess',
+              options
+            )
+            const json = await lichessResponse.json()
+            console.log(json)
+            if (!json.id) {
+              if (json.global && json.global.length > 0) {
+                responseHandler.returnError(
+                  httpStatus.BAD_REQUEST,
+                  json.global[0]
+                )
+              } else if (
+                json.error &&
+                json.error.global &&
+                json.error.global.length > 0
+              ) {
+                responseHandler.returnError(
+                  httpStatus.BAD_REQUEST,
+                  json.error.global[0]
+                )
+              }
+            }
+            lichessUrl = `https://lichess.org/swiss/${json.id}`
+          } catch (e) {
+            console.log('Lichess tournament creation failed', e)
+            message = 'Tournament creation failed! Please Try again.'
+            return responseHandler.returnError(httpStatus.BAD_REQUEST, message)
+          }
+
+          // Set up defaults for tournament row in the DB
+          tournamentBody.federation = 'Online Lichess'
+          tournamentBody.director = tournamentBody.organizer
+          tournamentBody.time_control = `${tournamentBody.initial_time}+${tournamentBody.increment_time}`
+          tournamentBody.start_date = tournamentBody.startTime;
+          tournamentBody.end_date = new Date(new Date(tournamentBody.startTime).getTime() + 12 * 60 * 60 * 1000).toISOString();
+          tournamentBody.tournament_type = 'Swiss'
+          tournamentBody.address = lichessUrl || 'Online Lichess'
+          tournamentBody.state = 'Online Lichess'
+          tournamentBody.country = 'Online Lichess'
+          tournamentBody.federation = 'Online Lichess'
+          tournamentBody.address = lichessUrl
+
+          const data = await this.tournamentDao.create(tournamentBody)
+          return responseHandler.returnSuccess(httpStatus.CREATED, message, {
+            lichess_tournament_url: lichessUrl,
+            tournament_id: data.id,
+          })
         }
-
-        // Set up defaults for tournament row in the DB
-        tournamentBody.federation = 'Online Lichess'
-        tournamentBody.director = tournamentBody.organizer
-        tournamentBody.time_control = `${tournamentBody.initial_time}+${tournamentBody.increment_time}`
-        tournamentBody.start_date = tournamentBody.startDate
-        tournamentBody.end_date = tournamentBody.startDate
-        tournamentBody.tournament_type = 'Swiss'
-        tournamentBody.address = lichessUrl || 'Online Lichess'
-        tournamentBody.state = 'Online Lichess'
-        tournamentBody.country = 'Online Lichess'
-        tournamentBody.federation = 'Online Lichess'
-        tournamentBody.address = lichessUrl
-
-        const data = await this.tournamentDao.create(tournamentBody)
-        return responseHandler.returnSuccess(httpStatus.CREATED, message, {
-          lichess_tournament_url: lichessUrl,
-          tournament_id: data.id,
-        })
       } catch (e) {
         logger.error(e)
         return responseHandler.returnError(
@@ -397,7 +456,7 @@ class TournamentService {
 
   createLichessTournament = async (tournamentBody, req) => {
     const { tournament_type } = tournamentBody
-    if (tournament_type === 'Swiss') {
+    if (tournament_type === 'Swiss' || tournament_type === 'Circlechess_Online') {
       return this.createLichessSwissTournament(tournamentBody, req)
     }
     return this.createLichessArenaTournament(tournamentBody, req)
@@ -477,6 +536,7 @@ class TournamentService {
         await Promise.allSettled(promise)
         await this.tournamentDao.updateById(tournamentBody, tournamentId)
       }
+
       return responseHandler.returnSuccess(httpStatus.CREATED, message, data)
     } catch (e) {
       logger.error(e)
@@ -511,6 +571,7 @@ class TournamentService {
         limit,
         offset
       )
+      console.log("tournaments data:",data)
       return responseHandler.returnSuccess(httpStatus.OK, message, data)
     } catch (e) {
       logger.error(e)
@@ -521,11 +582,95 @@ class TournamentService {
     }
   }
 
+
+
+  getCirclechesssTournaments = async (limit = 10, offset = 0) => {
+    try {
+      const message = 'Fetched tournaments successfully.'
+      const data = await this.tournamentDao.findByWhere(
+        {
+          is_active: true,
+          tournament_type: 'Circlechess_Online'
+        },
+        undefined,
+        [
+          literal(
+            `CASE WHEN "start_date" >= CURRENT_DATE THEN "start_date" ELSE NULL END ASC,CASE WHEN "start_date" < CURRENT_DATE THEN "start_date" ELSE NULL END DESC`
+          ),
+        ],
+        limit,
+        offset
+      )
+      console.log("tournaments data:",data)
+      return responseHandler.returnSuccess(httpStatus.OK, message, data)
+    } catch (e) {
+      logger.error(e)
+      return responseHandler.returnError(
+        httpStatus.BAD_REQUEST,
+        'Something went wrong!'
+      )
+    }
+  }
+
+
   /**
    * Get Tournament List
    * @param {Number} id
    * @returns {Object}
    */
+
+  getJoinedTournaments = async (userId) => {
+    try {
+      // Fetch all player entries in the TournamentPlayers table for the given user ID
+      console.log('inside getJoinedTournaments userId:', userId)
+      const playerEntries = await this.trnplayersDao.findByWhere({
+        cc_userid: +userId,
+      })
+
+      if (!playerEntries || playerEntries.length === 0) {
+        const message = `No tournaments found for user with cc_userId ${userId}`
+        return responseHandler.returnSuccess(httpStatus.OK, message, [])
+      }
+
+      // Extract tournament IDs from the player entries
+      const tournamentIds = playerEntries.map((entry) => {
+        return entry.tournament_id
+      })
+
+      console.log(tournamentIds)
+
+      // Fetch tournament details for these tournament IDs
+      const tournaments = await this.tournamentDao.findByWhere(
+        { id: tournamentIds } // The 'where' condition to match tournament IDs
+      )
+
+      // Structure the response
+      const response = tournaments.map((tournament) => {
+        return {
+          id: tournament.id,
+          name: tournament.name,
+          start_date: tournament.start_date,
+          end_date: tournament.end_date,
+          location: tournament.location,
+          rounds: tournament.rounds,
+          time_control: tournament.time_control,
+        }
+      })
+
+      return responseHandler.returnSuccess(
+        httpStatus.OK,
+        'Successfully fetched joined tournaments',
+        response
+      )
+    } catch (e) {
+      logger.error(e)
+      return responseHandler.returnError(
+        httpStatus.BAD_REQUEST,
+        'Something went wrong while fetching joined tournaments!'
+      )
+    }
+  }
+
   getTournamentById = async (id) => {
     try {
       let message = 'Fetched tournament details successfully.'
@@ -538,6 +683,24 @@ class TournamentService {
       if (!data) {
         message = "Tournament doesn't exists!"
         return responseHandler.returnError(httpStatus.BAD_REQUEST, message)
+      }
+
+      let fide_ids = []
+      if (data.player_fide_ids) {
+        fide_ids = data.player_fide_ids.split(',')
+      }
+
+      const players = await this.CCUserDao.findByWhere({ user_id: fide_ids })
+
+      let joinedPlayers = []
+      if (players.length > 0) {
+        joinedPlayers = players.map((player) => {
+          return {
+            username: player.username,
+            rating: player.gameplay_rating,
+          }
+        })
+        data.setDataValue('players_joined', joinedPlayers)
       }
 
       if (data.feedback_key) {
@@ -779,7 +942,6 @@ class TournamentService {
           return responseHandler.returnError(httpStatus.BAD_REQUEST, message)
         }
         // players = players.concat(newPlayers)
-
         white = pairing
           .filter((p) => {
             return !p.parent_id
@@ -875,7 +1037,6 @@ class TournamentService {
           tnrConfig,
           teams
         )
-
       const res = await this.tournamentPairingsDao.bulkCreate(whitePlayers)
       if (!res) {
         message = 'Failed to pair players! Please try again.'
@@ -1292,7 +1453,24 @@ class TournamentService {
     }
   }
 
-  updateScoring = async (round, tournamentId, scores) => {
+  updateCirclechessTournament = async (tournamentId, tournamentBody) => {
+    try {
+      const message = `Updated tournament Status successfully.`
+      const tournamentUpdate = await this.tournamentDao.updateById(
+        tournamentBody,
+        tournamentId
+      )
+      return responseHandler.returnSuccess(httpStatus.OK, message)
+    } catch (e) {
+      logger.error(e)
+      return responseHandler.returnError(
+        httpStatus.BAD_REQUEST,
+        'Something went wrong!'
+      )
+    }
+  }
+
+  updateScoring = async (round, tournamentId, scores, gameId = '') => {
     try {
       let message = `Updated scores of matches for Round ${round} successfully.`
       const tournament = await this.tournamentDao.findById(tournamentId)
@@ -1331,7 +1509,7 @@ class TournamentService {
       } else {
         promises = Object.keys(scores).map((id) => {
           return this.tournamentPairingsDao.updateById(
-            { result: scores[id], is_scored: true },
+            { result: scores[id], is_scored: true, cc_gameid: gameId},
             id
           )
         })
@@ -1349,7 +1527,10 @@ class TournamentService {
         return responseHandler.returnError(httpStatus.BAD_REQUEST, message)
       }
 
-      if (tournament.rounds === Number(round)) {
+      if (
+        tournament.rounds === Number(round) &&
+        !tournament.tournament_type === 'Ciclechess_Online'
+      ) {
         const pendingScoreToUpload =
           await this.tournamentPairingsDao.checkExist({
             round,

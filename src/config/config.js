@@ -42,6 +42,7 @@ const envValidation = Joi.object()
     JUSPAY_MERCHANT_ID: Joi.string(),
     PUBLISH_TRN_TO_CIRCLECHESS: Joi.bool().required(),
     CIRCLECHESS_API_URL: Joi.string().required(),
+    GAME_SERVICE_API_URL: Joi.string(),
   })
   .unknown()
 
@@ -57,6 +58,7 @@ module.exports = {
   env: envVar.NODE_ENV,
   port: envVar.PORT,
   apiKey: envVar.API_KEY,
+  XapiKey: envVar.X_API_KEY,
   filePath: envVar.FILE_PATH || `http://localhost:${envVar.PORT}/`,
   dbHost: envVar.DB_HOST,
   dbUser: envVar.DB_USER,
@@ -93,5 +95,8 @@ module.exports = {
   circlechess: {
     endpoint: envVar.CIRCLECHESS_API_URL,
     publish: envVar.PUBLISH_TRN_TO_CIRCLECHESS,
+  },
+  gameService: {
+    endpoint: envVar.GAME_SERVICE_API_URL,
   },
 }

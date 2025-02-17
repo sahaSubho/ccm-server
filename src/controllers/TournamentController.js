@@ -48,6 +48,30 @@ class TournamentController {
     }
   }
 
+  getCirclechessTournaments = async (req, res) => {
+    try {
+        const { limit = 10, offset = 0 } = req.query;
+
+        // Convert comma-separated query params into arrays (for multi-select filters)
+        // const formattedFilters = Object.keys(filters).reduce((acc, key) => {
+        //     acc[key] = filters[key].split(','); // Convert "Blitz,Rapid" -> ["Blitz", "Rapid"]
+        //     return acc;
+        // }, {});
+
+        const tournaments = await this.tournamentService.getCirclechesssTournaments(
+            limit,
+            offset,
+        );
+
+        const { status, message, data } = tournaments.response;
+        res.status(tournaments.statusCode).send({ status, message, data });
+    } catch (e) {
+        logger.error(e);
+        res.status(httpStatus.BAD_GATEWAY).send(e);
+    }
+  };
+
+
   getTournamentById = async (req, res) => {
     try {
       const { id } = req.params
@@ -59,6 +83,30 @@ class TournamentController {
       res.status(httpStatus.BAD_GATEWAY).send(e)
     }
   }
+  getJoinedTournamentByUserId = async (req, res) => {
+    try {
+      const { userId } = req.query;
+      console.log(userId, req.query);
+      const tournaments = await this.tournamentService.getJoinedTournaments(userId)
+      const { status, message, data } = tournaments.response
+      res.status(tournaments.statusCode).send({ status, message, data })
+    } catch (e) {
+      logger.error(e)
+      res.status(httpStatus.BAD_GATEWAY).send(e)
+    }
+  }
+
+  updateCirclechessTournament = async (req,res) => {
+    try {
+      const { id } = req.params
+      const update = await this.tournamentService.updateCirclechessTournament(id, req.body)
+      const { status, message } = update.response 
+      res.status(update.statusCode).send({ status, message,})
+    } catch (e) {
+      logger.error(e)
+      res.status(httpStatus.BAD_GATEWAY).send(e)
+    }
+  }   
 
   getTournamentsByUser = async (req, res) => {
     try {
@@ -151,11 +199,12 @@ class TournamentController {
 
   updateScoring = async (req, res) => {
     try {
-      const { round, tournamentId } = req.query
+      const { round, tournamentId, gameId = '' } = req.query
       const pairing = await this.tournamentService.updateScoring(
         round,
         tournamentId,
-        req.body
+        req.body,
+        gameId
       )
       const { status, message, data } = pairing.response
       res.status(pairing.statusCode).send({ status, message, data })

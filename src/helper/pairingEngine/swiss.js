@@ -13,6 +13,7 @@ function formatPlayerData(player, round = 1, tournament_id = undefined) {
       player_name: player.name,
       player_rating: player.rating || 0,
       player_score: player.score || 0,
+      cc_userid: player.cc_userid || 0
     }
   }
   return {
@@ -24,6 +25,7 @@ function formatPlayerData(player, round = 1, tournament_id = undefined) {
     player_rating: player.player_rating || 0,
     player_score: player.player_score,
     result: player.result,
+    cc_userid: player.cc_userid || 0
   }
 }
 

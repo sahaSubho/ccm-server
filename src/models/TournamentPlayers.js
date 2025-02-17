@@ -32,6 +32,7 @@ module.exports = (sequelize, DataTypes) => {
         allowNull: false,
         defaultValue: false,
       },
+      cc_userid: DataTypes.INTEGER
     },
     {
       sequelize,

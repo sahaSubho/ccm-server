@@ -106,6 +106,18 @@ class PlayerController {
     }
   }
 
+  joinTournament = async (req, res) => {
+    try {
+      const { id } = req.params
+      const player = await this.playerService.joinTournament(id, req.body)
+      const { status, message, data } = player.response
+      res.status(player.statusCode).send({ status, message, data })
+    } catch (e) {
+      logger.error(e)
+      res.status(httpStatus.BAD_GATEWAY).send(e)
+    }
+  }
+
   withDrawPlayer = async (req, res) => {
     try {
       const player = await this.playerService.withDrawPlayer(req.body)
