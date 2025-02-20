@@ -1073,19 +1073,34 @@ class PlayersService {
         return responseHandler.returnError(httpStatus.BAD_REQUEST, message)
       }
       if (result) {
-        const data = await this.tournamentPairingDao.updateWhere(
-          { is_withdrawn: playerBody.is_withdrawn },
-          {
-            tournament_id: playerBody.tournamentId,
-            round: playerBody.round,
-            player_id: playerBody.id,
-          }
-        )
+        if (playerBody.round > 0) {
+          const data = await this.tournamentPairingDao.updateWhere(
+              { is_withdrawn: playerBody.is_withdrawn },
+              {
+                  tournament_id: playerBody.tournamentId,
+                  round: playerBody.round,
+                  player_id: playerBody.id,
+              }
+          );
 
-        if (!data) {
-          message = 'Failed to withdraw player from this tournament.'
-          return responseHandler.returnError(httpStatus.BAD_REQUEST, message)
+          if (!data) {
+              message = 'Failed to withdraw player from this tournament.';
+              return responseHandler.returnError(httpStatus.BAD_REQUEST, message);
+          }
         }
+
+        // Remove the withdrawn player's cc_userid from fide_ids if tournament type is 'Cieclechess_Online'
+        const tournament = await this.tournamentDao.findById(playerBody.tournamentId);
+        if (tournament && tournament.tournament_type === 'Circlechess_Online' && tournament.player_fide_ids) {
+            let fide_ids = tournament.player_fide_ids.split(',');
+            fide_ids = fide_ids.filter(id => id !== playerBody.id.toString());
+            
+            await this.tournamentDao.updateWhere(
+                { player_fide_ids: fide_ids.join() },
+                { id: playerBody.tournamentId }
+            );
+        }
+
         this.redisService.removeKey(`ccm_players_${playerBody.tournamentId}`)
       }
       return responseHandler.returnSuccess(httpStatus.OK, message)
