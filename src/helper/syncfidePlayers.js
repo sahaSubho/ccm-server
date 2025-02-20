@@ -6,6 +6,7 @@ const XmlStream = require('xml-stream')
 const moment = require('moment')
 const PlayersDao = require('../dao/PlayersDao')
 const RedisService = require('../service/RedisService')
+const { sequelize } = require('../models')
 
 const playersDao = new PlayersDao()
 const redisService = new RedisService()
@@ -30,27 +31,17 @@ function delay(ms) {
 // Error handling wrapper for DB insertion
 async function processBatch(batch) {
   try {
-    console.log(`Processing batch of ${batch.length} players`)
-
     const promises = batch.map((p) => {
-      return playersDao.updateOrCreate(p, { fide_id: p.fide_id })
+      return sequelize.transaction(async (t) => {
+        await playersDao.updateOrCreateWithTransaction(
+          p,
+          { fide_id: p.fide_id },
+          t
+        )
+      })
     })
 
     await Promise.allSettled(promises)
-    // await playersDao.bulkCreate(batch, {
-    //   updateOnDuplicate: [
-    //     'name',
-    //     'title',
-    //     'w_title',
-    //     'o_title',
-    //     'foa_title',
-    //     'gender',
-    //     'age',
-    //     'rating',
-    //     'rapid_rating',
-    //     'blitz_rating',
-    //   ], // Specify fields to update on duplicate
-    // })
 
     console.log(`Inserted or Updated total ${batch.length} players`)
   } catch (error) {
@@ -154,6 +145,7 @@ async function syncUpdatedFidePlayersData() {
         o_title: item.o_title,
         foa_title: item.foa_title,
         gender: item.sex,
+        birth_year: Number(item.birthday),
         age: moment().year() - Number(item.birthday),
         rating: item.rating,
         rapid_rating: item.rapid_rating,
@@ -162,12 +154,12 @@ async function syncUpdatedFidePlayersData() {
       result.push(data)
 
       // Check if result buffer has reached the batch size
-      if (result.length >= 1000) {
+      if (result.length >= 500) {
         // Process and insert the batch, then clear the buffer
-        debounce(processdata(result))
+        processdata(result)
 
         result = []
-        // await delay(500) // Introduce delay to reduce DB load (optional)
+        await delay(500) // Introduce delay to reduce DB load (optional)
       }
     })
 

@@ -73,8 +73,10 @@ class PlayersService {
         rating: Number(d.rating) || 0,
         gender: PlayersService.parseGender(d.gender),
         registered_from: isChatbot ? 'Chatbot' : 'CCM',
-        age:
-          moment(tournament.start_date).year() - Number(d.birth_year || 2000),
+        age: d?.age
+          ? d.age
+          : moment(tournament.start_date).year() -
+            Number(d?.birth_year || 2000),
         mobile: d?.mobile_number || '',
         upi_id: d?.upi_address || '',
         title: d?.title || '',
@@ -530,11 +532,7 @@ class PlayersService {
       this.redisService.removeKey(`ccm_players_${id}`)
       return responseHandler.returnSuccess(httpStatus.CREATED, message, payload)
     } catch (e) {
-      logger.error(e)
-      return responseHandler.returnError(
-        httpStatus.BAD_REQUEST,
-        'Something went wrong!'
-      )
+      return responseHandler.returnError(httpStatus.BAD_REQUEST, e.message)
     }
   }
 
@@ -650,14 +648,14 @@ class PlayersService {
           b.mobile_number as mobile_number,
           b.sex as gender,
           b.fide_id as fide_id,
-          (select fide_title from fide_player_profile c where c.fide_id=b.fide_id) as title,
+          (select title from players c where c.fide_id=b.fide_id) as title,
           CASE
-              WHEN b.fide_id > 0 THEN (select current_rapid_rating from fide_player_profile c where c.fide_id=b.fide_id)
+              WHEN b.fide_id > 0 THEN (select rapid_rating from players c where c.fide_id=b.fide_id)
               ELSE 0
           END AS rating, 
           CASE
-              WHEN b.dob is null THEN (select birth_year from fide_player_profile c where c.fide_id=b.fide_id)::text
-              WHEN b.dob = '' THEN (select birth_year from fide_player_profile c where c.fide_id=b.fide_id)::text
+              WHEN b.dob is null THEN (select birth_year from players c where c.fide_id=b.fide_id)::text
+              WHEN b.dob = '' THEN (select birth_year from players c where c.fide_id=b.fide_id)::text
               ELSE RIGHT(b.dob,4)
           END AS birth_year 
           from cc_registration_orders as a join tournament_notification_registrations as b on a.player_id=b.id where a.tournament_id=${tournament.cct_id} and a.cancelled=0;`,
@@ -691,7 +689,7 @@ class PlayersService {
         return responseHandler.returnError(httpStatus.BAD_REQUEST, message)
       }
 
-      let result = sortByInitialRankings(data)
+      let result = data
         .map((p) => {
           return {
             ...p,
@@ -756,6 +754,9 @@ class PlayersService {
         return responseHandler.returnError(httpStatus.BAD_REQUEST, message)
       }
 
+      await this.redisService.removeKey(
+        `ccm_players_${playerBody.tournamentId}`
+      )
       return responseHandler.returnSuccess(
         httpStatus.NO_CONTENT,
         message,
@@ -1160,7 +1161,7 @@ class PlayersService {
               t.result ===
                 data.find((p) => {
                   return p.parent_id === t.id || t.parent_id === p.id
-                })?.result && Number(t.result) === 0
+                })?.result && t.result === ''
             )
           }),
         },
@@ -1169,7 +1170,7 @@ class PlayersService {
             t.result ===
               tournaments.find((p) => {
                 return p.parent_id === t.id || t.parent_id === p.id
-              })?.result && Number(t.result) === 0
+              })?.result && t.result === ''
           )
         }),
       }
@@ -1195,7 +1196,7 @@ class PlayersService {
     try {
       const message = 'Found players based on search input'
       const where = {}
-      if (name.length) {
+      if (name?.length) {
         where.name = { [Op.iLike]: `%${name}%` }
       }
       if (fideId) {

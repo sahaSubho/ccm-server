@@ -152,14 +152,14 @@ class JuspayService {
         ['SUCCESS', 'FAILURE', 'FAIL'].includes(txn.value)
       ) {
         const txnObj = txn.info
-        let message = `Failed to process the aayment of ₹${txnObj.amount} to ${txnObj.beneficiaryDetails.details.name} upi address`
-        if (txn.value === 'SUCCESS') {
-          message = `Payment of ₹${txnObj.amount} has been processed successfully to ${txnObj.beneficiaryDetails.details.name} upi address`
-        }
-        global.io.emit('fulfillment_complete', {
-          message,
-          status: txn.value,
-        })
+        // let message = `Failed to process the aayment of ₹${txnObj.amount} to ${txnObj.beneficiaryDetails.details.name} upi address`
+        // if (txn.value === 'SUCCESS') {
+        //   message = `Payment of ₹${txnObj.amount} has been processed successfully to ${txnObj.beneficiaryDetails.details.name} upi address`
+        // }
+        // global.io.emit('fulfillment_complete', {
+        //   message,
+        //   status: txn.value,
+        // })
         await this.payoutTransactionsDao.updateWhere(
           {
             beneficiaryDetails: txnObj.beneficiaryDetails,
@@ -185,11 +185,11 @@ class JuspayService {
           beneficiaryDetails: '[{}]',
           preferredMethodList: '[{}]',
         }
-        global.io.emit('status_update', {
-          status: txnObj.txnResponse.status || txnObj.status,
-          transactionId: txnObj.transactionRef,
-          fulfillmentId: txnObj.FulfillmentId,
-        })
+        // global.io.emit('status_update', {
+        //   status: txnObj.txnResponse.status || txnObj.status,
+        //   transactionId: txnObj.transactionRef,
+        //   fulfillmentId: txnObj.FulfillmentId,
+        // })
 
         await this.playersPrizePayoutDao.updateWhere(
           {

@@ -181,6 +181,22 @@ class SuperDao {
     })
   }
 
+  async updateOrCreateWithTransaction(values, condition, t) {
+    console.log(`Processing for fide_id ${values.fide_id}`)
+    return this.Model.findOne({ where: condition, transaction: t }).then(
+      (obj) => {
+        // update
+        if (obj) {
+          console.log(`Updating for fide_id ${values.fide_id}`)
+          return obj.update(values, { transaction: t })
+        }
+        // insert
+        console.log(`Inserting for fide_id ${values.fide_id}`)
+        return this.Model.create(values, { transaction: t })
+      }
+    )
+  }
+
   async checkExist(condition) {
     return this.Model.count({ where: condition }).then((count) => {
       if (count !== 0) {

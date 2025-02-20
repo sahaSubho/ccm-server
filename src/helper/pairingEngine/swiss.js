@@ -398,13 +398,13 @@ async function javaFoRoundPairing(
           matches[player.player_id][index - 1] = `${''.padEnd(1, ' ')} - U`
         } else if (!player && opp) {
           matches[opp.player_id][index - 1] = `${''.padEnd(1, ' ')} - U`
-        } else if (player.is_withdrawn) {
-          matches[opp.player_id][index - 1] = `0000 - Z`
-        } else if (opp.is_withdrawn) {
-          matches[player.player_id][index - 1] = `0000 - Z`
-        } else if (
-          String(player?.player_result)?.replace(/\s/g, '') === '---'
-        ) {
+        }
+        // else if (player.is_withdrawn) {
+        //   matches[opp.player_id][index - 1] = `0000 - Z`
+        // } else if (opp.is_withdrawn) {
+        //   matches[player.player_id][index - 1] = `0000 - Z`
+        // }
+        else if (String(player?.player_result)?.replace(/\s/g, '') === '---') {
           matches[player.player_id][index - 1] = `${indexes[opp.player_id]} w  `
           matches[opp.player_id][index - 1] = `${indexes[player.player_id]} b  `
         } else if (
@@ -470,9 +470,10 @@ async function javaFoRoundPairing(
       `${''.padEnd(10, ' ')} ` +
       `${p?.player_score?.toFixed(1).padStart(4, ' ')} ` +
       `${ranks[p.player_id]?.toString().padStart(4, ' ')}`
-    ;[...Array(matches[p.player_id]?.length).keys()]
+    ;[...Array(round - 1).keys()]
       .map((x) => {
-        return matches[p.player_id][x] || ''
+        console.log('player', p.key, matches[p.player_id][x])
+        return matches[p.player_id][x] || '0000 - Z'
       })
       ?.forEach((match) => {
         ans += `  ${match.padStart(8, ' ')}`
