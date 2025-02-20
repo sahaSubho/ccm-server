@@ -84,6 +84,13 @@ router.patch(
   playersController.withDrawPlayer
 )
 
+router.patch(
+  '/gs-withdraw-player',
+  gsApiCheck,
+  playerValidator.withDrawPlayer,
+  playersController.withDrawPlayer
+)
+
 router.post(
   '/search-fide-players',
   playerValidator.searchFidePlayers,
