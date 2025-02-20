@@ -1073,7 +1073,7 @@ class PlayersService {
         return responseHandler.returnError(httpStatus.BAD_REQUEST, message)
       }
       if (result) {
-        if (playerBody.round) {
+        if (playerBody.round > 0) {
           const data = await this.tournamentPairingDao.updateWhere(
               { is_withdrawn: playerBody.is_withdrawn },
               {
@@ -1091,7 +1091,7 @@ class PlayersService {
 
         // Remove the withdrawn player's cc_userid from fide_ids if tournament type is 'Cieclechess_Online'
         const tournament = await this.tournamentDao.findById(playerBody.tournamentId);
-        if (tournament && tournament.tournament_type === 'Cieclechess_Online' && tournament.player_fide_ids) {
+        if (tournament && tournament.tournament_type === 'Circlechess_Online' && tournament.player_fide_ids) {
             let fide_ids = tournament.player_fide_ids.split(',');
             fide_ids = fide_ids.filter(id => id !== playerBody.id.toString());
             
