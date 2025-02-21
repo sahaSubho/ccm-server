@@ -1061,7 +1061,7 @@ class PlayersService {
       //     })
       //   }
       // }
-
+      const player = await this.trnplayersDao.findById(playerBody.id);
       const result = await this.trnplayersDao.updateById(
         {
           is_withdrawn: playerBody.is_withdrawn,
@@ -1088,12 +1088,12 @@ class PlayersService {
               return responseHandler.returnError(httpStatus.BAD_REQUEST, message);
           }
         }
-
+        console.log("player", JSON.stringify(player));
         // Remove the withdrawn player's cc_userid from fide_ids if tournament type is 'Cieclechess_Online'
         const tournament = await this.tournamentDao.findById(playerBody.tournamentId);
         if (tournament && tournament.tournament_type === 'Circlechess_Online' && tournament.player_fide_ids) {
             let fide_ids = tournament.player_fide_ids.split(',');
-            fide_ids = fide_ids.filter(id => id !== playerBody.id.toString());
+            fide_ids = fide_ids.filter(id => id !== player.cc_userid.toString());
             
             await this.tournamentDao.updateWhere(
                 { player_fide_ids: fide_ids.join() },
