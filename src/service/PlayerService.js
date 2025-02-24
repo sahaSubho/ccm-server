@@ -575,11 +575,14 @@ class PlayersService {
           await this.trnplayersDao.updateById({ is_withdrawn: false }, existingPlayer.id);
 
           
-          let fide_ids = tournament.player_fide_ids.split(',');
-          if (!fide_ids.includes(data.playerId.toString())) {
-            fide_ids.push(data.playerId);
-            await this.tournamentDao.updateWhere({ player_fide_ids: fide_ids.join() }, { id });
-          }
+          let ids = fide_ids;
+          ids.push(existingPlayer.cc_userid);
+          ids = [...new Set(ids)];
+
+          const result = await this.tournamentDao.updateWhere(
+            { player_fide_ids: ids.join() },
+            { id }
+          );
           
 
           // Update is_withdrawn in tournamentPairingDao if the user rejoins
