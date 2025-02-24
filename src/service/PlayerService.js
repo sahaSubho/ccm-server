@@ -592,7 +592,7 @@ class PlayersService {
           );
 
           message = 'Player rejoined the tournament.';
-          return responseHandler.returnSuccess(httpStatus.OK, message);
+          return responseHandler.returnSuccess(httpStatus.OK, message, existingPlayer);
         }
 
         message = 'Player is already registered in this tournament.';
