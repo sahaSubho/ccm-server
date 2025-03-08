@@ -64,7 +64,6 @@ function processResult(result, playersType, config = { bye_point: 1 }) {
       modifiedResult = [1, 0]
       break
     case '0.5-0.5':
-    case '---':
       modifiedResult = [0.5, 0.5]
       break
     case '+-':
