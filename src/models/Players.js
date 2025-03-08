@@ -29,6 +29,7 @@ module.exports = (sequelize, DataTypes) => {
         type: DataTypes.INTEGER,
         unique: true,
       },
+      federation: DataTypes.STRING,
       rating: DataTypes.INTEGER,
       rapid_rating: DataTypes.INTEGER,
       blitz_rating: DataTypes.INTEGER,
