@@ -127,7 +127,7 @@ class PlayersService {
               if (p.pId) {
                 MostMatchedPlayer.pId = p.pId
               }
-              if (p.rating > r.rating) {
+              if (p.rating !== r.rating) {
                 MostMatchedPlayer.rating = p.rating
                 this.trnplayersDao.updateById({ rating: p.rating }, r.id)
               }
@@ -540,50 +540,51 @@ class PlayersService {
     try {
       let message = 'Successfully added player.'
 
-      const data = { ...body };
-      const tournament = await this.tournamentDao.findById(id);
+      const data = { ...body }
+      const tournament = await this.tournamentDao.findById(id)
 
-      let fide_ids = [];
+      let fide_ids = []
       if (tournament.player_fide_ids) {
-        fide_ids = tournament.player_fide_ids.split(',');
+        fide_ids = tournament.player_fide_ids.split(',')
       }
 
-      console.log("Inside joinTournament", tournament, fide_ids);
+      console.log('Inside joinTournament', tournament, fide_ids)
 
-      const user = await this.CCUserDao.findOne({ user_id: data.playerId });
+      const user = await this.CCUserDao.findOne({ user_id: data.playerId })
 
       if (!user) {
-        throw new Error(`User with user_id ${data.playerId} not found`);
+        throw new Error(`User with user_id ${data.playerId} not found`)
       }
 
-      let age = 0;
+      let age = 0
       if (user.dob) {
-        const dob = moment(user.dob);
-        const tournamentStartDate = moment(tournament.start_date);
-        age = tournamentStartDate.diff(dob, 'years');
+        const dob = moment(user.dob)
+        const tournamentStartDate = moment(tournament.start_date)
+        age = tournamentStartDate.diff(dob, 'years')
       }
 
       // Check if player already exists
       const existingPlayer = await this.trnplayersDao.findOne({
         tournament_id: id,
-        cc_userid: data.playerId
-      });
+        cc_userid: data.playerId,
+      })
 
       if (existingPlayer) {
         // If the player exists and was withdrawn, set is_withdrawn to false
         if (existingPlayer.is_withdrawn) {
-          await this.trnplayersDao.updateById({ is_withdrawn: false }, existingPlayer.id);
+          await this.trnplayersDao.updateById(
+            { is_withdrawn: false },
+            existingPlayer.id
+          )
 
-          
-          let ids = fide_ids;
-          ids.push(existingPlayer.cc_userid);
-          ids = [...new Set(ids)];
+          let ids = fide_ids
+          ids.push(existingPlayer.cc_userid)
+          ids = [...new Set(ids)]
 
           const result = await this.tournamentDao.updateWhere(
             { player_fide_ids: ids.join() },
             { id }
-          );
-          
+          )
 
           // Update is_withdrawn in tournamentPairingDao if the user rejoins
           await this.tournamentPairingDao.updateWhere(
@@ -592,14 +593,18 @@ class PlayersService {
               tournament_id: id,
               cc_userid: data.playerId,
             }
-          );
+          )
 
-          message = 'Player rejoined the tournament.';
-          return responseHandler.returnSuccess(httpStatus.OK, message, existingPlayer);
+          message = 'Player rejoined the tournament.'
+          return responseHandler.returnSuccess(
+            httpStatus.OK,
+            message,
+            existingPlayer
+          )
         }
 
-        message = 'Player is already registered in this tournament.';
-        return responseHandler.returnError(httpStatus.BAD_REQUEST, message);
+        message = 'Player is already registered in this tournament.'
+        return responseHandler.returnError(httpStatus.BAD_REQUEST, message)
       }
 
       // Populate player data
@@ -617,32 +622,34 @@ class PlayersService {
         team: '',
         pId: user.pId || 0,
         tournament_id: id,
-        cc_userid: data.playerId
-      };
+        cc_userid: data.playerId,
+      }
 
-      const player = await this.trnplayersDao.create(playerData);
+      const player = await this.trnplayersDao.create(playerData)
 
-      let ids = fide_ids;
-      ids.push(player.cc_userid);
-      ids = [...new Set(ids)];
+      let ids = fide_ids
+      ids.push(player.cc_userid)
+      ids = [...new Set(ids)]
 
       const result = await this.tournamentDao.updateWhere(
         { player_fide_ids: ids.join() },
         { id }
-      );
+      )
 
       if (!result) {
-        message = 'Failed to add player! Please try again.';
-        return responseHandler.returnError(httpStatus.BAD_REQUEST, message);
+        message = 'Failed to add player! Please try again.'
+        return responseHandler.returnError(httpStatus.BAD_REQUEST, message)
       }
 
-      return responseHandler.returnSuccess(httpStatus.CREATED, message, player);
+      return responseHandler.returnSuccess(httpStatus.CREATED, message, player)
     } catch (e) {
-      logger.error(e);
-      return responseHandler.returnError(httpStatus.BAD_REQUEST, 'Something went wrong!');
+      logger.error(e)
+      return responseHandler.returnError(
+        httpStatus.BAD_REQUEST,
+        'Something went wrong!'
+      )
     }
-  };
-
+  }
 
   /**
    * get list of player for each tournament
@@ -1086,7 +1093,7 @@ class PlayersService {
       //     })
       //   }
       // }
-      const player = await this.trnplayersDao.findById(playerBody.id);
+      const player = await this.trnplayersDao.findById(playerBody.id)
       const result = await this.trnplayersDao.updateById(
         {
           is_withdrawn: playerBody.is_withdrawn,
@@ -1100,30 +1107,36 @@ class PlayersService {
       if (result) {
         if (playerBody.round > 0) {
           const data = await this.tournamentPairingDao.updateWhere(
-              { is_withdrawn: playerBody.is_withdrawn },
-              {
-                  tournament_id: playerBody.tournamentId,
-                  round: playerBody.round,
-                  player_id: playerBody.id,
-              }
-          );
+            { is_withdrawn: playerBody.is_withdrawn },
+            {
+              tournament_id: playerBody.tournamentId,
+              round: playerBody.round,
+              player_id: playerBody.id,
+            }
+          )
 
           if (!data) {
-              message = 'Failed to withdraw player from this tournament.';
-              return responseHandler.returnError(httpStatus.BAD_REQUEST, message);
+            message = 'Failed to withdraw player from this tournament.'
+            return responseHandler.returnError(httpStatus.BAD_REQUEST, message)
           }
         }
-        console.log("player", JSON.stringify(player));
+        console.log('player', JSON.stringify(player))
         // Remove the withdrawn player's cc_userid from fide_ids if tournament type is 'Cieclechess_Online'
-        const tournament = await this.tournamentDao.findById(playerBody.tournamentId);
-        if (tournament && tournament.tournament_type === 'Circlechess_Online' && tournament.player_fide_ids) {
-            let fide_ids = tournament.player_fide_ids.split(',');
-            fide_ids = fide_ids.filter(id => id !== player.cc_userid.toString());
-            
-            await this.tournamentDao.updateWhere(
-                { player_fide_ids: fide_ids.join() },
-                { id: playerBody.tournamentId }
-            );
+        const tournament = await this.tournamentDao.findById(
+          playerBody.tournamentId
+        )
+        if (
+          tournament &&
+          tournament.tournament_type === 'Circlechess_Online' &&
+          tournament.player_fide_ids
+        ) {
+          let fide_ids = tournament.player_fide_ids.split(',')
+          fide_ids = fide_ids.filter((id) => id !== player.cc_userid.toString())
+
+          await this.tournamentDao.updateWhere(
+            { player_fide_ids: fide_ids.join() },
+            { id: playerBody.tournamentId }
+          )
         }
 
         this.redisService.removeKey(`ccm_players_${playerBody.tournamentId}`)

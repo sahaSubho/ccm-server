@@ -52,12 +52,12 @@ class AuthService {
   }
 
   logout = async (req, res) => {
-    let refreshTokenDoc = await this.tokenDao.findOneByWhere(
+    const refreshTokenDoc = await this.tokenDao.findOneByWhere(
       { user_id: req.user.id, type: tokenTypes.REFRESH },
       null,
       ['expires', 'desc']
     )
-    let accessTokenDoc = await this.tokenDao.findOneByWhere(
+    const accessTokenDoc = await this.tokenDao.findOneByWhere(
       { user_id: req.user.id, type: tokenTypes.ACCESS },
       null,
       ['expires', 'desc']
@@ -66,8 +66,8 @@ class AuthService {
       res.status(httpStatus.NOT_FOUND).send({ message: 'User Not found!' })
     }
 
-    refreshTokenDoc = refreshTokenDoc.toJSON()
-    accessTokenDoc = accessTokenDoc.toJSON()
+    // refreshTokenDoc = refreshTokenDoc.toJSON()
+    // accessTokenDoc = accessTokenDoc.toJSON()
 
     await this.tokenDao.remove({
       token: refreshTokenDoc.token,
