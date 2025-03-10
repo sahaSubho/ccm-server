@@ -86,6 +86,54 @@ class TournamentService {
     return result
   }
 
+    classifyTimeControl = (timeControl) => {
+        // Handle special cases
+        if (/hour|90m|60m|45m/i.test(timeControl)) {
+            return "Classical";
+        }
+        if (/as per format|n|nj/i.test(timeControl)) {
+            return "Unknown";
+        }
+
+        // Extract minutes and seconds from various formats
+        let minutes = 0;
+        let seconds = 0;
+
+        // Handle formats like "25+10" assuming x as minutes and y as seconds
+        const plusFormatMatch = timeControl.match(/(\d+)\s*\+\s*(\d+)/);
+        if (plusFormatMatch) {
+            minutes = parseInt(plusFormatMatch[1]);
+            seconds = parseInt(plusFormatMatch[2]);
+        } else {
+            const matches = timeControl.match(/(\d+)(m|s)?/g);
+            if (matches) {
+                matches.forEach(part => {
+                    if (part.includes('m')) {
+                        minutes = parseInt(part);
+                    } else if (part.includes('s')) {
+                        seconds = parseInt(part);
+                    } else {
+                        minutes = parseInt(part);
+                    }
+                });
+            }
+        }
+
+        const totalTime = minutes + (seconds / 60);
+
+        // Classify based on total time
+        if (totalTime < 3) {
+            return "Bullet";
+        } else if (totalTime >= 3 && totalTime < 10) {
+            return "Blitz";
+        } else if (totalTime >= 10 && totalTime <= 30) {
+            return "Rapid";
+        } else {
+            return "Classical";
+        }
+    };
+
+
   createLichessSwissTournament = async (tournamentBody, req) => {
     try {
       // Creating lichess arena tournament
@@ -117,6 +165,7 @@ class TournamentService {
         if (tournamentBody.tournament_type === 'Circlechess_Online') {
           // Set additional tournament properties
           tournamentBody.time_control = `${tournamentBody.initial_time}+${tournamentBody.increment_time}`;
+          tournamentBody.time_format = this.classifyTimeControl(tournamentBody.time_control);
           tournamentBody.start_date = tournamentBody.startTime;
           tournamentBody.end_date = new Date(new Date(tournamentBody.startTime).getTime() + 12 * 60 * 60 * 1000).toISOString();
           tournamentBody.country = 'Online Circlechess'
@@ -271,6 +320,7 @@ class TournamentService {
           tournamentBody.federation = 'Online Lichess'
           tournamentBody.director = tournamentBody.organizer
           tournamentBody.time_control = `${tournamentBody.initial_time}+${tournamentBody.increment_time}`
+          tournamentBody.time_format = this.classifyTimeControl(tournamentBody.time_control);
           tournamentBody.start_date = tournamentBody.startTime;
           tournamentBody.end_date = new Date(new Date(tournamentBody.startTime).getTime() + 12 * 60 * 60 * 1000).toISOString();
           tournamentBody.tournament_type = 'Swiss'
@@ -419,6 +469,7 @@ class TournamentService {
           tournamentBody.federation = 'Online Lichess'
           tournamentBody.director = tournamentBody.organizer
           tournamentBody.time_control = `${lichessRequestBody.clockTime}+${lichessRequestBody.clockIncrement}`
+          tournamentBody.time_format = this.classifyTimeControl(tournamentBody.time_control);
           tournamentBody.start_date = lichessRequestBody.startDate
           tournamentBody.end_date = lichessRequestBody.startDate
           tournamentBody.tournament_type = 'Arena'
@@ -508,6 +559,7 @@ class TournamentService {
       tournamentBody.created_by = req.user.id
       tournamentBody.is_active = true
 
+      tournamentBody.time_format = this.classifyTimeControl(tournamentBody.time_control);
       const data = await this.tournamentDao.create(tournamentBody)
 
       if (!data) {
@@ -654,6 +706,7 @@ class TournamentService {
           location: tournament.location,
           rounds: tournament.rounds,
           time_control: tournament.time_control,
+          time_format: this.classifyTimeControl(tournament.time_control),
         }
       })
 
