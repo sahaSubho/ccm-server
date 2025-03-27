@@ -1,5 +1,6 @@
 const { spawn } = require('child_process')
 const fs = require('fs')
+const uploadFileToS3 = require("../uploadFiletoS3")
 
 const pair = (input, players, teams = [], fileName = '') => {
   const javafoJarPath = 'src/helper/pairingEngine/files/javafo.jar' // Path to javafo.jar in your project
@@ -9,7 +10,7 @@ const pair = (input, players, teams = [], fileName = '') => {
   if (!fs.existsSync('uploads/files')) {
     fs.mkdirSync('uploads/files', { recursive: true })
   }
-  
+
   fs.writeFileSync(trfFilePath, input)
   fs.writeFileSync(outputFilePath, '')
 
@@ -33,6 +34,8 @@ const pair = (input, players, teams = [], fileName = '') => {
 
     javafoCommand.on('close', (code) => {
       console.log(`JaVaFo process exited with code ${code}`)
+      uploadFileToS3(trfFilePath, process.env.AWS_S3_BUCKET_NAME, `pairings/input_${fileName}.trf`)
+      uploadFileToS3(outputFilePath, process.env.AWS_S3_BUCKET_NAME, `pairings/output_${fileName}.trf`)
       if (code === 0) {
         fs.readFile(outputFilePath, 'utf8', (err, data) => {
           if (!err) {

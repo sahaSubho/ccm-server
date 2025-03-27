@@ -116,7 +116,6 @@ class PlayersService {
             } else if (!!p.fide_id && r.fide_id === p.fide_id) {
               invalidPlayer.push(p.name)
             }
-            break
           } else if (!!p.fide_id && r.fide_id === p.fide_id) {
             // if (p.name.replace(/[,]/g, '') === r.name.replace(/[,]/g, '')) {
             if (PlayersService.areNamesSimilar(p.name, r.name)) {
