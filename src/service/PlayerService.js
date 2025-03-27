@@ -109,10 +109,10 @@ class PlayersService {
               if (p.pId) {
                 MostMatchedPlayer.pId = p.pId
               }
-              if (p.rating > r.rating) {
-                MostMatchedPlayer.rating = p.rating
-                this.trnplayersDao.updateById({ rating: p.rating }, r.id)
-              }
+              // if (p.rating !== r.rating) {
+              //   MostMatchedPlayer.rating = p.rating
+              //   this.trnplayersDao.updateById({ rating: p.rating }, r.id)
+              // }
             } else if (!!p.fide_id && r.fide_id === p.fide_id) {
               invalidPlayer.push(p.name)
             }
@@ -127,10 +127,10 @@ class PlayersService {
               if (p.pId) {
                 MostMatchedPlayer.pId = p.pId
               }
-              if (p.rating !== r.rating) {
-                MostMatchedPlayer.rating = p.rating
-                this.trnplayersDao.updateById({ rating: p.rating }, r.id)
-              }
+              // if (p.rating !== r.rating) {
+              //   MostMatchedPlayer.rating = p.rating
+              //   this.trnplayersDao.updateById({ rating: p.rating }, r.id)
+              // }
             } else {
               invalidPlayer.push(p.name)
             }
@@ -143,10 +143,10 @@ class PlayersService {
             if (p.pId) {
               MostMatchedPlayer.pId = p.pId
             }
-            if (p.rating > r.rating) {
-              MostMatchedPlayer.rating = p.rating
-              this.trnplayersDao.updateById({ rating: p.rating }, r.id)
-            }
+            // if (p.rating > r.rating) {
+            //   MostMatchedPlayer.rating = p.rating
+            //   this.trnplayersDao.updateById({ rating: p.rating }, r.id)
+            // }
             break
           }
           j += 1
@@ -659,18 +659,20 @@ class PlayersService {
   getPlayersByTournament = async (tournamentId) => {
     try {
       let message = 'Successfully fetched players for tournament.'
-      const redisResult = await this.redisService.getValue(
-        `ccm_players_${tournamentId}`
-      )
-      if (redisResult) {
-        return responseHandler.returnSuccess(
-          httpStatus.OK,
-          message,
-          JSON.parse(redisResult)
-        )
-      }
+      // const redisResult = await this.redisService.getValue(
+      //   `ccm_players_${tournamentId}`
+      // )
+      // if (redisResult) {
+      //   return responseHandler.returnSuccess(
+      //     httpStatus.OK,
+      //     message,
+      //     JSON.parse(redisResult)
+      //   )
+      // }
 
       let tournament = await this.tournamentDao.findById(tournamentId)
+
+      const ratingType = tournament.time_format === 'Blitz' ? 'blitz_rating' : tournament.time_format === "Rapid" ? "rapid_rating" : "rating"
 
       if (tournament.cct_id && tournament.enable_registration) {
         try {
@@ -682,7 +684,7 @@ class PlayersService {
           b.fide_id as fide_id,
           (select title from players c where c.fide_id=b.fide_id) as title,
           CASE
-              WHEN b.fide_id > 0 THEN (select rapid_rating from players c where c.fide_id=b.fide_id)
+              WHEN b.fide_id > 0 THEN (select ${ratingType} from players c where c.fide_id=b.fide_id)
               ELSE 0
           END AS rating, 
           CASE

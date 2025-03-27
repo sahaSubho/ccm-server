@@ -6,6 +6,10 @@ const pair = (input, players, teams = [], fileName = '') => {
   const trfFilePath = `uploads/files/input_${fileName}.trf` // Path to your input TRF file
   const outputFilePath = `uploads/files/output_${fileName}.trf` // Path to the output file
   
+  if (!fs.existsSync('uploads/files')) {
+    fs.mkdirSync('uploads/files', { recursive: true })
+  }
+  
   fs.writeFileSync(trfFilePath, input)
   fs.writeFileSync(outputFilePath, '')
 
