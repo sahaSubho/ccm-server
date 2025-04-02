@@ -98,6 +98,8 @@ router.patch(
   tournamentController.addPairings
 )
 
+router.get('/get-club-memberships',auth(), tournamentController.getClubMembership)
+
 router.post('/config/:id', auth(), tournamentController.setConfiguration)
 router.get('/config/:id', auth(), tournamentController.getConfiguration)
 
