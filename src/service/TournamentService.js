@@ -543,6 +543,9 @@ class TournamentService {
   createTournament = async (tournamentBody, req) => {
     try {
       let message = 'Successfully created tournament.'
+      if(tournamentBody.is_club_membership){
+        message = 'Successfully created your club.'
+      }
       if (
         req.user.role !== userRoles.ORGANIZER &&
         req.user.role !== userRoles.ADMIN
@@ -1202,6 +1205,7 @@ class TournamentService {
 
   revertTournamentPairing = async (tournamentId) => {
     try {
+      logger.info(`Reverting pairing data for round : ${tournament.current_round} of tournamentId: ${tournamentId}`)
       const message = 'Successfully reverted current round pairing'
       const tournament = await this.tournamentDao.findById(tournamentId)
 
