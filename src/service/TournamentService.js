@@ -1205,9 +1205,9 @@ class TournamentService {
 
   revertTournamentPairing = async (tournamentId) => {
     try {
-      logger.info(`Reverting pairing data for round : ${tournament.current_round} of tournamentId: ${tournamentId}`)
       const message = 'Successfully reverted current round pairing'
       const tournament = await this.tournamentDao.findById(tournamentId)
+      logger.info(`Reverting pairing data for round : ${tournament.current_round} of tournamentId: ${tournamentId}`)
 
       await this.tournamentPairingsDao.deleteByWhere({
         round: tournament.current_round,
