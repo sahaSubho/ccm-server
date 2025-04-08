@@ -61,14 +61,22 @@ class PlayersService {
     return normalizedDistance <= threshold
   }
 
+  static cleanName = (rawName) => {
+    return rawName
+      .normalize("NFKD")                        // Normalize Unicode
+      .replace(/[\u0300-\u036f]/g, '')         // Remove accents/diacritics
+      .replace(/[^a-zA-Z0-9 .'-]/g, '')        // Remove weird characters
+      .trim();                                 // Remove leading/trailing spaces
+  }
+
   processUniquePlayers = async (input, tournamentId, isChatbot = false) => {
     let message = ''
     let data = input
     const tournament = await this.tournamentDao.findById(tournamentId)
 
-    data = data.map((d) => {
+    data = data.filter(x => x?.name?.length > 0).map((d) => {
       return {
-        name: d.name,
+        name: PlayersService.cleanName(d.name),
         fide_id: Number(d?.fide_id) || null,
         rating: Number(d.rating) || 0,
         gender: PlayersService.parseGender(d.gender),

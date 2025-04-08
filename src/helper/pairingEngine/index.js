@@ -14,9 +14,11 @@ const pair = (input, players, teams = [], fileName = '') => {
   fs.writeFileSync(trfFilePath, input)
   fs.writeFileSync(outputFilePath, '')
 
+  let stderrData = ''
   return new Promise((resolve, reject) => {
     const javafoCommand = spawn('java', [
       '-ea',
+      '-Xmx8192m', // max memory to 2GB
       '-jar',
       javafoJarPath,
       trfFilePath,
@@ -25,11 +27,12 @@ const pair = (input, players, teams = [], fileName = '') => {
     ])
 
     javafoCommand.stdout.on('data', (data) => {
-      console.log(`JaVaFo output: ${data}`)
+      console.log('[Java STDOUT]', data.toString())
     })
 
     javafoCommand.stderr.on('data', (data) => {
-      reject(data)
+      console.error('[Java STDERR]', data.toString())
+      stderrData += data.toString()
     })
 
     javafoCommand.on('close', (code) => {
@@ -83,7 +86,7 @@ const pair = (input, players, teams = [], fileName = '') => {
           }
         })
       } else {
-        reject(code)
+          reject(new Error(`JaVaFo failed with code ${code}:\n${stderrData}`))
       }
     })
   })

@@ -1,6 +1,6 @@
 /* eslint-disable no-param-reassign */
 /* eslint-disable no-plusplus */
-const pair = require('.')
+const runPairing = require('./runPairing')
 
 function formatPlayerData(player, round = 1, tournament_id = undefined) {
   if (round === 1) {
@@ -407,21 +407,20 @@ async function javaFoRoundPairing(
         //   matches[player.player_id][index - 1] = `0000 - Z`
         // }
         else if (String(player?.player_result)?.replace(/\s/g, '') === '---') {
-          matches[player.player_id][index - 1] = `${indexes[opp.player_id]} w  `
-          matches[opp.player_id][index - 1] = `${indexes[player.player_id]} b  `
+          matches[player.player_id][index - 1] = `${indexes[opp.player_id]} w -`
+          matches[opp.player_id][index - 1] = `${indexes[player.player_id]} b -`
         } else if (
-          player?.player_result === '0.5-0.5' ||
           player?.player_result === '0.5-0.5'
         ) {
           matches[player.player_id][index - 1] = `${indexes[opp.player_id]} w =`
           matches[opp.player_id][index - 1] = `${indexes[player.player_id]} b =`
         } else {
           matches[player.player_id][index - 1] = `${indexes[opp.player_id]} w ${
-            player?.player_result?.[0]
+            player?.player_result?.replace(/0.5/g,'=')[0]
           }`
 
           matches[opp.player_id][index - 1] = `${indexes[player.player_id]} b ${
-            opp?.player_result?.[2]
+            opp?.player_result?.replace(/0.5/g,'=')[2]
           }`
         }
       }
@@ -494,7 +493,7 @@ async function javaFoRoundPairing(
   } else if (config.color !== 'random') {
     result += `XXC ${config.color}1`
   }
-  const pairings = await pair(
+  const pairings = await runPairing(
     result,
     formatedPlayers,
     teams,
