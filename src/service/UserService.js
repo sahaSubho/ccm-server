@@ -86,10 +86,11 @@ class UserService {
     return this.userDao.findOneByWhere({ id })
   }
 
-  changePassword = async (data, id) => {
-    let message = 'Login Successful'
-    let statusCode = httpStatus.OK
-    let user = await this.userDao.findOneByWhere({ id })
+  changePassword = async (data) => {
+    let user = await this.userDao.findOneByWhere({
+      phone_number: data.mobile_number,
+      country_code: data.country_code,
+    })
 
     if (!user) {
       return responseHandler.returnError(
@@ -105,20 +106,12 @@ class UserService {
       )
     }
 
-    const isPasswordValid = await bcrypt.compare(
-      data.old_password,
-      user.password
-    )
-    user = user.toJSON()
+    console.log('User = ', user)
     delete user.password
-    if (!isPasswordValid) {
-      statusCode = httpStatus.BAD_REQUEST
-      message = 'Wrong old Password!'
-      return responseHandler.returnError(statusCode, message)
-    }
+
     const updateUser = await this.userDao.updateWhere(
       { password: bcrypt.hashSync(data.password, 8) },
-      { id }
+      { id: user.id }
     )
 
     if (updateUser) {
@@ -137,9 +130,11 @@ class UserService {
 
   getLichessUserById = async (lichessUserId) => {
     try {
-      console.log('Lichess Profile User Id = ', lichessUserId);
-      const lichessProfile = await this.lichessDao.findByLichessId(lichessUserId)
-      console.log('Lichess Profile = ', lichessProfile);
+      console.log('Lichess Profile User Id = ', lichessUserId)
+      const lichessProfile = await this.lichessDao.findByLichessId(
+        lichessUserId
+      )
+      console.log('Lichess Profile = ', lichessProfile)
       return lichessProfile
     } catch (e) {
       console.log('Failed to fetch lichess profile')

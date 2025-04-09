@@ -91,7 +91,6 @@ class AuthController {
     try {
       const responseData = await this.userService.changePassword(
         req.body,
-        req.user.id
       )
       res.status(responseData.statusCode).send(responseData.response)
     } catch (e) {

@@ -30,7 +30,6 @@ router.post('/connect-lichess', auth(), authController.connectLichessToUser)
 router.post('/logout', auth(), authController.logout)
 router.put(
   '/change-password',
-  auth(),
   userValidator.changePasswordValidator,
   authController.changePassword
 )
