@@ -230,5 +230,17 @@ class SuperDao {
       raw: true,
     })
   }
+
+  async findCountByGroup(groupBy, column, where) {
+    return this.Model.findAll({
+      attributes: [
+        groupBy,
+        [sequelize.fn('COUNT', sequelize.col(column)), 'count'],
+      ],
+      group: [groupBy],
+      where,
+      raw: true,
+    })
+  }
 }
 module.exports = SuperDao

@@ -2,6 +2,7 @@ const httpStatus = require('http-status')
 const AuthService = require('../service/AuthService')
 const TokenService = require('../service/TokenService')
 const UserService = require('../service/UserService')
+const RedisService = require('../service/RedisService')
 const logger = require('../config/logger')
 const { tokenTypes } = require('../config/tokens')
 
@@ -10,6 +11,7 @@ class AuthController {
     this.userService = new UserService()
     this.tokenService = new TokenService()
     this.authService = new AuthService()
+    this.redisService = new RedisService()
   }
 
   register = async (req, res) => {
@@ -178,6 +180,8 @@ class AuthController {
         tokenDoc.user_id,
         lichess_username
       )
+
+      await this.redisService.removeKey(`user:${tokenDoc.user_id}`)
 
       if (user == null) {
         res.status(httpStatus.NOT_FOUND).send('User Not Found!')

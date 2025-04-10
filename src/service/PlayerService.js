@@ -414,7 +414,7 @@ class PlayersService {
             whitePlayers.push({
               round,
               tournament_id: tournamentId,
-              player_uuid:
+              player_id:
                 playerUuidMapping[d.white?.['no.']] ||
                 players.find((p) => {
                   return (
@@ -432,7 +432,7 @@ class PlayersService {
               blackPlayers.push({
                 round,
                 tournament_id: tournamentId,
-                player_uuid:
+                player_id:
                   playerUuidMapping[d.black?.['no.']] ||
                   players.find((p) => {
                     return (

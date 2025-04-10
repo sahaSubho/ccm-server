@@ -221,7 +221,7 @@ const parseChessResultFile = async (filePath, type, format) => {
                   ['bye', 'not paired'].includes(b)
                 ) {
                   if (b === 'bye') {
-                    a.white.result = '1-0'
+                    a.white.result = '+-'
                   }
                   color = 'black'
                   a.black = { ...a.white, name: b }
