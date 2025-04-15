@@ -125,11 +125,21 @@ function getTieBreaks(data, round, trnConfig) {
     return acc
   }, {})
 
-  const players = data
-    .filter((d) => {
-      return d.round === round
-    })
-    .map((e) => {
+  const player_ids = [
+    ...new Set(
+      data.map((d) => {
+        return d.player_id
+      })
+    ),
+  ]
+
+  const players = player_ids
+    .map((id) => {
+      const e = data
+        .filter((d) => {
+          return d.player_id === id
+        })
+        .pop()
       return {
         ...e,
         ...trnConfig?.tiebreaks?.reduce((acc, code, i) => {

@@ -122,6 +122,28 @@ class TournamentController {
     }
   }
 
+  getClubMembership = async (req, res) => {
+    try {
+      const tournaments = await this.tournamentService.getClubMembership(req.user)
+      const { status, message, data } = tournaments.response
+      res.status(tournaments.statusCode).send({ status, message, data })
+    } catch (e) {
+      logger.error(e)
+      res.status(httpStatus.BAD_GATEWAY).send(e)
+    }
+  }
+
+  getLichessTeams = async (req, res) => {
+    try {
+      const tournaments = await this.tournamentService.getLichessTeams(req.user)
+      const { status, message, data } = tournaments.response
+      res.status(tournaments.statusCode).send({ status, message, data })
+    } catch (e) {
+      logger.error(e)
+      res.status(httpStatus.BAD_GATEWAY).send(e)
+    }
+  }
+
   createTournamentPairing = async (req, res) => {
     try {
       const { round, tournamentId } = req.query

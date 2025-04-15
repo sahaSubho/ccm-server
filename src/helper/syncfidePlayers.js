@@ -3,24 +3,13 @@ const fs = require('fs')
 const { v4: uuidv4 } = require('uuid')
 const unzipper = require('unzipper')
 const XmlStream = require('xml-stream')
+const { Op } = require('sequelize')
 const moment = require('moment')
 const PlayersDao = require('../dao/PlayersDao')
 const RedisService = require('../service/RedisService')
-const { sequelize } = require('../models')
 
 const playersDao = new PlayersDao()
 const redisService = new RedisService()
-
-let timer
-
-function debounce(func, timeout = 100) {
-  return (...args) => {
-    clearTimeout(timer)
-    timer = setTimeout(() => {
-      func.apply(this, args)
-    }, timeout)
-  }
-}
 
 function delay(ms) {
   return new Promise((resolve) => {
@@ -31,27 +20,12 @@ function delay(ms) {
 // Error handling wrapper for DB insertion
 async function processBatch(batch) {
   try {
-    const promises = batch.map((p) => {
-      return sequelize.transaction(async (t) => {
-        await playersDao.updateOrCreateWithTransaction(
-          p,
-          { fide_id: p.fide_id },
-          t
-        )
-      })
-    })
-
-    await Promise.allSettled(promises)
-
+    await playersDao.bulkCreate(batch)
     console.log(`Inserted or Updated total ${batch.length} players`)
   } catch (error) {
     console.error('Error inserting batch:', error)
     // Log the error or save the failed batch somewhere for reprocessing
   }
-}
-
-async function processdata(result) {
-  await processBatch(result)
 }
 
 async function syncUpdatedFidePlayersData() {
@@ -115,8 +89,13 @@ async function syncUpdatedFidePlayersData() {
         .pipe(unzipper.ParseOne())
         .pipe(fs.createWriteStream(xmlPath))
 
-      extractStream.on('finish', () => {
+      extractStream.on('finish', async () => {
         console.log('XML file extracted successfully')
+        try {
+          await playersDao.deleteByWhere({ id: { [Op.gte]: 1 } })
+        } catch (e) {
+          console.log('player table delete', e)
+        }
         resolve()
       })
 
@@ -150,16 +129,17 @@ async function syncUpdatedFidePlayersData() {
         rating: item.rating,
         rapid_rating: item.rapid_rating,
         blitz_rating: item.blitz_rating,
+        federation: item.country,
       }
       result.push(data)
 
       // Check if result buffer has reached the batch size
-      if (result.length >= 500) {
+      if (result.length >= 10000) {
         // Process and insert the batch, then clear the buffer
-        processdata(result)
+        processBatch(result)
 
         result = []
-        await delay(500) // Introduce delay to reduce DB load (optional)
+        // await delay(500) // Introduce delay to reduce DB load (optional)
       }
     })
 

@@ -1,6 +1,6 @@
 /* eslint-disable no-param-reassign */
 /* eslint-disable no-plusplus */
-const pair = require('.')
+const runPairing = require('./runPairing')
 
 function formatPlayerData(player, round = 1, tournament_id = undefined) {
   if (round === 1) {
@@ -13,7 +13,7 @@ function formatPlayerData(player, round = 1, tournament_id = undefined) {
       player_name: player.name,
       player_rating: player.rating || 0,
       player_score: player.score || 0,
-      cc_userid: player.cc_userid || 0
+      cc_userid: player.cc_userid || 0,
     }
   }
   return {
@@ -25,7 +25,7 @@ function formatPlayerData(player, round = 1, tournament_id = undefined) {
     player_rating: player.player_rating || 0,
     player_score: player.player_score,
     result: player.result,
-    cc_userid: player.cc_userid || 0
+    cc_userid: player.cc_userid || 0,
   }
 }
 
@@ -331,8 +331,8 @@ async function javaFoRoundPairing(
     `062  ${numberOfPlayers}\n` +
     `092  ${tournament.pairing_type}: Swiss-System\n` +
     `XXR  ${tournament.rounds}\n`
-  const lastRoundPlayers = white.concat(black).filter((p) => {
-    return p?.round === round - 1
+  const data = white.concat(black).sort((a, b) => {
+    return a.round - b.round
   })
 
   let stats = players
@@ -364,9 +364,11 @@ async function javaFoRoundPairing(
       key: i + 1,
       round,
       player_score:
-        lastRoundPlayers?.find((x) => {
-          return x.player_id === p.id
-        })?.player_score || 0,
+        data
+          .filter((d) => {
+            return d.player_id === p.id
+          })
+          .pop()?.player_score || 0,
     }
   })
   const matches = {}
@@ -405,21 +407,20 @@ async function javaFoRoundPairing(
         //   matches[player.player_id][index - 1] = `0000 - Z`
         // }
         else if (String(player?.player_result)?.replace(/\s/g, '') === '---') {
-          matches[player.player_id][index - 1] = `${indexes[opp.player_id]} w  `
-          matches[opp.player_id][index - 1] = `${indexes[player.player_id]} b  `
+          matches[player.player_id][index - 1] = `${indexes[opp.player_id]} w -`
+          matches[opp.player_id][index - 1] = `${indexes[player.player_id]} b -`
         } else if (
-          player?.player_result === '0.5-0.5' ||
           player?.player_result === '0.5-0.5'
         ) {
           matches[player.player_id][index - 1] = `${indexes[opp.player_id]} w =`
           matches[opp.player_id][index - 1] = `${indexes[player.player_id]} b =`
         } else {
           matches[player.player_id][index - 1] = `${indexes[opp.player_id]} w ${
-            player?.player_result?.[0]
+            player?.player_result?.replace(/0.5/g,'=')[0]
           }`
 
           matches[opp.player_id][index - 1] = `${indexes[player.player_id]} b ${
-            opp?.player_result?.[2]
+            opp?.player_result?.replace(/0.5/g,'=')[2]
           }`
         }
       }
@@ -472,7 +473,6 @@ async function javaFoRoundPairing(
       `${ranks[p.player_id]?.toString().padStart(4, ' ')}`
     ;[...Array(round - 1).keys()]
       .map((x) => {
-        console.log('player', p.key, matches[p.player_id][x])
         return matches[p.player_id][x] || '0000 - Z'
       })
       ?.forEach((match) => {
@@ -493,7 +493,7 @@ async function javaFoRoundPairing(
   } else if (config.color !== 'random') {
     result += `XXC ${config.color}1`
   }
-  const pairings = await pair(
+  const pairings = await runPairing(
     result,
     formatedPlayers,
     teams,

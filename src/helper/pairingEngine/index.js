@@ -1,17 +1,24 @@
 const { spawn } = require('child_process')
 const fs = require('fs')
+const uploadFileToS3 = require("../uploadFiletoS3")
 
 const pair = (input, players, teams = [], fileName = '') => {
   const javafoJarPath = 'src/helper/pairingEngine/files/javafo.jar' // Path to javafo.jar in your project
   const trfFilePath = `uploads/files/input_${fileName}.trf` // Path to your input TRF file
   const outputFilePath = `uploads/files/output_${fileName}.trf` // Path to the output file
   
+  if (!fs.existsSync('uploads/files')) {
+    fs.mkdirSync('uploads/files', { recursive: true })
+  }
+
   fs.writeFileSync(trfFilePath, input)
   fs.writeFileSync(outputFilePath, '')
 
+  let stderrData = ''
   return new Promise((resolve, reject) => {
     const javafoCommand = spawn('java', [
       '-ea',
+      '-Xmx8192m', // max memory to 2GB
       '-jar',
       javafoJarPath,
       trfFilePath,
@@ -20,15 +27,18 @@ const pair = (input, players, teams = [], fileName = '') => {
     ])
 
     javafoCommand.stdout.on('data', (data) => {
-      console.log(`JaVaFo output: ${data}`)
+      console.log('[Java STDOUT]', data.toString())
     })
 
     javafoCommand.stderr.on('data', (data) => {
-      reject(data)
+      console.error('[Java STDERR]', data.toString())
+      stderrData += data.toString()
     })
 
     javafoCommand.on('close', (code) => {
       console.log(`JaVaFo process exited with code ${code}`)
+      uploadFileToS3(trfFilePath, process.env.AWS_S3_BUCKET_NAME, `pairings/input_${fileName}.trf`)
+      uploadFileToS3(outputFilePath, process.env.AWS_S3_BUCKET_NAME, `pairings/output_${fileName}.trf`)
       if (code === 0) {
         fs.readFile(outputFilePath, 'utf8', (err, data) => {
           if (!err) {
@@ -76,7 +86,7 @@ const pair = (input, players, teams = [], fileName = '') => {
           }
         })
       } else {
-        reject(code)
+          reject(new Error(`JaVaFo failed with code ${code}:\n${stderrData}`))
       }
     })
   })

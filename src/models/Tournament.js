@@ -85,6 +85,16 @@ module.exports = (sequelize, DataTypes) => {
       stakeholders_mobile_number: DataTypes.STRING,
       feedback_key: DataTypes.UUID,
       pairing_type: DataTypes.STRING,
+      time_format: DataTypes.STRING,
+      is_club_membership: {
+        type: DataTypes.INTEGER,
+        defaultValue: 0
+      },
+      association_level: DataTypes.STRING,
+      association_name: DataTypes.STRING,
+      association_membership_id_prefix: DataTypes.STRING,
+      association_membership_duration: DataTypes.STRING,
+      mandatory_club_membership_name: DataTypes.STRING,
     },
     {
       sequelize,

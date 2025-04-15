@@ -12,9 +12,8 @@ class UserValidator {
       confirm_password: Joi.string().valid(Joi.ref('password')).required(),
       first_name: Joi.string().required(),
       last_name: Joi.string().required(),
-      phone_number: Joi.string()
-        .regex(/^(\+91?|0?)[\-\s]?[1-9]\d{3}[\-\s]?\d{6}$/)
-        .required(),
+      phone_number: Joi.string().required(),
+      country_code: Joi.string().required(),
       role: Joi.string()
         .valid(userRoles.ORGANIZER, userRoles.PLAYER)
         .required(),
@@ -111,7 +110,8 @@ class UserValidator {
   async changePasswordValidator(req, res, next) {
     // create schema object
     const schema = Joi.object({
-      old_password: Joi.string().required(),
+      country_code: Joi.string().required(),
+      mobile_number: Joi.string().required(),
       password: Joi.string().min(6).required(),
       confirm_password: Joi.string().min(6).required(),
     })
