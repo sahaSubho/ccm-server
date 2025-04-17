@@ -95,6 +95,7 @@ module.exports = (sequelize, DataTypes) => {
       association_membership_id_prefix: DataTypes.STRING,
       association_membership_duration: DataTypes.STRING,
       mandatory_club_membership_name: DataTypes.STRING,
+      prize: DataTypes.STRING,
     },
     {
       sequelize,

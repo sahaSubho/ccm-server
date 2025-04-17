@@ -34,6 +34,7 @@ class TournamentValidator {
       start_date: Joi.date().required(),
       end_date: Joi.date().greater(Joi.ref('start_date')).required(),
       pairing_type: Joi.string().default('Individual'),
+      prize: Joi.string(),
       is_club_membership: Joi.number().default(0),
       association_level: Joi.alternatives().conditional('is_club_membership', { is: 1, then: Joi.string().default('ChessClub'), otherwise: Joi.optional() }),
       association_name: Joi.alternatives().conditional('is_club_membership', { is: 1, then: Joi.string().required(),otherwise: Joi.optional() }),
