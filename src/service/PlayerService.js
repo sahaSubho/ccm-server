@@ -684,7 +684,11 @@ class PlayersService {
       if (tournament.cct_id && tournament.enable_registration) {
         try {
           const newPlayers = await sequelize.query(
-            `Select b.player_name as name,
+            `Select 
+          CASE
+              WHEN b.fide_id > 0 THEN (select name from players c where c.fide_id=b.fide_id)
+              ELSE b.player_name
+          END as name,
           a.category as category,
           b.mobile_number as mobile_number,
           b.sex as gender,

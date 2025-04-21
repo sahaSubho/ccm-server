@@ -6,7 +6,7 @@ const pair = (input, players, teams = [], fileName = '') => {
   const javafoJarPath = 'src/helper/pairingEngine/files/javafo.jar' // Path to javafo.jar in your project
   const trfFilePath = `uploads/files/input_${fileName}.trf` // Path to your input TRF file
   const outputFilePath = `uploads/files/output_${fileName}.trf` // Path to the output file
-  
+
   if (!fs.existsSync('uploads/files')) {
     fs.mkdirSync('uploads/files', { recursive: true })
   }
@@ -18,13 +18,14 @@ const pair = (input, players, teams = [], fileName = '') => {
   return new Promise((resolve, reject) => {
     const javafoCommand = spawn('java', [
       '-ea',
-      '-Xmx8192m', // max memory to 2GB
+      '-Xmx10240m',
+      '-XX:+HeapDumpOnOutOfMemoryError',
       '-jar',
       javafoJarPath,
       trfFilePath,
       '-p',
       outputFilePath,
-    ])
+    ],{cwd: process.cwd()})
 
     javafoCommand.stdout.on('data', (data) => {
       console.log('[Java STDOUT]', data.toString())
@@ -86,7 +87,7 @@ const pair = (input, players, teams = [], fileName = '') => {
           }
         })
       } else {
-          reject(new Error(`JaVaFo failed with code ${code}:\n${stderrData}`))
+        reject(new Error(`JaVaFo failed with code ${code}:\n${stderrData}`))
       }
     })
   })

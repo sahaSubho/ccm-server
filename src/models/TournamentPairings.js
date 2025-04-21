@@ -1,4 +1,5 @@
 const { Model } = require('sequelize')
+const config = require('../config/config')
 
 module.exports = (sequelize, DataTypes) => {
   class TournamentPairings extends Model {
@@ -32,11 +33,7 @@ module.exports = (sequelize, DataTypes) => {
       player_fide_id: DataTypes.INTEGER,
       player_uuid: {
         type: DataTypes.STRING,
-        allowNull: true,
-        references: {
-          model: 'players',
-          key: 'uuid',
-        },
+        allowNull: true
       },
       player_id: {
         type: DataTypes.INTEGER,
@@ -74,7 +71,7 @@ module.exports = (sequelize, DataTypes) => {
     },
     {
       sequelize,
-      modelName: 'tournament_pairings',
+      modelName: (config.simulate ? 'temp_' : '')+'tournament_pairings',
     }
   )
   return TournamentPairings

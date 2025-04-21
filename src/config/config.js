@@ -43,6 +43,7 @@ const envValidation = Joi.object()
     PUBLISH_TRN_TO_CIRCLECHESS: Joi.bool().required(),
     CIRCLECHESS_API_URL: Joi.string().required(),
     GAME_SERVICE_API_URL: Joi.string(),
+    SIMULATION_MODE: Joi.boolean(),
   })
   .unknown()
 
@@ -99,4 +100,5 @@ module.exports = {
   gameService: {
     endpoint: envVar.GAME_SERVICE_API_URL,
   },
+  simulate: envVar.SIMULATION_MODE
 }

@@ -1,4 +1,5 @@
 const { Model } = require('sequelize')
+const config = require('../config/config')
 
 module.exports = (sequelize, DataTypes) => {
   class Tournament extends Model {
@@ -10,7 +11,7 @@ module.exports = (sequelize, DataTypes) => {
     static associate(models) {
       // define association here
       Tournament.belongsTo(models.users, { foreignKey: 'created_by' })
-      Tournament.hasMany(models.tournament_pairings, {
+      Tournament.hasMany(models[(config.simulate ? 'temp_' : '')+'tournament_pairings'], {
         foreignKey: 'tournament_id',
       })
       Tournament.hasMany(models.players_prize_payouts, {
@@ -25,7 +26,7 @@ module.exports = (sequelize, DataTypes) => {
       Tournament.hasMany(models.ccm_team_pairings, {
         foreignKey: 'tournament_id',
       })
-      Tournament.hasMany(models.ccm_tournament_configurations, {
+      Tournament.hasMany(models[(config.simulate ? 'temp_' : '')+'ccm_tournament_configurations'], {
         foreignKey: 'tournament_id',
       })
     }

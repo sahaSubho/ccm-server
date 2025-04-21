@@ -5,6 +5,7 @@ const path = require('path')
 function runPairing(input, players, teams = [], fileName = '') {
   return new Promise((resolve, reject) => {
     const worker = new Worker(path.resolve(__dirname, './pairing.worker.js'))
+    console.log("Worker started")
 
     worker.postMessage({ input, players, teams, fileName })
 
@@ -12,7 +13,8 @@ function runPairing(input, players, teams = [], fileName = '') {
       if (message.status === 'success') {
         resolve(message.result)
       } else {
-        reject(new Error(message.error))
+        console.log("Worker error:", JSON.stringify(message))
+        reject()
       }
     })
 

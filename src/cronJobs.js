@@ -2,6 +2,7 @@
 /* eslint-disable no-restricted-syntax */
 const cron = require('node-cron')
 const { Worker } = require('worker_threads')
+const runSimulationTask = require('../simulation/worker')
 
 cron.schedule('0 17 * * *', () => {
   console.log('cron started for fetching fide players')
@@ -29,4 +30,9 @@ cron.schedule('0 17 * * *', () => {
       console.error(`Worker stopped with exit code ${code}`)
     }
   })
+})
+
+
+cron.schedule('0 20 * * 1,4', () => {
+  runSimulationTask()
 })
