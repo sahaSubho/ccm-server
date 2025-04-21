@@ -73,10 +73,18 @@ class PlayersService {
     let message = ''
     let data = input
     const tournament = await this.tournamentDao.findById(tournamentId)
+    const fidePlayers = await this.playersDao.findByWhere({
+      fide_id : data.filter(d => Number(d?.fide_id) > 0).map(x => Number(x.fide_id))
+    }) 
+
+    const fidePlayerNames = fidePlayers.reduce((a,b) => {
+      a[b.fide_id] = b.name
+      return a;
+    }, {})
 
     data = data.filter(x => x?.name?.length > 0).map((d) => {
       return {
-        name: PlayersService.cleanName(d.name),
+        name: fidePlayerNames[d.fide_id] ? fidePlayerNames[d.fide_id] : PlayersService.cleanName(d.name),
         fide_id: Number(d?.fide_id) || null,
         rating: Number(d.rating) || 0,
         gender: PlayersService.parseGender(d.gender),
@@ -98,6 +106,8 @@ class PlayersService {
     const players = await this.trnplayersDao.findByWhere({
       tournament_id: tournamentId,
     })
+
+
 
     const common = []
     let newPlayers = []
