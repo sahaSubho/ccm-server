@@ -50,8 +50,15 @@ class PlayersService {
   static CSOCTournamentMapping = {
     1159: 16599,
     1160: 19538,
-    1161: '24797,23696',
+    1161: '24797,23696,28545',
     1162: 19526,
+  }
+
+  static CSOCTournamentClassNameMapping = {
+    1159: '-P-AD',
+    1160: '-P-IN',
+    1161: '-P-F',
+    1162: '-P-B',
   }
 
   static areNamesSimilar = (_name1, _name2, threshold = 0.5) => {
@@ -591,9 +598,18 @@ class PlayersService {
         console.log('CSOC res', `select id from cc_csoc_registration where status=1 and mobile_number='${user.mobile_number}' and tournament_id in (${PlayersService.CSOCTournamentMapping[id]})`, res.length, JSON.stringify(res))
 
         if (!res.length) {
-          message =
-            "Failed to add player! Since Player doesn't belongs to respective CSOC batch."
-          return responseHandler.returnError(httpStatus.BAD_REQUEST, message)
+          const res1 = await sequelize.query(
+            `select id from cc_csoc_registration where status=1 and mobile_number='${user.mobile_number}' and class_name like '%${PlayersService.CSOCTournamentClassNameMapping[id]}%'`,
+            {
+              type: sequelize.QueryTypes.SELECT,
+            }
+          )
+          console.log('CSOC res 1', `select id from cc_csoc_registration where status=1 and mobile_number='${user.mobile_number}' and class_name like '%${PlayersService.CSOCTournamentClassNameMapping[id]}%'`, JSON.stringify(res1))
+          if (!res1.length) {
+            message =
+              "Failed to add player! Since Player doesn't belongs to respective CSOC batch."
+            return responseHandler.returnError(httpStatus.BAD_REQUEST, message)
+          }
         }
       }
 
