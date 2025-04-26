@@ -580,17 +580,19 @@ class PlayersService {
 
       const user = await this.CCUserDao.findOne({ user_id: data.playerId })
 
-      const res = await sequelize.query(
-        `select id from cc_csoc_registration where status=1 and mobile_number=${user.mobile_number} and tournament_id in (${PlayersService.CSOCTournamentMapping[id]})`,
-        {
-          type: sequelize.QueryTypes.SELECT,
-        }
-      )
+      if (PlayersService.CSOCTournamentMapping[id]) {
+        const res = await sequelize.query(
+          `select id from cc_csoc_registration where status=1 and mobile_number=${user.mobile_number} and tournament_id in (${PlayersService.CSOCTournamentMapping[id]})`,
+          {
+            type: sequelize.QueryTypes.SELECT,
+          }
+        )
 
-      if (!res) {
-        message =
-          "Failed to add player! Since Player doesn't belongs to respective CSOC batch."
-        return responseHandler.returnError(httpStatus.BAD_REQUEST, message)
+        if (!res) {
+          message =
+            "Failed to add player! Since Player doesn't belongs to respective CSOC batch."
+          return responseHandler.returnError(httpStatus.BAD_REQUEST, message)
+        }
       }
 
       if (!user) {
