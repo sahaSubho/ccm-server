@@ -588,9 +588,9 @@ class PlayersService {
           }
         )
 
-        console.log('CSOC res', res)
+        console.log('CSOC res', `select id from cc_csoc_registration where status=1 and mobile_number='${user.mobile_number}' and tournament_id in (${PlayersService.CSOCTournamentMapping[id]})`, res.length, JSON.stringify(res))
 
-        if (!res) {
+        if (!res.length) {
           message =
             "Failed to add player! Since Player doesn't belongs to respective CSOC batch."
           return responseHandler.returnError(httpStatus.BAD_REQUEST, message)
