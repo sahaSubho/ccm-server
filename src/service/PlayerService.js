@@ -582,11 +582,13 @@ class PlayersService {
 
       if (PlayersService.CSOCTournamentMapping[id]) {
         const res = await sequelize.query(
-          `select id from cc_csoc_registration where status=1 and mobile_number=${user.mobile_number} and tournament_id in (${PlayersService.CSOCTournamentMapping[id]})`,
+          `select id from cc_csoc_registration where status=1 and mobile_number='${user.mobile_number}' and tournament_id in (${PlayersService.CSOCTournamentMapping[id]})`,
           {
             type: sequelize.QueryTypes.SELECT,
           }
         )
+
+        console.log('CSOC res', res)
 
         if (!res) {
           message =
