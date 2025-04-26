@@ -47,6 +47,13 @@ class PlayersService {
     return ''
   }
 
+  static CSOCTournamentMapping = {
+    1159: 16599,
+    1160: 19538,
+    1161: '24797,23696',
+    1162: 19526,
+  }
+
   static areNamesSimilar = (_name1, _name2, threshold = 0.5) => {
     // Convert names to lowercase for case-insensitive comparison
     const name1 = _name1.toLowerCase()
@@ -63,10 +70,10 @@ class PlayersService {
 
   static cleanName = (rawName) => {
     return rawName
-      .normalize("NFKD")                        // Normalize Unicode
-      .replace(/[\u0300-\u036f]/g, '')         // Remove accents/diacritics
-      .replace(/[^a-zA-Z0-9 .'-]/g, '')        // Remove weird characters
-      .trim();                                 // Remove leading/trailing spaces
+      .normalize('NFKD') // Normalize Unicode
+      .replace(/[\u0300-\u036f]/g, '') // Remove accents/diacritics
+      .replace(/[^a-zA-Z0-9 .'-]/g, '') // Remove weird characters
+      .trim() // Remove leading/trailing spaces
   }
 
   processUniquePlayers = async (input, tournamentId, isChatbot = false) => {
@@ -74,40 +81,44 @@ class PlayersService {
     let data = input
     const tournament = await this.tournamentDao.findById(tournamentId)
     const fidePlayers = await this.playersDao.findByWhere({
-      fide_id : data.filter(d => Number(d?.fide_id) > 0).map(x => Number(x.fide_id))
-    }) 
+      fide_id: data
+        .filter((d) => Number(d?.fide_id) > 0)
+        .map((x) => Number(x.fide_id)),
+    })
 
-    const fidePlayerNames = fidePlayers.reduce((a,b) => {
+    const fidePlayerNames = fidePlayers.reduce((a, b) => {
       a[b.fide_id] = b.name
-      return a;
+      return a
     }, {})
 
-    data = data.filter(x => x?.name?.length > 0).map((d) => {
-      return {
-        name: fidePlayerNames[d.fide_id] ? fidePlayerNames[d.fide_id] : PlayersService.cleanName(d.name),
-        fide_id: Number(d?.fide_id) || null,
-        rating: Number(d.rating) || 0,
-        gender: PlayersService.parseGender(d.gender),
-        registered_from: isChatbot ? 'Chatbot' : 'CCM',
-        age: d?.age
-          ? d.age
-          : moment(tournament.start_date).year() -
-            Number(d?.birth_year || 2000),
-        mobile: d?.mobile_number || '',
-        upi_id: d?.upi_address || '',
-        title: d?.title || '',
-        entry_fee_category: d?.category || 'Open',
-        team: d?.team || '',
-        pId: d?.['no.'] || 0,
-        tournament_id: tournamentId,
-      }
-    })
+    data = data
+      .filter((x) => x?.name?.length > 0)
+      .map((d) => {
+        return {
+          name: fidePlayerNames[d.fide_id]
+            ? fidePlayerNames[d.fide_id]
+            : PlayersService.cleanName(d.name),
+          fide_id: Number(d?.fide_id) || null,
+          rating: Number(d.rating) || 0,
+          gender: PlayersService.parseGender(d.gender),
+          registered_from: isChatbot ? 'Chatbot' : 'CCM',
+          age: d?.age
+            ? d.age
+            : moment(tournament.start_date).year() -
+              Number(d?.birth_year || 2000),
+          mobile: d?.mobile_number || '',
+          upi_id: d?.upi_address || '',
+          title: d?.title || '',
+          entry_fee_category: d?.category || 'Open',
+          team: d?.team || '',
+          pId: d?.['no.'] || 0,
+          tournament_id: tournamentId,
+        }
+      })
 
     const players = await this.trnplayersDao.findByWhere({
       tournament_id: tournamentId,
     })
-
-
 
     const common = []
     let newPlayers = []
@@ -569,6 +580,19 @@ class PlayersService {
 
       const user = await this.CCUserDao.findOne({ user_id: data.playerId })
 
+      const res = await sequelize.query(
+        `select id from cc_csoc_registration where status=1 and mobile_number=${user.mobile_number} and tournament_id in (${PlayersService.CSOCTournamentMapping[id]})`,
+        {
+          type: sequelize.QueryTypes.SELECT,
+        }
+      )
+
+      if (!res) {
+        message =
+          "Failed to add player! Since Player doesn't belongs to respective CSOC batch."
+        return responseHandler.returnError(httpStatus.BAD_REQUEST, message)
+      }
+
       if (!user) {
         throw new Error(`User with user_id ${data.playerId} not found`)
       }
@@ -689,7 +713,12 @@ class PlayersService {
 
       let tournament = await this.tournamentDao.findById(tournamentId)
 
-      const ratingType = tournament.time_format === 'Blitz' ? 'blitz_rating' : tournament.time_format === "Rapid" ? "rapid_rating" : "rating"
+      const ratingType =
+        tournament.time_format === 'Blitz'
+          ? 'blitz_rating'
+          : tournament.time_format === 'Rapid'
+          ? 'rapid_rating'
+          : 'rating'
 
       if (tournament.cct_id && tournament.enable_registration) {
         try {
