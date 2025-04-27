@@ -61,16 +61,16 @@ class PlayersService {
     1162: '-P-B',
   }
 
-  static areNamesSimilar = (_name1, _name2, threshold = 0.5) => {
+  static areNamesSimilar = (_name1, _name2, threshold = 0.2) => {
     // Convert names to lowercase for case-insensitive comparison
     const name1 = _name1.toLowerCase()
     const name2 = _name2.toLowerCase()
-
+    
     // Calculate the Levenshtein distance
     const distance = levenshtein.get(name1, name2)
     const maxLen = Math.max(name1.length, name2.length)
     const normalizedDistance = maxLen > 0 ? distance / maxLen : 0
-
+  
     // Check if the normalized distance is less than or equal to the threshold
     return normalizedDistance <= threshold
   }
