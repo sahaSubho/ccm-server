@@ -13,10 +13,6 @@ module.exports = (sequelize, DataTypes) => {
       TournamentPairings.belongsTo(models.cc_tournament_chessmasters, {
         foreignKey: 'tournament_id',
       })
-      TournamentPairings.belongsTo(models.players, {
-        targetKey: 'uuid',
-        foreignKey: 'player_uuid',
-      })
       TournamentPairings.belongsTo(models.ccm_tournament_players, {
         targetKey: 'id',
         foreignKey: 'player_id',

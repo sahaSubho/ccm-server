@@ -1,4 +1,5 @@
 const { Model } = require('sequelize')
+const config = require('../config/config')
 
 module.exports = (sequelize, DataTypes) => {
   class TournamentPlayers extends Model {
