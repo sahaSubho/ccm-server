@@ -11,7 +11,7 @@ module.exports = (sequelize, DataTypes) => {
     static associate(models) {
       // define association here
       Tournament.belongsTo(models.users, { foreignKey: 'created_by' })
-      Tournament.hasMany(models[(config.simulate ? 'temp_' : '')+'tournament_pairings'], {
+      Tournament.hasMany(models[(config.simulate ? 'temp_' : 'ccm_')+'tournament_pairings'], {
         foreignKey: 'tournament_id',
       })
       Tournament.hasMany(models.players_prize_payouts, {
