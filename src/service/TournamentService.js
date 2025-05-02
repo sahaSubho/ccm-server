@@ -155,7 +155,7 @@ class TournamentService {
 
       try {
         let message = 'Successfully created tournament.'
-        if (![userRoles.ORGANIZER,userRoles.ADMIN].includes(req.user.role)) {
+        if (![userRoles.ORGANIZER, userRoles.ADMIN].includes(req.user.role)) {
           message =
             'Tournament creation is limited to organizers. Kindly sign up or log in as an organizer to continue.'
           return responseHandler.returnError(httpStatus.BAD_REQUEST, message)
@@ -172,7 +172,7 @@ class TournamentService {
             new Date(tournamentBody.startDate).getTime() + 12 * 60 * 60 * 1000
           ).toISOString()
           tournamentBody.country = 'Online Circlechess'
-          tournamentBody.federation = 'Online Circlechess'
+          tournamentBody.federation = 'IND'
           tournamentBody.is_active = true
           tournamentBody.created_by = req.user.id
           tournamentBody.address = 'Online Circlechess'
@@ -304,7 +304,7 @@ class TournamentService {
               options
             )
             const json = await lichessResponse.json()
-            console.log("lichess swiss", JSON.stringify(json))
+            console.log('lichess swiss', JSON.stringify(json))
             if (!json.id) {
               if (json.global && json.global.length > 0) {
                 responseHandler.returnError(
@@ -388,7 +388,7 @@ class TournamentService {
 
       try {
         let message = 'Successfully created tournament.'
-        if (![userRoles.ORGANIZER,userRoles.ADMIN].includes(req.user.role)) {
+        if (![userRoles.ORGANIZER, userRoles.ADMIN].includes(req.user.role)) {
           message =
             'Tournament creation is limited to organizers. Kindly sign up or log in as an organizer to continue.'
           return responseHandler.returnError(httpStatus.BAD_REQUEST, message)
@@ -465,25 +465,25 @@ class TournamentService {
             options
           )
 
-            const json = await lichessResponse.json()
+          const json = await lichessResponse.json()
 
-            if (!json.id) {
-              if (json.global && json.global.length > 0) {
-                responseHandler.returnError(
-                  httpStatus.BAD_REQUEST,
-                  json.global[0]
-                )
-              } else if (
-                json.error &&
-                json.error.global &&
-                json.error.global.length > 0
-              ) {
-                responseHandler.returnError(
-                  httpStatus.BAD_REQUEST,
-                  json.error.global[0]
-                )
-              }
+          if (!json.id) {
+            if (json.global && json.global.length > 0) {
+              responseHandler.returnError(
+                httpStatus.BAD_REQUEST,
+                json.global[0]
+              )
+            } else if (
+              json.error &&
+              json.error.global &&
+              json.error.global.length > 0
+            ) {
+              responseHandler.returnError(
+                httpStatus.BAD_REQUEST,
+                json.error.global[0]
+              )
             }
+          }
 
           // Set up defaults for tournament row in the DB
           tournamentBody.federation = 'Online Lichess'
@@ -546,7 +546,7 @@ class TournamentService {
   createTournament = async (tournamentBody, req) => {
     try {
       let message = 'Successfully created tournament.'
-      if(tournamentBody.is_club_membership){
+      if (tournamentBody.is_club_membership) {
         message = 'Successfully created your club.'
       }
       if (
@@ -558,8 +558,10 @@ class TournamentService {
         return responseHandler.returnError(httpStatus.BAD_REQUEST, message)
       }
 
-      if (tournamentBody.is_club_membership === 1){
-        const exits = await this.tournamentDao.checkExist({ name: tournamentBody.name })
+      if (tournamentBody.is_club_membership === 1) {
+        const exits = await this.tournamentDao.checkExist({
+          name: tournamentBody.name,
+        })
         if (exits) {
           message = 'Club name already exists! Try Different name.'
           return responseHandler.returnError(httpStatus.BAD_REQUEST, message)
@@ -675,11 +677,11 @@ class TournamentService {
         return acc
       }, {})
 
-      data.forEach((tournament) => {  
+      data.forEach((tournament) => {
         const playerCount = playersCountMap[tournament.id] || 0
         tournament['players_count'] = playerCount
       })
-      
+
       return responseHandler.returnSuccess(httpStatus.OK, message, data)
     } catch (e) {
       logger.error(e)
@@ -690,9 +692,10 @@ class TournamentService {
     }
   }
 
-  getCirclechesssTournaments = async (limit = 10, offset = 0) => {
+  getCirclechesssTournaments = async (limit = 10, offset = 0, userId) => {
     try {
       const message = 'Fetched tournaments successfully.'
+
       const data = await this.tournamentDao.findByWhere(
         {
           is_active: true,
@@ -707,7 +710,41 @@ class TournamentService {
         limit,
         offset
       )
-      console.log('tournaments data:', data)
+      const [results] = await sequelize.query(`
+        SELECT tournament_registration_id, id
+        FROM cc_tournaments  
+        WHERE id IN (${data.map((t) => t.cct_id || 0).join(',')})
+      `)
+
+      const registrationsIdMap = results.reduce((acc, row) => {
+        acc[row.id] = row.tournament_registration_id
+        return acc
+      }, {})
+
+      const [players] = await sequelize.query(`
+        SELECT tournament_id, player_id
+        FROM cc_registration_orders  
+        WHERE tournament_id IN (${data.map((t) => t.cct_id || 0).join(',')})
+      `)
+
+      const playersIdMap = players.reduce((acc, row) => {
+        acc[row.tournament_id] = row.player_id
+        return acc
+      }, {})
+
+      if (userId) {
+        data.forEach(async (tournament) => {
+          tournament['is_registered'] = playersIdMap[tournament.id]
+            ? true
+            : false
+          tournament['is_free'] =
+            registrationsIdMap[tournament.cct_id] && tournament.entry_fee > 0
+              ? false
+              : true
+          tournament['registration_tid'] =
+            registrationsIdMap[tournament.cct_id] || null
+        })
+      }
       return responseHandler.returnSuccess(httpStatus.OK, message, data)
     } catch (e) {
       logger.error(e)
@@ -968,7 +1005,7 @@ class TournamentService {
       if (type && type !== 'all') {
         where.tournament_type = type === 'offline' ? 'OTB' : { [Op.ne]: 'OTB' }
       }
-      
+
       const data = await this.tournamentDao.getDataTableData(
         where,
         limit,
@@ -980,7 +1017,7 @@ class TournamentService {
         ]
       )
 
-      if(ids){
+      if (ids) {
         const playerCountMap = await this.trnplayersDao.findCountByGroup(
           'tournament_id',
           'id',
@@ -988,13 +1025,16 @@ class TournamentService {
             tournament_id: ids.split(','),
           }
         )
-  
+
         const playersCountMap = playerCountMap.reduce((acc, curr) => {
           acc[curr.tournament_id] = curr.count
           return acc
         }, {})
 
-        data.rows = data?.rows?.map(x => ({...x.dataValues, player_count: playersCountMap[x.dataValues.id] || 0}))
+        data.rows = data?.rows?.map((x) => ({
+          ...x.dataValues,
+          player_count: playersCountMap[x.dataValues.id] || 0,
+        }))
       }
 
       return responseHandler.returnSuccess(httpStatus.OK, message, data)
@@ -1251,7 +1291,9 @@ class TournamentService {
     try {
       const message = 'Successfully reverted current round pairing'
       const tournament = await this.tournamentDao.findById(tournamentId)
-      logger.info(`Reverting pairing data for round : ${tournament.current_round} of tournamentId: ${tournamentId}`)
+      logger.info(
+        `Reverting pairing data for round : ${tournament.current_round} of tournamentId: ${tournamentId}`
+      )
 
       await this.tournamentPairingsDao.deleteByWhere({
         round: tournament.current_round,
@@ -1591,6 +1633,31 @@ class TournamentService {
       }
       return responseHandler.returnSuccess(httpStatus.OK, message, result)
     } catch (e) {
+      logger.error(e)
+      return responseHandler.returnError(
+        httpStatus.BAD_REQUEST,
+        'Something went wrong!'
+      )
+    }
+  }
+
+  verifyPassword = async (tournamentId, password) => {
+    try {
+      const message = 'Password verified successfully.'
+      const tournament = await this.tournamentDao.findById(tournamentId)
+      const isPasswordValid = await bcrypt.compare(
+        password,
+        tournament.password
+      )
+
+      if (!isPasswordValid) {
+        statusCode = httpStatus.BAD_REQUEST
+        message = 'Wrong Password!'
+        return responseHandler.returnError(statusCode, message)
+      }
+
+      return responseHandler.returnSuccess(statusCode, message)
+    } catch (error) {
       logger.error(e)
       return responseHandler.returnError(
         httpStatus.BAD_REQUEST,
@@ -2006,7 +2073,9 @@ class TournamentService {
         created_by: userId,
       })
 
-      const players = await this.trnplayersDao.findByWhere({ tournament_id: tournaments.map((t) => t.id) })
+      const players = await this.trnplayersDao.findByWhere({
+        tournament_id: tournaments.map((t) => t.id),
+      })
 
       const yesterdayPlayers = players.filter((p) => {
         return moment().diff(p.createdAt, 'd') === 1
@@ -2026,7 +2095,7 @@ class TournamentService {
               }, 0)
             } else {
               a += Number(ta.entry_fee[b.entry_fee_category]) || 0
-            }          
+            }
           }
           return a
         }, 0)
@@ -2388,7 +2457,10 @@ class TournamentService {
         } catch (error) {
           logger.error(error)
           if (tournamentBody.enable_registration) {
-            await this.tournamentDao.updateById({enable_registration:!body.enable_registration}, id)
+            await this.tournamentDao.updateById(
+              { enable_registration: !body.enable_registration },
+              id
+            )
           }
           message = 'Failed to publish tournament.Please try again'
           return responseHandler.returnError(httpStatus.BAD_REQUEST, message)

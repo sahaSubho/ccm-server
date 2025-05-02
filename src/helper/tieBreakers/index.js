@@ -8,6 +8,7 @@ const calculateTPR = require('./TPR')
 const calculatePTP = require('./PTP')
 const calculateAPRO = require('./APRO')
 const calculateAPPO = require('./APPO')
+const calculateGE = require('./GE')
 // const calculatePTP = require('./PTP')
 
 function calculateTB1TB2TB3(players) {
@@ -95,6 +96,8 @@ const getTieBreakByCode = (code, data) => {
   switch (code) {
     case 'DE':
       return calculateDirectEncounter(data)
+    case 'GE':
+      return calculateGE(data)
     case 'REP':
       return calculateNumberOfWins(data)
     case 'BGP':
