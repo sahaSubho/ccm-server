@@ -1,5 +1,6 @@
 /* eslint-disable no-param-reassign */
 const httpStatus = require('http-status')
+const bcrypt = require('bcryptjs')
 const path = require('path')
 const { Op, literal } = require('sequelize')
 const { v4: uuidv4 } = require('uuid')
@@ -177,6 +178,9 @@ class TournamentService {
           tournamentBody.created_by = req.user.id
           tournamentBody.address = 'Online Circlechess'
           tournamentBody.state = 'Online Circlechess'
+          if (tournamentBody?.password?.length > 0) {
+            tournamentBody.password = bcrypt.hashSync(tournamentBody.password, 8)
+          }
 
           try {
             // Step 1: Create the tournament in the database
@@ -211,7 +215,7 @@ class TournamentService {
               return responseHandler.returnSuccess(
                 httpStatus.CREATED,
                 'Tournament created and game service notified successfully.',
-                data
+                { tournament_id : data.id }
               )
             } else {
               console.error('Game service returned an error:', jsonResponse)
@@ -1643,7 +1647,7 @@ class TournamentService {
 
   verifyPassword = async (tournamentId, password) => {
     try {
-      const message = 'Password verified successfully.'
+      let message = 'Password verified successfully.'    
       const tournament = await this.tournamentDao.findById(tournamentId)
       const isPasswordValid = await bcrypt.compare(
         password,
@@ -1651,14 +1655,13 @@ class TournamentService {
       )
 
       if (!isPasswordValid) {
-        statusCode = httpStatus.BAD_REQUEST
         message = 'Wrong Password!'
-        return responseHandler.returnError(statusCode, message)
+        return responseHandler.returnError(httpStatus.BAD_REQUEST, message)
       }
 
-      return responseHandler.returnSuccess(statusCode, message)
+      return responseHandler.returnSuccess(httpStatus.OK, message)
     } catch (error) {
-      logger.error(e)
+      logger.error(error)
       return responseHandler.returnError(
         httpStatus.BAD_REQUEST,
         'Something went wrong!'
