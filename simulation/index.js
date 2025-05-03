@@ -185,22 +185,26 @@ async function sitmulateAllTournamentFlows() {
       const players = await getTournamentPlayers(tournament.id)
       if (!players) {
         logger.error(`No players found for tournament ${tournament.id}`)
-      }else if(players.length > 10 && players.length < 1000) {
+      } else if (players.length > 10 && players.length < 1000) {
         const rounds = tournament.rounds
+        const current_round = tournament.current_round
         // if (rounds === tournament.current_round) {
         //   logger.info(`Tournament ${tournament.id} already completed`)
         //   continue
         // } else {
-          for (let round = 1; round <= rounds; round++) {
-            const pairings = await generatePairings(round, tournament.id)
-            if (pairings) {
-              await scoreUpload(pairings, tournament.id, round)
-            }
-            // console.log("pairings", pairings)
+        for (let round = 1; round <= rounds; round++) {
+          const pairings = await generatePairings(round, tournament.id)
+          if (pairings) {
+            await scoreUpload(pairings, tournament.id, round)
           }
+          // console.log("pairings", pairings)
+        }
+        await sequelize.query(
+          `update cc_tournament_chessmasters set current_round=${current_round} where id=${tournament.id};`
+        )
         // }
-      }else{
-        logger.info("Players not in required data format")
+      } else {
+        logger.info('Players not in required data format')
       }
       logger.info(`Tournament ${tournament.id} completed`)
     } catch (error) {
