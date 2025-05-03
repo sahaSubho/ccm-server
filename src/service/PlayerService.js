@@ -589,7 +589,7 @@ class PlayersService {
 
       if (PlayersService.CSOCTournamentMapping[tournament.csoc_batch]) {
         const res = await sequelize.query(
-          `select id from cc_csoc_registration where status=1 and mobile_number='${user.mobile_number}' and tournament_id in (${PlayersService.CSOCTournamentMapping[tournament.csoc_batch]})`,
+          `select id from cc_csoc_registration where status in (1,3) and mobile_number='${user.mobile_number}' and tournament_id in (${PlayersService.CSOCTournamentMapping[tournament.csoc_batch]})`,
           {
             type: sequelize.QueryTypes.SELECT,
           }
@@ -599,7 +599,7 @@ class PlayersService {
 
         if (!res.length) {
           const res1 = await sequelize.query(
-            `select id from cc_csoc_registration where status=1 and mobile_number='${user.mobile_number}' and class_name like '%${PlayersService.CSOCTournamentClassNameMapping[tournament.csoc_batch]}%'`,
+            `select id from cc_csoc_registration where status in (1,3) and mobile_number='${user.mobile_number}' and class_name like '%${PlayersService.CSOCTournamentClassNameMapping[tournament.csoc_batch]}%'`,
             {
               type: sequelize.QueryTypes.SELECT,
             }
