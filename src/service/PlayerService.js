@@ -1240,8 +1240,8 @@ class PlayersService {
         return responseHandler.returnError(httpStatus.BAD_REQUEST, message)
       }
 
-      let query = `select * from tournament_pairings where (parent_id in (select id from tournament_pairings where player_id='${uuid}') or 
-      id in (select parent_id from tournament_pairings where player_id='${uuid}'))`
+      let query = `select * from ccm_tournament_pairings where (parent_id in (select id from ccm_tournament_pairings where player_id='${uuid}') or 
+      id in (select parent_id from ccm_tournament_pairings where player_id='${uuid}'))`
 
       const where = {
         player_id: uuid,
