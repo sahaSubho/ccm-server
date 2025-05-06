@@ -753,10 +753,11 @@ class PlayersService {
           b.sex as gender,
           b.fide_id as fide_id,
           (select title from players c where c.fide_id=b.fide_id) as title,
-          CASE
-              WHEN b.fide_id > 0 THEN (select ${ratingType} from players c where c.fide_id=b.fide_id)
-              ELSE 0
-          END AS rating, 
+          COALESCE(
+              select ${ratingType} from players c where c.fide_id=b.fide_id),
+              select rating from players c where c.fide_id=b.fide_id,
+              0
+          ) AS rating, 
           CASE
               WHEN b.dob is null THEN (select birth_year from players c where c.fide_id=b.fide_id)::text
               WHEN b.dob = '' THEN (select birth_year from players c where c.fide_id=b.fide_id)::text
