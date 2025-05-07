@@ -179,7 +179,10 @@ class TournamentService {
           tournamentBody.address = 'Online Circlechess'
           tournamentBody.state = 'Online Circlechess'
           if (tournamentBody?.password?.length > 0) {
-            tournamentBody.password = bcrypt.hashSync(tournamentBody.password, 8)
+            tournamentBody.password = bcrypt.hashSync(
+              tournamentBody.password,
+              8
+            )
           }
 
           try {
@@ -215,7 +218,7 @@ class TournamentService {
               return responseHandler.returnSuccess(
                 httpStatus.CREATED,
                 'Tournament created and game service notified successfully.',
-                { tournament_id : data.id }
+                { tournament_id: data.id }
               )
             } else {
               console.error('Game service returned an error:', jsonResponse)
@@ -714,40 +717,43 @@ class TournamentService {
         limit,
         offset
       )
-      const [results] = await sequelize.query(`
+
+      if (data?.length > 0) {
+        const [results] = await sequelize.query(`
         SELECT tournament_registration_id, id
         FROM cc_tournaments  
         WHERE id IN (${data.map((t) => t.cct_id || 0).join(',')})
       `)
 
-      const registrationsIdMap = results.reduce((acc, row) => {
-        acc[row.id] = row.tournament_registration_id
-        return acc
-      }, {})
+        const registrationsIdMap = results.reduce((acc, row) => {
+          acc[row.id] = row.tournament_registration_id
+          return acc
+        }, {})
 
-      const [players] = await sequelize.query(`
+        const [players] = await sequelize.query(`
         SELECT tournament_id, player_id
         FROM cc_registration_orders  
         WHERE tournament_id IN (${data.map((t) => t.cct_id || 0).join(',')})
       `)
 
-      const playersIdMap = players.reduce((acc, row) => {
-        acc[row.tournament_id] = row.player_id
-        return acc
-      }, {})
+        const playersIdMap = players.reduce((acc, row) => {
+          acc[row.tournament_id] = row.player_id
+          return acc
+        }, {})
 
-      if (userId) {
-        data.forEach(async (tournament) => {
-          tournament['is_registered'] = playersIdMap[tournament.id]
-            ? true
-            : false
-          tournament['is_free'] =
-            registrationsIdMap[tournament.cct_id] && tournament.entry_fee > 0
-              ? false
-              : true
-          tournament['registration_tid'] =
-            registrationsIdMap[tournament.cct_id] || null
-        })
+        if (userId) {
+          data.forEach(async (tournament) => {
+            tournament['is_registered'] = playersIdMap[tournament.id]
+              ? true
+              : false
+            tournament['is_free'] =
+              registrationsIdMap[tournament.cct_id] && tournament.entry_fee > 0
+                ? false
+                : true
+            tournament['registration_tid'] =
+              registrationsIdMap[tournament.cct_id] || null
+          })
+        }
       }
       return responseHandler.returnSuccess(httpStatus.OK, message, data)
     } catch (e) {
@@ -1647,7 +1653,7 @@ class TournamentService {
 
   verifyPassword = async (tournamentId, password) => {
     try {
-      let message = 'Password verified successfully.'    
+      let message = 'Password verified successfully.'
       const tournament = await this.tournamentDao.findById(tournamentId)
       const isPasswordValid = await bcrypt.compare(
         password,
