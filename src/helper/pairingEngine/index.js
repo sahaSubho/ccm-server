@@ -39,7 +39,7 @@ const pair = (input, players, teams = [], fileName = '') => {
 
     javafoCommand.on('close', (code) => {
       console.log(`JaVaFo process exited with code ${code}`)
-      if(!config.simulate){
+      if(!config.simulate && config.env === 'production') {
         uploadFileToS3(trfFilePath, process.env.AWS_S3_BUCKET_NAME, `pairings/input_${fileName}.trf`)
         uploadFileToS3(outputFilePath, process.env.AWS_S3_BUCKET_NAME, `pairings/output_${fileName}.trf`)
       }

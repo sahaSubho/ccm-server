@@ -97,6 +97,8 @@ router.post(
   playersController.searchFidePlayers
 )
 
+router.put('/sync-fide-players/:id', playersController.syncFidePlayers)
+
 router.get('/details', playersController.getPlayersDetails)
 
 router.get('/:id', playersController.getPlayersByTournament)

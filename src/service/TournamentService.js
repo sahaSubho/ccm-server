@@ -1233,6 +1233,12 @@ class TournamentService {
           teams
         )
       const res = await this.tournamentPairingsDao.bulkCreate(whitePlayers)
+      await this.tournamentConfigurationDao.updateWhere(
+        { sorting: false },
+        {
+          tournament_id: tournamentId,
+        }
+      )
       if (!res) {
         message = 'Failed to pair players! Please try again.'
         return responseHandler.returnError(httpStatus.BAD_REQUEST, message)

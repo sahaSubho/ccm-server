@@ -33,6 +33,23 @@ class PlayersService {
     this.CCUserDao = new CCUserDao()
   }
 
+  static getRatingToConsider = (tournamentType, ratings) => {
+    const fallbackOrder = {
+      classical: ['rating'],
+      rapid: ['rapid_rating', 'rating'],
+      blitz: ['blitz_rating', 'rating'],
+    }
+
+    const order = fallbackOrder[tournamentType.toLowerCase()]
+    for (let type of order) {
+      if (ratings[type] !== 0 && ratings[type]) {
+        return ratings[type]
+      }
+    }
+
+    return 0 // No rating available
+  }
+
   static parseGender = (gender) => {
     if (['male', 'm', 'b', 'boys', 'boy'].includes(gender?.toLowerCase())) {
       return 'M'
@@ -48,29 +65,29 @@ class PlayersService {
   }
 
   static CSOCTournamentMapping = {
-    "advance": 16599,
-    "intermediate": 19538,
-    "foundation": '24797,23696,28545',
-    "beginner": 19526,
+    advance: 16599,
+    intermediate: 19538,
+    foundation: '24797,23696,28545',
+    beginner: 19526,
   }
 
   static CSOCTournamentClassNameMapping = {
-    "advance": '-P-AD',
-    "intermediate": '-P-IN',
-    "foundation": '-P-F',
-    "beginner": '-P-B',
+    advance: '-P-AD',
+    intermediate: '-P-IN',
+    foundation: '-P-F',
+    beginner: '-P-B',
   }
 
   static areNamesSimilar = (_name1, _name2, threshold = 0.2) => {
     // Convert names to lowercase for case-insensitive comparison
     const name1 = _name1.toLowerCase()
     const name2 = _name2.toLowerCase()
-    
+
     // Calculate the Levenshtein distance
     const distance = levenshtein.get(name1, name2)
     const maxLen = Math.max(name1.length, name2.length)
     const normalizedDistance = maxLen > 0 ? distance / maxLen : 0
-  
+
     // Check if the normalized distance is less than or equal to the threshold
     return normalizedDistance <= threshold
   }
@@ -589,22 +606,29 @@ class PlayersService {
 
       if (PlayersService.CSOCTournamentMapping[tournament.csoc_batch]) {
         const res = await sequelize.query(
-          `select id from cc_csoc_registration where status in (1,3) and mobile_number='${user.mobile_number}' and tournament_id in (${PlayersService.CSOCTournamentMapping[tournament.csoc_batch]})`,
+          `select id from cc_csoc_registration where status in (1,3) and mobile_number='${
+            user.mobile_number
+          }' and tournament_id in (${
+            PlayersService.CSOCTournamentMapping[tournament.csoc_batch]
+          })`,
           {
             type: sequelize.QueryTypes.SELECT,
           }
         )
 
-        console.log('CSOC res', `select id from cc_csoc_registration where status=1 and mobile_number='${user.mobile_number}' and tournament_id in (${PlayersService.CSOCTournamentMapping[tournament.csoc_batch]})`, res.length, JSON.stringify(res))
-
         if (!res.length) {
           const res1 = await sequelize.query(
-            `select id from cc_csoc_registration where status in (1,3) and mobile_number='${user.mobile_number}' and class_name like '%${PlayersService.CSOCTournamentClassNameMapping[tournament.csoc_batch]}%'`,
+            `select id from cc_csoc_registration where status in (1,3) and mobile_number='${
+              user.mobile_number
+            }' and class_name like '%${
+              PlayersService.CSOCTournamentClassNameMapping[
+                tournament.csoc_batch
+              ]
+            }%'`,
             {
               type: sequelize.QueryTypes.SELECT,
             }
           )
-          console.log('CSOC res 1', `select id from cc_csoc_registration where status=1 and mobile_number='${user.mobile_number}' and class_name like '%${PlayersService.CSOCTournamentClassNameMapping[tournament.csoc_batch]}%'`, JSON.stringify(res1))
           if (!res1.length) {
             message =
               "Failed to add player! Since Player doesn't belongs to respective CSOC batch."
@@ -828,10 +852,10 @@ class PlayersService {
           })
       }
 
-      this.redisService.setValue(
-        `ccm_players_${tournamentId}`,
-        JSON.stringify(result)
-      )
+      // this.redisService.setValue(
+      //   `ccm_players_${tournamentId}`,
+      //   JSON.stringify(result)
+      // )
       return responseHandler.returnSuccess(httpStatus.OK, message, result)
     } catch (e) {
       logger.error(e)
@@ -1386,6 +1410,82 @@ class PlayersService {
         return acc
       }, [])
       return responseHandler.returnSuccess(httpStatus.OK, message, data)
+    } catch (error) {
+      logger.error(error)
+      return responseHandler.returnError(
+        httpStatus.BAD_REQUEST,
+        'Something went wrong!'
+      )
+    }
+  }
+
+  syncFidePlayers = async (tournamentId) => {
+    try {
+      const message = 'Sync all players based on fide data'
+      const fide_players = await this.trnplayersDao.findByWhere(
+        {
+          tournament_id: tournamentId,
+          fide_id: {
+            [Op.ne]: null,
+          },
+        },
+        ['fide_id']
+      )
+      if (!fide_players.length) {
+        return responseHandler.returnError(
+          httpStatus.BAD_REQUEST,
+          'No players found to sync!'
+        )
+      }
+      const fideIds = fide_players.map((p) => p.fide_id)
+      const players = await this.playersDao.findByWhere({
+        fide_id: {
+          [Op.in]: fideIds,
+        },
+      })
+      if (!players.length) {
+        return responseHandler.returnError(
+          httpStatus.BAD_REQUEST,
+          'No players found to sync!'
+        )
+      }
+      const tournament = await this.tournamentDao.findById(tournamentId)
+      const promises = players.map((p) => {
+        return this.trnplayersDao.updateWhere(
+          {
+            name: p.name,
+            rating: PlayersService.getRatingToConsider(
+              tournament.time_format,
+              p
+            ),
+            title: p.title,
+            age: p.age,
+            gender: p.gender,
+          },
+          { fide_id: p.fide_id }
+        )
+      })
+      await Promise.allSettled(promises)
+      const data = await this.trnplayersDao.findByWhere({
+        tournament_id: tournamentId,
+      })
+
+      if (!data.length) {
+        message = 'No players exist for this tournament!'
+        return responseHandler.returnError(httpStatus.BAD_REQUEST, message)
+      }
+
+      let result = data
+        .map((p) => {
+          return {
+            ...p,
+            isWithDrawn: p.is_withdrawn,
+          }
+        })
+        .sort((a, b) => {
+          return b.isWithDrawn ? -1 : 1
+        })
+      return responseHandler.returnSuccess(httpStatus.OK, message, result)
     } catch (error) {
       logger.error(error)
       return responseHandler.returnError(
