@@ -13,12 +13,16 @@ const CCTournamentFeedbackDao = require('../dao/CcTournamentFeedback')
 const PlayersDao = require('../dao/PlayersDao')
 const TournamentPlayersDao = require('../dao/TournamentPlayersDao')
 const TournamentPairingsDao = require('../dao/TournamentPairingDao')
+const PlayerStartingRankDao = require('../dao/PlayerStartingRankDao')
 const responseHandler = require('../helper/responseHandler')
 const logger = require('../config/logger')
 const config = require('../config/config')
 const { sequelize } = require('../models')
 const { userRoles } = require('../config/constant')
-const { javaFoRoundPairing } = require('../helper/pairingEngine/swiss')
+const {
+  javaFoRoundPairing,
+  sortByInitialRankings,
+} = require('../helper/pairingEngine/swiss')
 const getTieBreaks = require('../helper/tieBreakers')
 const UserService = require('./UserService')
 const PrizeCategoryDao = require('../dao/PrizeCategoryDao')
@@ -55,6 +59,7 @@ class TournamentService {
     this.teamPairingsDao = new TeamPairingsDao()
     this.tournamentConfigurationDao = new TournamentConfigurationDao()
     this.CCUserDao = new CCUserDao()
+    this.playerStartingRankDao = new PlayerStartingRankDao()
   }
 
   static convertToTeamPairings = (data) => {
@@ -1076,7 +1081,7 @@ class TournamentService {
       )} round of the tournament.`
 
       const tournament = await this.tournamentDao.findById(tournamentId)
-      const players = await this.trnplayersDao.findByWhere({
+      let players = await this.trnplayersDao.findByWhere({
         tournament_id: tournamentId,
       })
 
@@ -1221,6 +1226,36 @@ class TournamentService {
       const tnrConfig = await this.tournamentConfigurationDao.findOneByWhere({
         tournament_id: tournamentId,
       })
+      if (tnrConfig.sorting) {
+        const sortedPlayers = sortByInitialRankings(players)
+        const startingRanks = sortedPlayers.map((p, i) => {
+          return {
+            round: Number(round),
+            tournament_id: tournamentId,
+            player_id: p.id,
+            rank: i + 1,
+          }
+        })
+        await this.playerStartingRankDao.bulkCreate(startingRanks)
+        players = sortedPlayers
+      } else {
+        const lastRound = await this.playerStartingRankDao.max('round', {
+          tournament_id: tournamentId,
+        })
+        const startingRanks = await this.playerStartingRankDao.findByWhere({
+          round: lastRound,
+          tournament_id: tournamentId,
+        })
+        players = players.sort((a, b) => {
+          const aRank = startingRanks.find((s) => {
+            return s.player_id === a.id
+          })
+          const bRank = startingRanks.find((s) => {
+            return s.player_id === b.id
+          })
+          return (aRank?.rank) - (bRank?.rank)
+        })
+      }
       const { whitePlayers, blackPlayers, leftTeams, rightTeams } =
         await javaFoRoundPairing(
           players,
@@ -1252,7 +1287,7 @@ class TournamentService {
       const oppRes = await this.tournamentPairingsDao.bulkCreate(newOpponents)
 
       await this.tournamentDao.updateById(
-      { current_round: Number(round), new_player_added: false  },
+        { current_round: Number(round), new_player_added: false },
         tournamentId
       )
 
@@ -1311,13 +1346,29 @@ class TournamentService {
         `Reverting pairing data for round : ${tournament.current_round} of tournamentId: ${tournamentId}`
       )
 
+      let new_player_added = false
+      if (tournament.current_round > 1) {
+        const currentCount = await this.tournamentPairingsDao.getCountByWhere({
+          round: tournament.current_round,
+          tournament_id: tournamentId,
+        })
+        const prevCount = await this.tournamentPairingsDao.getCountByWhere({
+          round: tournament.current_round - 1,
+          tournament_id: tournamentId,
+        })
+        if (currentCount > prevCount) {
+          new_player_added = true
+        }
+      }
       await this.tournamentPairingsDao.deleteByWhere({
         round: tournament.current_round,
+        tournament_id: tournamentId,
       })
       await this.tournamentDao.updateById(
         {
           current_round:
             tournament.current_round > 0 ? tournament.current_round - 1 : 0,
+          new_player_added,
         },
         tournamentId
       )

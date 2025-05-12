@@ -99,7 +99,8 @@ module.exports = (sequelize, DataTypes) => {
       prize: DataTypes.STRING,
       is_private: DataTypes.BOOLEAN,
       csoc_batch: DataTypes.STRING,
-      password: DataTypes.STRING
+      password: DataTypes.STRING,
+      new_player_added: DataTypes.BOOLEAN,
     },
     {
       sequelize,
