@@ -228,6 +228,7 @@ class PlayersService {
     let result = []
     if (data.length) {
       result = await this.trnplayersDao.bulkCreate(data)
+      await this.tournamentDao.updateById({ new_player_added: true }, tournamentId)
 
       // result = result.dataValues
       if (!result.length) {

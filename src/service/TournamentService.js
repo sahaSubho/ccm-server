@@ -1252,7 +1252,7 @@ class TournamentService {
       const oppRes = await this.tournamentPairingsDao.bulkCreate(newOpponents)
 
       await this.tournamentDao.updateById(
-        { current_round: Number(round) },
+      { current_round: Number(round), new_player_added: false  },
         tournamentId
       )
 
