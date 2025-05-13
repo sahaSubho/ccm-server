@@ -752,7 +752,9 @@ class TournamentService {
               ? true
               : false
             tournament['is_free'] =
-              (registrationsIdMap[tournament.cct_id] && tournament.entry_fee > 0) || tournament.mandatory_club_membership_name !== ''
+              (registrationsIdMap[tournament.cct_id] &&
+                tournament.entry_fee > 0) ||
+              tournament.mandatory_club_membership_name !== ''
                 ? false
                 : true
             tournament['registration_tid'] =
@@ -1253,7 +1255,7 @@ class TournamentService {
           const bRank = startingRanks.find((s) => {
             return s.player_id === b.id
           })
-          return (aRank?.rank) - (bRank?.rank)
+          return aRank?.rank - bRank?.rank
         })
       }
       const { whitePlayers, blackPlayers, leftTeams, rightTeams } =
@@ -1361,6 +1363,10 @@ class TournamentService {
         }
       }
       await this.tournamentPairingsDao.deleteByWhere({
+        round: tournament.current_round,
+        tournament_id: tournamentId,
+      })
+      await this.playerStartingRankDao.deleteByWhere({
         round: tournament.current_round,
         tournament_id: tournamentId,
       })
