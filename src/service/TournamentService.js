@@ -752,7 +752,7 @@ class TournamentService {
               ? true
               : false
             tournament['is_free'] =
-              registrationsIdMap[tournament.cct_id] && tournament.entry_fee > 0
+              (registrationsIdMap[tournament.cct_id] && tournament.entry_fee > 0) || tournament.mandatory_club_membership_name !== ''
                 ? false
                 : true
             tournament['registration_tid'] =
