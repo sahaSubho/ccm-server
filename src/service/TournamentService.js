@@ -747,7 +747,7 @@ class TournamentService {
         }, {})
 
         if (userId) {
-          const user = await this.CCUserDao.findByWhere({ user_id: userId })
+          const user = await this.CCUserDao.findOneByWhere({ user_id: userId })
           const [clubs] = await sequelize.query(`
             SELECT association_name
             FROM cc_association_registrations  
