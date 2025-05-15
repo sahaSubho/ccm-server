@@ -41,13 +41,10 @@ class PlayersService {
     }
 
     const order = fallbackOrder[tournamentType.toLowerCase()]
-    for (let type of order) {
-      if (ratings[type] !== 0 && ratings[type]) {
-        return ratings[type]
-      }
-    }
-
-    return 0 // No rating available
+    const rating = order.find((type) => {
+      return ratings[type] !== 0 && ratings[type]
+    })
+    return rating || 0 // No rating available
   }
 
   static parseGender = (gender) => {
@@ -106,8 +103,12 @@ class PlayersService {
     const tournament = await this.tournamentDao.findById(tournamentId)
     const fidePlayers = await this.playersDao.findByWhere({
       fide_id: data
-        .filter((d) => Number(d?.fide_id) > 0)
-        .map((x) => Number(x.fide_id)),
+        .filter((d) => {
+          return Number(d?.fide_id) > 0
+        })
+        .map((x) => {
+          return Number(x.fide_id)
+        }),
     })
 
     const fidePlayerNames = fidePlayers.reduce((a, b) => {
@@ -116,7 +117,9 @@ class PlayersService {
     }, {})
 
     data = data
-      .filter((x) => x?.name?.length > 0)
+      .filter((x) => {
+        return x?.name?.length > 0
+      })
       .map((d) => {
         return {
           name: fidePlayerNames[d.fide_id]
@@ -228,7 +231,10 @@ class PlayersService {
     let result = []
     if (data.length) {
       result = await this.trnplayersDao.bulkCreate(data)
-      await this.tournamentDao.updateById({ new_player_added: true }, tournamentId)
+      await this.tournamentDao.updateById(
+        { new_player_added: true },
+        tournamentId
+      )
 
       // result = result.dataValues
       if (!result.length) {
@@ -667,7 +673,7 @@ class PlayersService {
           ids.push(existingPlayer.cc_userid)
           ids = [...new Set(ids)]
 
-          const result = await this.tournamentDao.updateWhere(
+          await this.tournamentDao.updateWhere(
             { player_fide_ids: ids.join() },
             { id }
           )
@@ -700,7 +706,7 @@ class PlayersService {
         rating: Number(user.gameplay_rating) || 0,
         gender: '',
         registered_from: 'Learn',
-        age: age,
+        age,
         mobile: user.mobile_number || '',
         upi_id: user.upi_address || '',
         title: user.title || '',
@@ -758,12 +764,17 @@ class PlayersService {
 
       let tournament = await this.tournamentDao.findById(tournamentId)
 
-      const ratingType =
-        tournament.time_format === 'Blitz'
-          ? 'blitz_rating'
-          : tournament.time_format === 'Rapid'
-          ? 'rapid_rating'
-          : 'rating'
+      let ratingType
+      switch (tournament.time_format) {
+        case 'Blitz':
+          ratingType = 'blitz_rating'
+          break
+        case 'Rapid':
+          ratingType = 'rapid_rating'
+          break
+        default:
+          ratingType = 'rating'
+      }
 
       if (tournament.cct_id && tournament.enable_registration) {
         try {
@@ -779,8 +790,8 @@ class PlayersService {
           b.fide_id as fide_id,
           (select title from players c where c.fide_id=b.fide_id) as title,
           COALESCE(
-              select ${ratingType} from players c where c.fide_id=b.fide_id),
-              select rating from players c where c.fide_id=b.fide_id,
+              (select ${ratingType} from players c where c.fide_id=b.fide_id),
+              (select rating from players c where c.fide_id=b.fide_id),
               0
           ) AS rating, 
           CASE
@@ -1229,7 +1240,9 @@ class PlayersService {
           tournament.player_fide_ids
         ) {
           let fide_ids = tournament.player_fide_ids.split(',')
-          fide_ids = fide_ids.filter((id) => id !== player.cc_userid.toString())
+          fide_ids = fide_ids.filter((id) => {
+            return id !== player.cc_userid.toString()
+          })
 
           await this.tournamentDao.updateWhere(
             { player_fide_ids: fide_ids.join() },
@@ -1422,7 +1435,7 @@ class PlayersService {
 
   syncFidePlayers = async (tournamentId) => {
     try {
-      const message = 'Sync all players based on fide data'
+      let message = 'Sync all players based on fide data'
       const fide_players = await this.trnplayersDao.findByWhere(
         {
           tournament_id: tournamentId,
@@ -1438,7 +1451,9 @@ class PlayersService {
           'No players found to sync!'
         )
       }
-      const fideIds = fide_players.map((p) => p.fide_id)
+      const fideIds = fide_players.map((p) => {
+        return p.fide_id
+      })
       const players = await this.playersDao.findByWhere({
         fide_id: {
           [Op.in]: fideIds,
@@ -1476,7 +1491,7 @@ class PlayersService {
         return responseHandler.returnError(httpStatus.BAD_REQUEST, message)
       }
 
-      let result = data
+      const result = data
         .map((p) => {
           return {
             ...p,
