@@ -1,4 +1,5 @@
 const { Model } = require('sequelize')
+const config = require('../config/config')
 
 module.exports = (sequelize, DataTypes) => {
   class TournamentConfiguration extends Model {
@@ -47,7 +48,7 @@ module.exports = (sequelize, DataTypes) => {
     },
     {
       sequelize,
-      modelName: 'ccm_tournament_configurations',
+      modelName: (config.simulate ? 'temp_' : '')+'ccm_tournament_configurations',
     }
   )
   return TournamentConfiguration

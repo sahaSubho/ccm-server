@@ -336,9 +336,6 @@ async function javaFoRoundPairing(
   })
 
   let stats = players
-  if (config.sorting) {
-    stats = sortByInitialRankings(players)
-  }
   if (teams.length > 0) {
     stats = teams
       .sort((a, b) => {

@@ -1,5 +1,6 @@
 /* eslint-disable no-param-reassign */
 const httpStatus = require('http-status')
+const bcrypt = require('bcryptjs')
 const path = require('path')
 const { Op, literal } = require('sequelize')
 const { v4: uuidv4 } = require('uuid')
@@ -12,12 +13,16 @@ const CCTournamentFeedbackDao = require('../dao/CcTournamentFeedback')
 const PlayersDao = require('../dao/PlayersDao')
 const TournamentPlayersDao = require('../dao/TournamentPlayersDao')
 const TournamentPairingsDao = require('../dao/TournamentPairingDao')
+const PlayerStartingRankDao = require('../dao/PlayerStartingRankDao')
 const responseHandler = require('../helper/responseHandler')
 const logger = require('../config/logger')
 const config = require('../config/config')
 const { sequelize } = require('../models')
 const { userRoles } = require('../config/constant')
-const { javaFoRoundPairing } = require('../helper/pairingEngine/swiss')
+const {
+  javaFoRoundPairing,
+  sortByInitialRankings,
+} = require('../helper/pairingEngine/swiss')
 const getTieBreaks = require('../helper/tieBreakers')
 const UserService = require('./UserService')
 const PrizeCategoryDao = require('../dao/PrizeCategoryDao')
@@ -54,6 +59,7 @@ class TournamentService {
     this.teamPairingsDao = new TeamPairingsDao()
     this.tournamentConfigurationDao = new TournamentConfigurationDao()
     this.CCUserDao = new CCUserDao()
+    this.playerStartingRankDao = new PlayerStartingRankDao()
   }
 
   static convertToTeamPairings = (data) => {
@@ -155,7 +161,7 @@ class TournamentService {
 
       try {
         let message = 'Successfully created tournament.'
-        if (![userRoles.ORGANIZER,userRoles.ADMIN].includes(req.user.role)) {
+        if (![userRoles.ORGANIZER, userRoles.ADMIN].includes(req.user.role)) {
           message =
             'Tournament creation is limited to organizers. Kindly sign up or log in as an organizer to continue.'
           return responseHandler.returnError(httpStatus.BAD_REQUEST, message)
@@ -172,11 +178,17 @@ class TournamentService {
             new Date(tournamentBody.startDate).getTime() + 12 * 60 * 60 * 1000
           ).toISOString()
           tournamentBody.country = 'Online Circlechess'
-          tournamentBody.federation = 'Online Circlechess'
+          tournamentBody.federation = 'IND'
           tournamentBody.is_active = true
           tournamentBody.created_by = req.user.id
           tournamentBody.address = 'Online Circlechess'
           tournamentBody.state = 'Online Circlechess'
+          if (tournamentBody?.password?.length > 0) {
+            tournamentBody.password = bcrypt.hashSync(
+              tournamentBody.password,
+              8
+            )
+          }
 
           try {
             // Step 1: Create the tournament in the database
@@ -211,7 +223,7 @@ class TournamentService {
               return responseHandler.returnSuccess(
                 httpStatus.CREATED,
                 'Tournament created and game service notified successfully.',
-                data
+                { tournament_id: data.id }
               )
             } else {
               console.error('Game service returned an error:', jsonResponse)
@@ -304,7 +316,7 @@ class TournamentService {
               options
             )
             const json = await lichessResponse.json()
-            console.log("lichess swiss", JSON.stringify(json))
+            console.log('lichess swiss', JSON.stringify(json))
             if (!json.id) {
               if (json.global && json.global.length > 0) {
                 responseHandler.returnError(
@@ -388,7 +400,7 @@ class TournamentService {
 
       try {
         let message = 'Successfully created tournament.'
-        if (![userRoles.ORGANIZER,userRoles.ADMIN].includes(req.user.role)) {
+        if (![userRoles.ORGANIZER, userRoles.ADMIN].includes(req.user.role)) {
           message =
             'Tournament creation is limited to organizers. Kindly sign up or log in as an organizer to continue.'
           return responseHandler.returnError(httpStatus.BAD_REQUEST, message)
@@ -465,25 +477,25 @@ class TournamentService {
             options
           )
 
-            const json = await lichessResponse.json()
+          const json = await lichessResponse.json()
 
-            if (!json.id) {
-              if (json.global && json.global.length > 0) {
-                responseHandler.returnError(
-                  httpStatus.BAD_REQUEST,
-                  json.global[0]
-                )
-              } else if (
-                json.error &&
-                json.error.global &&
-                json.error.global.length > 0
-              ) {
-                responseHandler.returnError(
-                  httpStatus.BAD_REQUEST,
-                  json.error.global[0]
-                )
-              }
+          if (!json.id) {
+            if (json.global && json.global.length > 0) {
+              responseHandler.returnError(
+                httpStatus.BAD_REQUEST,
+                json.global[0]
+              )
+            } else if (
+              json.error &&
+              json.error.global &&
+              json.error.global.length > 0
+            ) {
+              responseHandler.returnError(
+                httpStatus.BAD_REQUEST,
+                json.error.global[0]
+              )
             }
+          }
 
           // Set up defaults for tournament row in the DB
           tournamentBody.federation = 'Online Lichess'
@@ -546,7 +558,7 @@ class TournamentService {
   createTournament = async (tournamentBody, req) => {
     try {
       let message = 'Successfully created tournament.'
-      if(tournamentBody.is_club_membership){
+      if (tournamentBody.is_club_membership) {
         message = 'Successfully created your club.'
       }
       if (
@@ -558,8 +570,10 @@ class TournamentService {
         return responseHandler.returnError(httpStatus.BAD_REQUEST, message)
       }
 
-      if (tournamentBody.is_club_membership === 1){
-        const exits = await this.tournamentDao.checkExist({ name: tournamentBody.name })
+      if (tournamentBody.is_club_membership === 1) {
+        const exits = await this.tournamentDao.checkExist({
+          name: tournamentBody.name,
+        })
         if (exits) {
           message = 'Club name already exists! Try Different name.'
           return responseHandler.returnError(httpStatus.BAD_REQUEST, message)
@@ -675,11 +689,11 @@ class TournamentService {
         return acc
       }, {})
 
-      data.forEach((tournament) => {  
+      data.forEach((tournament) => {
         const playerCount = playersCountMap[tournament.id] || 0
         tournament['players_count'] = playerCount
       })
-      
+
       return responseHandler.returnSuccess(httpStatus.OK, message, data)
     } catch (e) {
       logger.error(e)
@@ -690,9 +704,10 @@ class TournamentService {
     }
   }
 
-  getCirclechesssTournaments = async (limit = 10, offset = 0) => {
+  getCirclechesssTournaments = async (limit = 10, offset = 0, userId) => {
     try {
       const message = 'Fetched tournaments successfully.'
+
       const data = await this.tournamentDao.findByWhere(
         {
           is_active: true,
@@ -707,7 +722,58 @@ class TournamentService {
         limit,
         offset
       )
-      console.log('tournaments data:', data)
+
+      if (data?.length > 0) {
+        const [results] = await sequelize.query(`
+        SELECT tournament_registration_id, id
+        FROM cc_tournaments  
+        WHERE id IN (${data.map((t) => t.cct_id || 0).join(',')})
+      `)
+
+        const registrationsIdMap = results.reduce((acc, row) => {
+          acc[row.id] = row.tournament_registration_id
+          return acc
+        }, {})
+
+        const [players] = await sequelize.query(`
+        SELECT tournament_id, player_id
+        FROM cc_registration_orders  
+        WHERE tournament_id IN (${data.map((t) => t.cct_id || 0).join(',')})
+      `)
+
+        const playersIdMap = players.reduce((acc, row) => {
+          acc[row.tournament_id] = row.player_id
+          return acc
+        }, {})
+
+        if (userId) {
+          const user = await this.CCUserDao.findOneByWhere({ user_id: userId })
+          const [clubs] = await sequelize.query(`
+            SELECT association_name
+            FROM cc_association_registrations  
+            WHERE mobile_number='${user.mobile_number}';
+          `)
+          const club_memberships = clubs.map((c) => c.association_name)
+          const clubs_details = await this.tournamentDao.findByWhere({ association_name: data.map(d => d.mandatory_club_membership_name) })
+          data.forEach(async (tournament) => {
+            tournament['is_registered'] = playersIdMap[tournament.id]
+              ? true
+              : false
+            tournament['is_free'] =
+              registrationsIdMap[tournament.cct_id] &&
+              (tournament.entry_fee > 0 ||
+                (tournament.mandatory_club_membership_name &&
+                  !club_memberships.includes(
+                    tournament.mandatory_club_membership_name
+                  )))
+                ? false
+                : true
+            tournament['registration_tid'] =
+              registrationsIdMap[tournament.cct_id] || null
+            tournament['club'] = clubs_details.find(c => c.association_name === tournament.mandatory_club_membership_name)
+          })
+        }
+      }
       return responseHandler.returnSuccess(httpStatus.OK, message, data)
     } catch (e) {
       logger.error(e)
@@ -968,7 +1034,7 @@ class TournamentService {
       if (type && type !== 'all') {
         where.tournament_type = type === 'offline' ? 'OTB' : { [Op.ne]: 'OTB' }
       }
-      
+
       const data = await this.tournamentDao.getDataTableData(
         where,
         limit,
@@ -980,7 +1046,7 @@ class TournamentService {
         ]
       )
 
-      if(ids){
+      if (ids) {
         const playerCountMap = await this.trnplayersDao.findCountByGroup(
           'tournament_id',
           'id',
@@ -988,13 +1054,16 @@ class TournamentService {
             tournament_id: ids.split(','),
           }
         )
-  
+
         const playersCountMap = playerCountMap.reduce((acc, curr) => {
           acc[curr.tournament_id] = curr.count
           return acc
         }, {})
 
-        data.rows = data?.rows?.map(x => ({...x.dataValues, player_count: playersCountMap[x.dataValues.id] || 0}))
+        data.rows = data?.rows?.map((x) => ({
+          ...x.dataValues,
+          player_count: playersCountMap[x.dataValues.id] || 0,
+        }))
       }
 
       return responseHandler.returnSuccess(httpStatus.OK, message, data)
@@ -1026,7 +1095,7 @@ class TournamentService {
       )} round of the tournament.`
 
       const tournament = await this.tournamentDao.findById(tournamentId)
-      const players = await this.trnplayersDao.findByWhere({
+      let players = await this.trnplayersDao.findByWhere({
         tournament_id: tournamentId,
       })
 
@@ -1171,6 +1240,36 @@ class TournamentService {
       const tnrConfig = await this.tournamentConfigurationDao.findOneByWhere({
         tournament_id: tournamentId,
       })
+      if (tnrConfig.sorting) {
+        const sortedPlayers = sortByInitialRankings(players)
+        const startingRanks = sortedPlayers.map((p, i) => {
+          return {
+            round: Number(round),
+            tournament_id: tournamentId,
+            player_id: p.id,
+            rank: i + 1,
+          }
+        })
+        await this.playerStartingRankDao.bulkCreate(startingRanks)
+        players = sortedPlayers
+      } else {
+        const lastRound = await this.playerStartingRankDao.max('round', {
+          tournament_id: tournamentId,
+        })
+        const startingRanks = await this.playerStartingRankDao.findByWhere({
+          round: lastRound,
+          tournament_id: tournamentId,
+        })
+        players = players.sort((a, b) => {
+          const aRank = startingRanks.find((s) => {
+            return s.player_id === a.id
+          })
+          const bRank = startingRanks.find((s) => {
+            return s.player_id === b.id
+          })
+          return aRank?.rank - bRank?.rank
+        })
+      }
       const { whitePlayers, blackPlayers, leftTeams, rightTeams } =
         await javaFoRoundPairing(
           players,
@@ -1183,6 +1282,12 @@ class TournamentService {
           teams
         )
       const res = await this.tournamentPairingsDao.bulkCreate(whitePlayers)
+      await this.tournamentConfigurationDao.updateWhere(
+        { sorting: false },
+        {
+          tournament_id: tournamentId,
+        }
+      )
       if (!res) {
         message = 'Failed to pair players! Please try again.'
         return responseHandler.returnError(httpStatus.BAD_REQUEST, message)
@@ -1196,7 +1301,7 @@ class TournamentService {
       const oppRes = await this.tournamentPairingsDao.bulkCreate(newOpponents)
 
       await this.tournamentDao.updateById(
-        { current_round: Number(round) },
+        { current_round: Number(round), new_player_added: false },
         tournamentId
       )
 
@@ -1251,15 +1356,37 @@ class TournamentService {
     try {
       const message = 'Successfully reverted current round pairing'
       const tournament = await this.tournamentDao.findById(tournamentId)
-      logger.info(`Reverting pairing data for round : ${tournament.current_round} of tournamentId: ${tournamentId}`)
+      logger.info(
+        `Reverting pairing data for round : ${tournament.current_round} of tournamentId: ${tournamentId}`
+      )
 
+      let new_player_added = false
+      if (tournament.current_round > 1) {
+        const currentCount = await this.tournamentPairingsDao.getCountByWhere({
+          round: tournament.current_round,
+          tournament_id: tournamentId,
+        })
+        const prevCount = await this.tournamentPairingsDao.getCountByWhere({
+          round: tournament.current_round - 1,
+          tournament_id: tournamentId,
+        })
+        if (currentCount > prevCount) {
+          new_player_added = true
+        }
+      }
       await this.tournamentPairingsDao.deleteByWhere({
         round: tournament.current_round,
+        tournament_id: tournamentId,
+      })
+      await this.playerStartingRankDao.deleteByWhere({
+        round: tournament.current_round,
+        tournament_id: tournamentId,
       })
       await this.tournamentDao.updateById(
         {
           current_round:
             tournament.current_round > 0 ? tournament.current_round - 1 : 0,
+          new_player_added,
         },
         tournamentId
       )
@@ -1592,6 +1719,30 @@ class TournamentService {
       return responseHandler.returnSuccess(httpStatus.OK, message, result)
     } catch (e) {
       logger.error(e)
+      return responseHandler.returnError(
+        httpStatus.BAD_REQUEST,
+        'Something went wrong!'
+      )
+    }
+  }
+
+  verifyPassword = async (tournamentId, password) => {
+    try {
+      let message = 'Password verified successfully.'
+      const tournament = await this.tournamentDao.findById(tournamentId)
+      const isPasswordValid = await bcrypt.compare(
+        password,
+        tournament.password
+      )
+
+      if (!isPasswordValid) {
+        message = 'Wrong Password!'
+        return responseHandler.returnError(httpStatus.BAD_REQUEST, message)
+      }
+
+      return responseHandler.returnSuccess(httpStatus.OK, message)
+    } catch (error) {
+      logger.error(error)
       return responseHandler.returnError(
         httpStatus.BAD_REQUEST,
         'Something went wrong!'
@@ -2006,7 +2157,9 @@ class TournamentService {
         created_by: userId,
       })
 
-      const players = await this.trnplayersDao.findByWhere({ tournament_id: tournaments.map((t) => t.id) })
+      const players = await this.trnplayersDao.findByWhere({
+        tournament_id: tournaments.map((t) => t.id),
+      })
 
       const yesterdayPlayers = players.filter((p) => {
         return moment().diff(p.createdAt, 'd') === 1
@@ -2026,7 +2179,7 @@ class TournamentService {
               }, 0)
             } else {
               a += Number(ta.entry_fee[b.entry_fee_category]) || 0
-            }          
+            }
           }
           return a
         }, 0)
@@ -2388,7 +2541,10 @@ class TournamentService {
         } catch (error) {
           logger.error(error)
           if (tournamentBody.enable_registration) {
-            await this.tournamentDao.updateById({enable_registration:!body.enable_registration}, id)
+            await this.tournamentDao.updateById(
+              { enable_registration: !body.enable_registration },
+              id
+            )
           }
           message = 'Failed to publish tournament.Please try again'
           return responseHandler.returnError(httpStatus.BAD_REQUEST, message)

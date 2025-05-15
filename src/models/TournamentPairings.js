@@ -1,4 +1,5 @@
 const { Model } = require('sequelize')
+const config = require('../config/config')
 
 module.exports = (sequelize, DataTypes) => {
   class TournamentPairings extends Model {
@@ -12,15 +13,9 @@ module.exports = (sequelize, DataTypes) => {
       TournamentPairings.belongsTo(models.cc_tournament_chessmasters, {
         foreignKey: 'tournament_id',
       })
-      TournamentPairings.belongsTo(models.players, {
-        targetKey: 'uuid',
-        foreignKey: 'player_uuid',
-        onDelete: 'CASCADE',
-      })
       TournamentPairings.belongsTo(models.ccm_tournament_players, {
         targetKey: 'id',
         foreignKey: 'player_id',
-        onDelete: 'CASCADE',
       })
     }
   }
@@ -30,14 +25,6 @@ module.exports = (sequelize, DataTypes) => {
       parent_id: DataTypes.INTEGER,
       tournament_id: DataTypes.INTEGER,
       player_fide_id: DataTypes.INTEGER,
-      player_uuid: {
-        type: DataTypes.STRING,
-        allowNull: true,
-        references: {
-          model: 'players',
-          key: 'uuid',
-        },
-      },
       player_id: {
         type: DataTypes.INTEGER,
         allowNull: true,
@@ -74,7 +61,7 @@ module.exports = (sequelize, DataTypes) => {
     },
     {
       sequelize,
-      modelName: 'tournament_pairings',
+      modelName: (config.simulate ? 'temp_' : 'ccm_')+'tournament_pairings',
     }
   )
   return TournamentPairings

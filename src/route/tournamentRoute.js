@@ -25,6 +25,7 @@ router.post(
 router.get('/get-tournaments', tournamentController.getTournaments)
 router.get('/get-circlechess-tournaments', tournamentController.getCirclechessTournaments)
 router.get('/get-joined-tournaments', tournamentController.getJoinedTournamentByUserId)
+router.post('/verify-password', tournamentController.verifyPassword)
 router.get(
   '/get-tournament-list',
   auth(),

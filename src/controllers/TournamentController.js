@@ -50,7 +50,7 @@ class TournamentController {
 
   getCirclechessTournaments = async (req, res) => {
     try {
-        const { limit = 10, offset = 0 } = req.query;
+        const { limit = 10, offset = 0, userId } = req.query;
 
         // Convert comma-separated query params into arrays (for multi-select filters)
         // const formattedFilters = Object.keys(filters).reduce((acc, key) => {
@@ -61,6 +61,7 @@ class TournamentController {
         const tournaments = await this.tournamentService.getCirclechesssTournaments(
             limit,
             offset,
+            userId
         );
 
         const { status, message, data } = tournaments.response;
@@ -70,6 +71,21 @@ class TournamentController {
         res.status(httpStatus.BAD_GATEWAY).send(e);
     }
   };
+
+  verifyPassword = async (req,res) => {
+    try {
+      const { tournamentId, password } = req.body
+      const pairing = await this.tournamentService.verifyPassword(
+        tournamentId,
+        password
+      )
+      const { status, message } = pairing.response
+      res.status(pairing.statusCode).send({ status, message })
+    } catch (e) {
+      logger.error(e)
+      res.status(httpStatus.BAD_GATEWAY).send(e)
+    }
+  }
 
 
   getTournamentById = async (req, res) => {

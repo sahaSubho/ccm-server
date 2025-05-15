@@ -1,6 +1,7 @@
-const endpoint = 'http://localhost:5001/api'
+const endpoint = 'http://localhost:5002/api'
 const fetch = require('node-fetch')
 const logger = require('../src/config/logger')
+const { sequelize } = require('../src/models')
 
 const options = {
   headers: {
@@ -36,24 +37,27 @@ const getScores = (key) => {
     case 12:
       return '1-1'
     default:
-      return '0-0'
-      break
+      return '1-0'
   }
 }
 
 const getUserToken = async () => {
-  const url = `${endpoint}/auth/login`
-  const body = {
-    email: 'abc@gmail.com',
-    password: 'abc@12',
+  try {
+    const url = `${endpoint}/auth/login`
+    const body = {
+      email: 'abc@gmail.com',
+      password: 'abc@12',
+    }
+    const response = await fetch(url, {
+      ...options,
+      method: 'POST',
+      body: JSON.stringify(body),
+    })
+    const data = await response.json()
+    options['headers']['Authorization'] = `Bearer ${data.tokens.access.token}`
+  } catch (error) {
+    console.log('GET User Token error:', error)
   }
-  const response = await fetch(url, {
-    ...options,
-    method: 'POST',
-    body: JSON.stringify(body),
-  })
-  const data = await response.json()
-  options['headers']['Authorization'] = `Bearer ${data.tokens.access.token}`
 }
 
 const getTournamentPlayers = async (tournamentId) => {
@@ -170,10 +174,10 @@ const scoreUpload = async (pairings, tournamentId, round) => {
 
 async function sitmulateAllTournamentFlows() {
   await getUserToken()
-  const url = `${endpoint}/tournament/get-tournament-list?limit=1000`
+  const url = `${endpoint}/tournament/get-tournament-list?limit=500`
   const response = await fetch(url, options)
   const data = await response.json()
-  const tournaments = data.data.rows.filter(t => t.id ===834)
+  const tournaments = data.data.rows
   for (const tournament of tournaments) {
     try {
       logger.info(`Starting tournament ${tournament.id}`)
@@ -181,12 +185,13 @@ async function sitmulateAllTournamentFlows() {
       const players = await getTournamentPlayers(tournament.id)
       if (!players) {
         logger.error(`No players found for tournament ${tournament.id}`)
-      } else {
+      } else if (players.length > 10 && players.length < 1000) {
         const rounds = tournament.rounds
-        if(rounds === tournament.current_round) {
-          logger.info(`Tournament ${tournament.id} already completed`)
-          continue
-        }else{
+        const current_round = tournament.current_round
+        // if (rounds === tournament.current_round) {
+        //   logger.info(`Tournament ${tournament.id} already completed`)
+        //   continue
+        // } else {
         for (let round = 1; round <= rounds; round++) {
           const pairings = await generatePairings(round, tournament.id)
           if (pairings) {
@@ -194,7 +199,12 @@ async function sitmulateAllTournamentFlows() {
           }
           // console.log("pairings", pairings)
         }
-    }
+        await sequelize.query(
+          `update cc_tournament_chessmasters set current_round=${current_round} where id=${tournament.id};`
+        )
+        // }
+      } else {
+        logger.info('Players not in required data format')
       }
       logger.info(`Tournament ${tournament.id} completed`)
     } catch (error) {
@@ -206,9 +216,10 @@ async function sitmulateAllTournamentFlows() {
     // const data = await response.json()
     // console.log("pairings", data)
   }
+  await sequelize.query('delete from temp_tournament_pairings;')
 }
 
 // const response = await fetch(url, options)
 // const juspayResponse = await response.json()
 
-sitmulateAllTournamentFlows()
+module.exports = sitmulateAllTournamentFlows

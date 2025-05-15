@@ -8,6 +8,8 @@ const calculateTPR = require('./TPR')
 const calculatePTP = require('./PTP')
 const calculateAPRO = require('./APRO')
 const calculateAPPO = require('./APPO')
+const calculateGE = require('./GE')
+const calculateWIN = require('./WIN')
 // const calculatePTP = require('./PTP')
 
 function calculateTB1TB2TB3(players) {
@@ -91,10 +93,12 @@ function calculateTB1TB2TB3(players) {
   return tiebreaks
 }
 
-const getTieBreakByCode = (code, data) => {
+const getTieBreakByCode = (code, data, setting = {}) => {
   switch (code) {
     case 'DE':
       return calculateDirectEncounter(data)
+    case 'GE':
+      return calculateGE(data)
     case 'REP':
       return calculateNumberOfWins(data)
     case 'BGP':
@@ -111,6 +115,8 @@ const getTieBreakByCode = (code, data) => {
       return calculateAPRO(data)
     case 'APPO':
       return calculateAPPO(data)
+    case 'WIN':
+      return calculateWIN(data, setting)
     default:
       break
   }
@@ -121,7 +127,7 @@ function getTieBreaks(data, round, trnConfig) {
   const tieBreakerResult = calculateTB1TB2TB3(playersMapping)
 
   const othertieBreaks = trnConfig?.tiebreaks?.reduce((acc, code) => {
-    acc[code] = getTieBreakByCode(code, data)
+    acc[code] = getTieBreakByCode(code, data, trnConfig?.tiebreak_settings?.[code])
     return acc
   }, {})
 

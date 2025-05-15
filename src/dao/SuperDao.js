@@ -128,6 +128,10 @@ class SuperDao {
     return this.Model.destroy({ where })
   }
 
+  async max(field, where) {
+    return this.Model.max(field, { where })
+  }
+
   async bulkCreate(data) {
     return this.Model.bulkCreate(data)
       .then((result) => {

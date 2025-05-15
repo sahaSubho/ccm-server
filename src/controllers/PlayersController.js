@@ -168,6 +168,18 @@ class PlayerController {
       res.status(httpStatus.BAD_GATEWAY).send(e)
     }
   }
+
+  syncFidePlayers = async (req, res) => {
+    try {
+      const { id } = req.params
+      const player = await this.playerService.syncFidePlayers(id)
+      const { status, message, data } = player.response
+      res.status(player.statusCode).send({ status, message, data })
+    } catch (e) {
+      logger.error(e)
+      res.status(httpStatus.BAD_GATEWAY).send(e)
+    }
+  }
 }
 
 module.exports = PlayerController
