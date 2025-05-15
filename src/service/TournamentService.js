@@ -754,6 +754,7 @@ class TournamentService {
             WHERE mobile_number='${user.mobile_number}';
           `)
           const club_memberships = clubs.map((c) => c.association_name)
+          const clubs_details = await this.tournamentDao.findByWhere({ association_name: data.map(d => d.mandatory_club_membership_name) })
           data.forEach(async (tournament) => {
             tournament['is_registered'] = playersIdMap[tournament.id]
               ? true
@@ -769,6 +770,7 @@ class TournamentService {
                 : true
             tournament['registration_tid'] =
               registrationsIdMap[tournament.cct_id] || null
+            tournament['club'] = clubs_details.find(c => c.association_name === tournament.mandatory_club_membership_name)
           })
         }
       }
