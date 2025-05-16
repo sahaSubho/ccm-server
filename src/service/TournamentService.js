@@ -130,13 +130,14 @@ class TournamentService {
     // Classify based on total time
     if (totalTime < 3) {
       return 'Bullet'
-    } else if (totalTime >= 3 && totalTime < 10) {
-      return 'Blitz'
-    } else if (totalTime >= 10 && totalTime <= 30) {
-      return 'Rapid'
-    } else {
-      return 'Classical'
     }
+    if (totalTime >= 3 && totalTime < 10) {
+      return 'Blitz'
+    }
+    if (totalTime >= 10 && totalTime <= 30) {
+      return 'Rapid'
+    }
+    return 'Classical'
   }
 
   createLichessSwissTournament = async (tournamentBody, req) => {
@@ -193,6 +194,14 @@ class TournamentService {
           try {
             // Step 1: Create the tournament in the database
             const data = await this.tournamentDao.create(tournamentBody)
+            if (data.id) {
+              await this.tournamentDao.updateById(
+                {
+                  address: `https://learn.circlechess.com/playChess?tournamentId=${data.id}&tournamentName=${data.name}`,
+                },
+                data.id
+              )
+            }
             const defaultConfig = {
               tiebreaks: ['BH-C1', 'BH', 'SB'],
               tiebreak_settings: {
@@ -225,13 +234,12 @@ class TournamentService {
                 'Tournament created and game service notified successfully.',
                 { tournament_id: data.id }
               )
-            } else {
-              console.error('Game service returned an error:', jsonResponse)
-              return responseHandler.returnError(
-                httpStatus.INTERNAL_SERVER_ERROR,
-                'Tournament created, but failed to notify game service.'
-              )
             }
+            console.error('Game service returned an error:', jsonResponse)
+            return responseHandler.returnError(
+              httpStatus.INTERNAL_SERVER_ERROR,
+              'Tournament created, but failed to notify game service.'
+            )
           } catch (error) {
             console.error(
               'Error during tournament creation or notification:',
@@ -463,7 +471,7 @@ class TournamentService {
           headers: {
             'Content-Type': 'application/x-www-form-urlencoded',
             // The authorization token has to be picked from the DB
-            Authorization: 'Bearer ' + lichessUser.lichess_token,
+            Authorization: `Bearer ${lichessUser.lichess_token}`,
             Accept: 'application/json',
           },
           body: new URLSearchParams(lichessRequestBody),
@@ -680,7 +688,9 @@ class TournamentService {
         'tournament_id',
         'id',
         {
-          tournament_id: data.map((t) => t.id),
+          tournament_id: data.map((t) => {
+            return t.id
+          }),
         }
       )
 
@@ -691,7 +701,7 @@ class TournamentService {
 
       data.forEach((tournament) => {
         const playerCount = playersCountMap[tournament.id] || 0
-        tournament['players_count'] = playerCount
+        tournament.players_count = playerCount
       })
 
       return responseHandler.returnSuccess(httpStatus.OK, message, data)
@@ -727,7 +737,11 @@ class TournamentService {
         const [results] = await sequelize.query(`
         SELECT tournament_registration_id, id
         FROM cc_tournaments  
-        WHERE id IN (${data.map((t) => t.cct_id || 0).join(',')})
+        WHERE id IN (${data
+          .map((t) => {
+            return t.cct_id || 0
+          })
+          .join(',')})
       `)
 
         const registrationsIdMap = results.reduce((acc, row) => {
@@ -738,7 +752,11 @@ class TournamentService {
         const [players] = await sequelize.query(`
         SELECT tournament_id, player_id
         FROM cc_registration_orders  
-        WHERE tournament_id IN (${data.map((t) => t.cct_id || 0).join(',')})
+        WHERE tournament_id IN (${data
+          .map((t) => {
+            return t.cct_id || 0
+          })
+          .join(',')})
       `)
 
         const playersIdMap = players.reduce((acc, row) => {
@@ -753,24 +771,31 @@ class TournamentService {
             FROM cc_association_registrations  
             WHERE mobile_number='${user.mobile_number}';
           `)
-          const club_memberships = clubs.map((c) => c.association_name)
-          const clubs_details = await this.tournamentDao.findByWhere({ association_name: data.map(d => d.mandatory_club_membership_name) })
+          const club_memberships = clubs.map((c) => {
+            return c.association_name
+          })
+          const clubs_details = await this.tournamentDao.findByWhere({
+            association_name: data.map((d) => {
+              return d.mandatory_club_membership_name
+            }),
+          })
           data.forEach(async (tournament) => {
-            tournament['is_registered'] = playersIdMap[tournament.id]
-              ? true
-              : false
-            tournament['is_free'] =
+            tournament.is_registered = !!playersIdMap[tournament.id]
+            tournament.is_free = !(
               registrationsIdMap[tournament.cct_id] &&
               (tournament.entry_fee > 0 ||
                 (tournament.mandatory_club_membership_name &&
                   !club_memberships.includes(
                     tournament.mandatory_club_membership_name
                   )))
-                ? false
-                : true
-            tournament['registration_tid'] =
+            )
+            tournament.registration_tid =
               registrationsIdMap[tournament.cct_id] || null
-            tournament['club'] = clubs_details.find(c => c.association_name === tournament.mandatory_club_membership_name)
+            tournament.club = clubs_details.find((c) => {
+              return (
+                c.association_name === tournament.mandatory_club_membership_name
+              )
+            })
           })
         }
       }
@@ -1013,6 +1038,7 @@ class TournamentService {
         type,
         ids,
         name,
+        is_club = 0,
       } = query
       const message = 'Fetched tournaments successfully.'
       const where = {}
@@ -1031,8 +1057,11 @@ class TournamentService {
       if (end_date) {
         where.end_date = { [Op.lte]: moment(end_date).add(1, 'd') }
       }
-      if (type && type !== 'all') {
+      if (type === 'clubs') {
+        where.is_club_membership = 1
+      } else if (type && type !== 'all') {
         where.tournament_type = type === 'offline' ? 'OTB' : { [Op.ne]: 'OTB' }
+        where.is_club_membership = 0
       }
 
       const data = await this.tournamentDao.getDataTableData(
@@ -1045,7 +1074,6 @@ class TournamentService {
           ),
         ]
       )
-
       if (ids) {
         const playerCountMap = await this.trnplayersDao.findCountByGroup(
           'tournament_id',
@@ -1060,10 +1088,12 @@ class TournamentService {
           return acc
         }, {})
 
-        data.rows = data?.rows?.map((x) => ({
-          ...x.dataValues,
-          player_count: playersCountMap[x.dataValues.id] || 0,
-        }))
+        data.rows = data?.rows?.map((x) => {
+          return {
+            ...x.dataValues,
+            player_count: playersCountMap[x.dataValues.id] || 0,
+          }
+        })
       }
 
       return responseHandler.returnSuccess(httpStatus.OK, message, data)
@@ -1757,7 +1787,11 @@ class TournamentService {
         tournamentBody,
         tournamentId
       )
-      return responseHandler.returnSuccess(httpStatus.OK, message)
+      return responseHandler.returnSuccess(
+        httpStatus.OK,
+        message,
+        tournamentUpdate
+      )
     } catch (e) {
       logger.error(e)
       return responseHandler.returnError(
@@ -2175,7 +2209,9 @@ class TournamentService {
       })
 
       const players = await this.trnplayersDao.findByWhere({
-        tournament_id: tournaments.map((t) => t.id),
+        tournament_id: tournaments.map((t) => {
+          return t.id
+        }),
       })
 
       const yesterdayPlayers = players.filter((p) => {
