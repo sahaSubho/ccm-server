@@ -122,6 +122,17 @@ class TournamentController {
       logger.error(e)
       res.status(httpStatus.BAD_GATEWAY).send(e)
     }
+  }
+  updatePairingTableId = async (req,res) => {
+    try {
+      const {id} = req.params
+      const update = await this.tournamentService.updatePairingTableId(id, req.body)
+      const { status, message } = update.response
+      res.status(update.statusCode).send({ status, message })
+    } catch (e) {
+      logger.error(e)
+      res.status(httpStatus.BAD_GATEWAY).send(e)
+    }
   }   
 
   getTournamentsByUser = async (req, res) => {
