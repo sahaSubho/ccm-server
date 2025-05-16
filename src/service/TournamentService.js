@@ -764,6 +764,8 @@ class TournamentService {
           return acc
         }, {})
 
+        console.log(JSON.stringify(playersIdMap))
+
         if (userId) {
           const user = await this.CCUserDao.findOneByWhere({ user_id: userId })
           const [clubs] = await sequelize.query(`
@@ -780,7 +782,7 @@ class TournamentService {
             }),
           })
           data.forEach(async (tournament) => {
-            tournament.is_registered = !!playersIdMap[tournament.id]
+            tournament.is_registered = !!playersIdMap[tournament.cct_id]
             tournament.is_free = !(
               registrationsIdMap[tournament.cct_id] &&
               (tournament.entry_fee > 0 ||
