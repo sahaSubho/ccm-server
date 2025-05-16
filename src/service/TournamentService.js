@@ -1767,6 +1767,23 @@ class TournamentService {
     }
   }
 
+  updatePairingTableId = async (id, body) => {
+    try {
+      const message = `Updated tournament Status successfully.`
+      const tournamentUpdate = await this.tournamentPairingsDao.updateById(
+        body,
+        id
+      )
+      return responseHandler.returnSuccess(httpStatus.OK, message)
+    } catch (e) {
+      logger.error(e)
+      return responseHandler.returnError(
+        httpStatus.BAD_REQUEST,
+        'Something went wrong!'
+      )
+    }
+  }
+
   updateScoring = async (round, tournamentId, scores, gameId = '') => {
     try {
       let message = `Updated scores of matches for Round ${round} successfully.`
