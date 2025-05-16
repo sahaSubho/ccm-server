@@ -1770,7 +1770,7 @@ class TournamentService {
   updatePairingTableId = async (id, body) => {
     try {
       const message = `Updated tournament Status successfully.`
-      const tournamentUpdate = await this.tournamentDao.updateById(
+      const tournamentUpdate = await this.tournamentPairingsDao.updateById(
         body,
         id
       )
