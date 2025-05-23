@@ -54,7 +54,7 @@ class TournamentValidator {
         'is_club_membership',
         { is: 1, then: Joi.string().required(), otherwise: Joi.optional() }
       ),
-      mandatory_club_membership_name: Joi.string(),
+      mandatory_club_membership_name: Joi.string().allow(''),
       whatsapp_group_link: Joi.string(),
     })
 
