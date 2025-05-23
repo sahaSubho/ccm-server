@@ -775,6 +775,7 @@ class TournamentService {
       const data = await this.tournamentDao.findByWhere(
         {
           is_active: true,
+          enable_registration: true,
           tournament_type: 'Circlechess_Online',
         },
         undefined,
