@@ -23,8 +23,14 @@ router.post(
   tournamentController.createLichessTournament
 )
 router.get('/get-tournaments', tournamentController.getTournaments)
-router.get('/get-circlechess-tournaments', tournamentController.getCirclechessTournaments)
-router.get('/get-joined-tournaments', tournamentController.getJoinedTournamentByUserId)
+router.get(
+  '/get-circlechess-tournaments',
+  tournamentController.getCirclechessTournaments
+)
+router.get(
+  '/get-joined-tournaments',
+  tournamentController.getJoinedTournamentByUserId
+)
 router.post('/verify-password', tournamentController.verifyPassword)
 router.get(
   '/get-tournament-list',
@@ -99,14 +105,31 @@ router.patch(
   tournamentController.addPairings
 )
 
-router.get('/get-club-memberships',auth(), tournamentController.getClubMembership)
+router.get(
+  '/get-club-memberships',
+  auth(),
+  tournamentController.getClubMembership
+)
+router.post(
+  '/split-tournament/:id',
+  auth(),
+  tournamentController.createCategoryTournament
+)
 
 router.post('/config/:id', auth(), tournamentController.setConfiguration)
 router.get('/config/:id', auth(), tournamentController.getConfiguration)
 
 router.get('/:id', tournamentController.getTournamentById)
-router.post('/update-circlechess-tournament/:id', gsApiCheck, tournamentController.updateCirclechessTournament)
-router.post('/update-pairing-tableid/:id', gsApiCheck, tournamentController.updatePairingTableId)
+router.post(
+  '/update-circlechess-tournament/:id',
+  gsApiCheck,
+  tournamentController.updateCirclechessTournament
+)
+router.post(
+  '/update-pairing-tableid/:id',
+  gsApiCheck,
+  tournamentController.updatePairingTableId
+)
 router.patch(
   '/:id',
   auth(),

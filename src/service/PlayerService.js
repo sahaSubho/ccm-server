@@ -10,6 +10,7 @@ const PlayersPrizePayoutDao = require('../dao/PlayersPrizePayoutDao')
 const PayoutTransactionsDao = require('../dao/PayoutTransactionsDao')
 const TournamentDao = require('../dao/TournamentDao')
 const TournamentPairingDao = require('../dao/TournamentPairingDao')
+const PrizeCategoryDao = require('../dao/PrizeCategoryDao')
 const responseHandler = require('../helper/responseHandler')
 const logger = require('../config/logger')
 const { parseFile, parseChessResultFile } = require('../helper/parseFile')
@@ -18,6 +19,7 @@ const { sortByInitialRankings } = require('../helper/pairingEngine/swiss')
 const JuspayService = require('./JuspayService')
 const RedisService = require('./RedisService')
 const CCUserDao = require('../dao/CCUserDao')
+const { getFilterBasedOnOperator } = require('../helper/utils')
 
 class PlayersService {
   constructor() {
@@ -31,6 +33,7 @@ class PlayersService {
     this.redisService = new RedisService()
     this.payoutTransactionsDao = new PayoutTransactionsDao()
     this.CCUserDao = new CCUserDao()
+    this.prizeCategoryDao = new PrizeCategoryDao()
   }
 
   static getRatingToConsider = (tournamentType, ratings) => {
@@ -75,7 +78,7 @@ class PlayersService {
     beginner: '-P-B',
   }
 
-  static areNamesSimilar = (_name1, _name2, threshold = 0.2) => {
+  static areNamesSimilar = (_name1, _name2, threshold = 0.1) => {
     // Convert names to lowercase for case-insensitive comparison
     const name1 = _name1.toLowerCase()
     const name2 = _name2.toLowerCase()
@@ -804,6 +807,35 @@ class PlayersService {
               type: sequelize.QueryTypes.SELECT,
             }
           )
+
+          const splitTournaments = await this.tournamentDao.findByWhere({
+            parent_id: tournamentId,
+          })
+
+          if (splitTournaments?.length > 0) {
+            const promises = splitTournaments.map(async (t) => {
+              const category = await this.prizeCategoryDao.findById(
+                t.category_id
+              )
+              const filteredPlayers = newPlayers.filter((p) => {
+                return (
+                  getFilterBasedOnOperator(
+                    category.operator,
+                    {
+                      rating: p.rating,
+                      age:
+                        moment(tournament.start_date).year() -
+                        Number(p?.birth_year),
+                    },
+                    category.type,
+                    category.value
+                  ) && p.gender === category.gender
+                )
+              })
+              return this.processUniquePlayers(filteredPlayers, t.id, true)
+            })
+            await Promise.allSettled(promises)
+          }
           const { ids, invalidPlayer } = await this.processUniquePlayers(
             newPlayers,
             tournamentId,

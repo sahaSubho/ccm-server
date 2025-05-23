@@ -1,5 +1,3 @@
-'use strict';
-
 module.exports = {
   up: async (queryInterface, Sequelize) => {
     await queryInterface.createTable('ccm_players_starting_ranks', {
@@ -40,10 +38,10 @@ module.exports = {
         type: Sequelize.DATE,
         allowNull: false,
       },
-    });
+    })
   },
 
-  down: async (queryInterface, Sequelize) => {
-    await queryInterface.dropTable('ccm_players_starting_ranks');
+  down: async (queryInterface) => {
+    await queryInterface.dropTable('ccm_players_starting_ranks')
   },
-};
+}

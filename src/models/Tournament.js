@@ -11,9 +11,12 @@ module.exports = (sequelize, DataTypes) => {
     static associate(models) {
       // define association here
       Tournament.belongsTo(models.users, { foreignKey: 'created_by' })
-      Tournament.hasMany(models[(config.simulate ? 'temp_' : 'ccm_')+'tournament_pairings'], {
-        foreignKey: 'tournament_id',
-      })
+      Tournament.hasMany(
+        models[`${config.simulate ? 'temp_' : 'ccm_'}tournament_pairings`],
+        {
+          foreignKey: 'tournament_id',
+        }
+      )
       Tournament.hasMany(models.players_prize_payouts, {
         foreignKey: 'tournament_id',
       })
@@ -26,9 +29,14 @@ module.exports = (sequelize, DataTypes) => {
       Tournament.hasMany(models.ccm_team_pairings, {
         foreignKey: 'tournament_id',
       })
-      Tournament.hasMany(models[(config.simulate ? 'temp_' : '')+'ccm_tournament_configurations'], {
-        foreignKey: 'tournament_id',
-      })
+      Tournament.hasMany(
+        models[
+          `${config.simulate ? 'temp_' : ''}ccm_tournament_configurations`
+        ],
+        {
+          foreignKey: 'tournament_id',
+        }
+      )
     }
   }
 
@@ -89,7 +97,7 @@ module.exports = (sequelize, DataTypes) => {
       time_format: DataTypes.STRING,
       is_club_membership: {
         type: DataTypes.INTEGER,
-        defaultValue: 0
+        defaultValue: 0,
       },
       association_level: DataTypes.STRING,
       association_name: DataTypes.STRING,
@@ -101,6 +109,8 @@ module.exports = (sequelize, DataTypes) => {
       csoc_batch: DataTypes.STRING,
       password: DataTypes.STRING,
       new_player_added: DataTypes.BOOLEAN,
+      parent_id: DataTypes.INTEGER,
+      whatsapp_group_link: DataTypes.STRING,
     },
     {
       sequelize,

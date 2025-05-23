@@ -3,7 +3,7 @@ const { Model } = require('sequelize')
 module.exports = (sequelize, DataTypes) => {
   class TournamentPrizeMapping extends Model {
     static associate(models) {
-      TournamentPrizeMapping.belongsTo(models.prize_category, {
+      TournamentPrizeMapping.belongsTo(models.prize_categories, {
         foreignKey: 'category_id',
       })
       TournamentPrizeMapping.belongsTo(models.cc_tournament_chessmasters, {

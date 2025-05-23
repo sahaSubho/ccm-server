@@ -1,7 +1,7 @@
 const SuperDao = require('./SuperDao')
 const models = require('../models')
 
-const PrizeCategories = models.prize_category
+const PrizeCategories = models.prize_categories
 
 class PrizeCategoryDao extends SuperDao {
   constructor() {

@@ -34,7 +34,7 @@ class TournamentController {
 
   getTournaments = async (req, res) => {
     try {
-      const { limit, offset, country} = req.query
+      const { limit, offset, country } = req.query
       const tournaments = await this.tournamentService.getTournaments(
         limit,
         offset,
@@ -50,29 +50,30 @@ class TournamentController {
 
   getCirclechessTournaments = async (req, res) => {
     try {
-        const { limit = 10, offset = 0, userId } = req.query;
+      const { limit = 10, offset = 0, userId } = req.query
 
-        // Convert comma-separated query params into arrays (for multi-select filters)
-        // const formattedFilters = Object.keys(filters).reduce((acc, key) => {
-        //     acc[key] = filters[key].split(','); // Convert "Blitz,Rapid" -> ["Blitz", "Rapid"]
-        //     return acc;
-        // }, {});
+      // Convert comma-separated query params into arrays (for multi-select filters)
+      // const formattedFilters = Object.keys(filters).reduce((acc, key) => {
+      //     acc[key] = filters[key].split(','); // Convert "Blitz,Rapid" -> ["Blitz", "Rapid"]
+      //     return acc;
+      // }, {});
 
-        const tournaments = await this.tournamentService.getCirclechesssTournaments(
-            limit,
-            offset,
-            userId
-        );
+      const tournaments =
+        await this.tournamentService.getCirclechesssTournaments(
+          userId,
+          limit,
+          offset
+        )
 
-        const { status, message, data } = tournaments.response;
-        res.status(tournaments.statusCode).send({ status, message, data });
+      const { status, message, data } = tournaments.response
+      res.status(tournaments.statusCode).send({ status, message, data })
     } catch (e) {
-        logger.error(e);
-        res.status(httpStatus.BAD_GATEWAY).send(e);
+      logger.error(e)
+      res.status(httpStatus.BAD_GATEWAY).send(e)
     }
-  };
+  }
 
-  verifyPassword = async (req,res) => {
+  verifyPassword = async (req, res) => {
     try {
       const { tournamentId, password } = req.body
       const pairing = await this.tournamentService.verifyPassword(
@@ -87,7 +88,6 @@ class TournamentController {
     }
   }
 
-
   getTournamentById = async (req, res) => {
     try {
       const { id } = req.params
@@ -99,11 +99,14 @@ class TournamentController {
       res.status(httpStatus.BAD_GATEWAY).send(e)
     }
   }
+
   getJoinedTournamentByUserId = async (req, res) => {
     try {
-      const { userId } = req.query;
-      console.log(userId, req.query);
-      const tournaments = await this.tournamentService.getJoinedTournaments(userId)
+      const { userId } = req.query
+      console.log(userId, req.query)
+      const tournaments = await this.tournamentService.getJoinedTournaments(
+        userId
+      )
       const { status, message, data } = tournaments.response
       res.status(tournaments.statusCode).send({ status, message, data })
     } catch (e) {
@@ -112,28 +115,35 @@ class TournamentController {
     }
   }
 
-  updateCirclechessTournament = async (req,res) => {
+  updateCirclechessTournament = async (req, res) => {
     try {
       const { id } = req.params
-      const update = await this.tournamentService.updateCirclechessTournament(id, req.body)
-      const { status, message } = update.response 
-      res.status(update.statusCode).send({ status, message,})
-    } catch (e) {
-      logger.error(e)
-      res.status(httpStatus.BAD_GATEWAY).send(e)
-    }
-  }
-  updatePairingTableId = async (req,res) => {
-    try {
-      const {id} = req.params
-      const update = await this.tournamentService.updatePairingTableId(id, req.body)
+      const update = await this.tournamentService.updateCirclechessTournament(
+        id,
+        req.body
+      )
       const { status, message } = update.response
       res.status(update.statusCode).send({ status, message })
     } catch (e) {
       logger.error(e)
       res.status(httpStatus.BAD_GATEWAY).send(e)
     }
-  }   
+  }
+
+  updatePairingTableId = async (req, res) => {
+    try {
+      const { id } = req.params
+      const update = await this.tournamentService.updatePairingTableId(
+        id,
+        req.body
+      )
+      const { status, message } = update.response
+      res.status(update.statusCode).send({ status, message })
+    } catch (e) {
+      logger.error(e)
+      res.status(httpStatus.BAD_GATEWAY).send(e)
+    }
+  }
 
   getTournamentsByUser = async (req, res) => {
     try {
@@ -151,7 +161,23 @@ class TournamentController {
 
   getClubMembership = async (req, res) => {
     try {
-      const tournaments = await this.tournamentService.getClubMembership(req.user)
+      const tournaments = await this.tournamentService.getClubMembership(
+        req.user
+      )
+      const { status, message, data } = tournaments.response
+      res.status(tournaments.statusCode).send({ status, message, data })
+    } catch (e) {
+      logger.error(e)
+      res.status(httpStatus.BAD_GATEWAY).send(e)
+    }
+  }
+
+  createCategoryTournament = async (req, res) => {
+    try {
+      const { id } = req.params
+      const tournaments = await this.tournamentService.createCategoryTournament(
+        id
+      )
       const { status, message, data } = tournaments.response
       res.status(tournaments.statusCode).send({ status, message, data })
     } catch (e) {
@@ -297,6 +323,7 @@ class TournamentController {
 
   createPrizingCategories = async (req, res) => {
     try {
+      console.log('body', JSON.stringify(req.body))
       const prizes = await this.tournamentService.createPrizingCategories(
         req.body
       )

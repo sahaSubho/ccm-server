@@ -92,7 +92,7 @@ class TournamentService {
     return result
   }
 
-  classifyTimeControl = (timeControl) => {
+  static classifyTimeControl = (timeControl) => {
     // Handle special cases
     if (/hour|90m|60m|45m/i.test(timeControl)) {
       return 'Classical'
@@ -108,18 +108,18 @@ class TournamentService {
     // Handle formats like "25+10" assuming x as minutes and y as seconds
     const plusFormatMatch = timeControl.match(/(\d+)\s*\+\s*(\d+)/)
     if (plusFormatMatch) {
-      minutes = parseInt(plusFormatMatch[1])
-      seconds = parseInt(plusFormatMatch[2])
+      minutes = Number(plusFormatMatch[1])
+      seconds = Number(plusFormatMatch[2])
     } else {
       const matches = timeControl.match(/(\d+)(m|s)?/g)
       if (matches) {
         matches.forEach((part) => {
           if (part.includes('m')) {
-            minutes = parseInt(part)
+            minutes = Number(part)
           } else if (part.includes('s')) {
-            seconds = parseInt(part)
+            seconds = Number(part)
           } else {
-            minutes = parseInt(part)
+            minutes = Number(part)
           }
         })
       }
@@ -171,7 +171,7 @@ class TournamentService {
         if (tournamentBody.tournament_type === 'Circlechess_Online') {
           // Set additional tournament properties
           tournamentBody.time_control = `${tournamentBody.initial_time}+${tournamentBody.increment_time}`
-          tournamentBody.time_format = this.classifyTimeControl(
+          tournamentBody.time_format = TournamentService.classifyTimeControl(
             tournamentBody.time_control
           )
           tournamentBody.start_date = tournamentBody.startDate
@@ -210,7 +210,7 @@ class TournamentService {
                 'BH-C1': { games: { best: '1', worst: '0' } },
               },
             }
-            const reponse = await this.setConfiguration(data.id, defaultConfig)
+            await this.setConfiguration(data.id, defaultConfig)
 
             // Step 2: Notify the game service with the created tournament data
             const url = `${config.gameService.endpoint}/createTournament`
@@ -353,7 +353,7 @@ class TournamentService {
           tournamentBody.federation = 'Online Lichess'
           tournamentBody.director = tournamentBody.organizer
           tournamentBody.time_control = `${tournamentBody.initial_time}+${tournamentBody.increment_time}`
-          tournamentBody.time_format = this.classifyTimeControl(
+          tournamentBody.time_format = TournamentService.classifyTimeControl(
             tournamentBody.time_control
           )
           tournamentBody.start_date = tournamentBody.startDate
@@ -509,7 +509,7 @@ class TournamentService {
           tournamentBody.federation = 'Online Lichess'
           tournamentBody.director = tournamentBody.organizer
           tournamentBody.time_control = `${lichessRequestBody.clockTime}+${lichessRequestBody.clockIncrement}`
-          tournamentBody.time_format = this.classifyTimeControl(
+          tournamentBody.time_format = TournamentService.classifyTimeControl(
             tournamentBody.time_control
           )
           tournamentBody.start_date = lichessRequestBody.startDate
@@ -578,14 +578,14 @@ class TournamentService {
         return responseHandler.returnError(httpStatus.BAD_REQUEST, message)
       }
 
-      if (tournamentBody.is_club_membership === 1) {
-        const exits = await this.tournamentDao.checkExist({
-          name: tournamentBody.name,
-        })
-        if (exits) {
-          message = 'Club name already exists! Try Different name.'
-          return responseHandler.returnError(httpStatus.BAD_REQUEST, message)
-        }
+      const exits = await this.tournamentDao.checkExist({
+        name: tournamentBody.name,
+      })
+      if (exits) {
+        message = `${
+          tournamentBody.is_club_membership === 1 ? 'Club' : 'Tournament'
+        } name already exists! Try Different name.`
+        return responseHandler.returnError(httpStatus.BAD_REQUEST, message)
       }
 
       if (tournamentBody?.feedback?.length && tournamentBody?.id) {
@@ -618,7 +618,7 @@ class TournamentService {
       tournamentBody.created_by = req.user.id
       tournamentBody.is_active = true
 
-      tournamentBody.time_format = this.classifyTimeControl(
+      tournamentBody.time_format = TournamentService.classifyTimeControl(
         tournamentBody.time_control
       )
       const data = await this.tournamentDao.create(tournamentBody)
@@ -651,6 +651,60 @@ class TournamentService {
       }
 
       return responseHandler.returnSuccess(httpStatus.CREATED, message, data)
+    } catch (e) {
+      logger.error(e)
+      return responseHandler.returnError(
+        httpStatus.BAD_REQUEST,
+        'Something went wrong!'
+      )
+    }
+  }
+
+  createCategoryTournament = async (tournamentId) => {
+    try {
+      const tournament = await this.tournamentDao.findById(tournamentId)
+      const categories = tournament.category?.split(',')
+      if (categories.length <= 1) {
+        const message =
+          'Tournament distribution is possible only with more than one category.'
+        return responseHandler.returnError(httpStatus.BAD_REQUEST, message)
+      }
+
+      const splitTournamentExists = await this.tournamentDao.checkExist({
+        parent_id: tournamentId,
+      })
+
+      if (splitTournamentExists) {
+        const message = 'Splitted Tournament already exists.'
+        return responseHandler.returnError(httpStatus.BAD_REQUEST, message)
+      }
+      const promises = categories.map(async (cat) => {
+        const category = cat.split('(')?.[0]?.trim()
+        let gender = 'B'
+        const genderPart = cat.split('(')?.[1]?.trim()
+        if (genderPart) {
+          if (genderPart.includes('Boys')) {
+            gender = 'M'
+          } else {
+            gender = 'F'
+          }
+        }
+        const categoryDetails = await this.prizeCategoryDao.findOneByWhere({
+          name: category,
+          gender,
+        })
+        const tournamentBody = {
+          ...tournament,
+          id: undefined,
+          name: `${tournament.name} - ${cat}`,
+          parent_id: tournamentId,
+          category_id: categoryDetails.id,
+        }
+        return this.tournamentDao.create(tournamentBody)
+      })
+      await Promise.allSettled(promises)
+      const message = 'Successfully splitted the tournament based on categories'
+      return responseHandler.returnSuccess(httpStatus.OK, message)
     } catch (e) {
       logger.error(e)
       return responseHandler.returnError(
@@ -714,7 +768,7 @@ class TournamentService {
     }
   }
 
-  getCirclechesssTournaments = async (limit = 10, offset = 0, userId) => {
+  getCirclechesssTournaments = async (userId, limit = 10, offset = 0) => {
     try {
       const message = 'Fetched tournaments successfully.'
 
@@ -852,7 +906,9 @@ class TournamentService {
           location: tournament.location,
           rounds: tournament.rounds,
           time_control: tournament.time_control,
-          time_format: this.classifyTimeControl(tournament.time_control),
+          time_format: TournamentService.classifyTimeControl(
+            tournament.time_control
+          ),
         }
       })
 
@@ -988,6 +1044,10 @@ class TournamentService {
         )
         if (ccTournament.length > 0) {
           data.setDataValue('tournamentKey', ccTournament[0].tournament_key)
+          data.setDataValue(
+            'weblink',
+            `https://circlechess.com/events/tournaments/${data.state}/${data.city}/${data.name}/${ccTournament[0].tournament_key}`
+          )
         }
       }
       data.setDataValue('pairings', pairings)
@@ -1012,10 +1072,11 @@ class TournamentService {
   getClubMembership = async (user) => {
     try {
       const message = 'Fetched all clubs successfully.'
-      const data = await this.tournamentDao.findByWhere({
-        created_by: user.id,
-        is_club_membership: 1,
-      })
+      const where = { is_club_membership: 1 }
+      if (user.role !== userRoles.ADMIN) {
+        where.created_by = user.id
+      }
+      const data = await this.tournamentDao.findByWhere(where)
       return responseHandler.returnSuccess(httpStatus.OK, message, data)
     } catch (e) {
       logger.error(e)
@@ -1040,7 +1101,6 @@ class TournamentService {
         type,
         ids,
         name,
-        is_club = 0,
       } = query
       const message = 'Fetched tournaments successfully.'
       const where = {}
@@ -1299,7 +1359,7 @@ class TournamentService {
           const bRank = startingRanks.find((s) => {
             return s.player_id === b.id
           })
-          return aRank?.rank - bRank?.rank
+          return (aRank?.rank ?? 0) - (bRank?.rank ?? 0)
         })
       }
       const { whitePlayers, blackPlayers, leftTeams, rightTeams } =
@@ -1806,10 +1866,7 @@ class TournamentService {
   updatePairingTableId = async (id, body) => {
     try {
       const message = `Updated tournament Status successfully.`
-      const tournamentUpdate = await this.tournamentPairingsDao.updateById(
-        body,
-        id
-      )
+      await this.tournamentPairingsDao.updateById(body, id)
       return responseHandler.returnSuccess(httpStatus.OK, message)
     } catch (e) {
       logger.error(e)
@@ -2228,8 +2285,8 @@ class TournamentService {
         const total = players.reduce((a, b) => {
           if (b.tournament_id === ta.id) {
             if (Array.isArray(ta.entry_fee)) {
-              a += ta.entry_fee.reduce((ac, b) => {
-                ac += Number(b.fee)
+              a += ta.entry_fee.reduce((ac, c) => {
+                ac += Number(c.fee)
                 return ac
               }, 0)
             } else {
@@ -2592,6 +2649,19 @@ class TournamentService {
               },
               id
             )
+            if (tournament.whatsapp_group_link) {
+              await sequelize.query(
+                'INSERT INTO cc_event_details (event_name, event_id,whatsapp_group) VALUES (?, ?, ?)',
+                {
+                  replacements: [
+                    tournament.name,
+                    response.id,
+                    tournament.whatsapp_group_link,
+                  ],
+                  type: sequelize.QueryTypes.INSERT,
+                }
+              )
+            }
           }
         } catch (error) {
           logger.error(error)
