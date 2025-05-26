@@ -56,6 +56,11 @@ class TournamentValidator {
       ),
       mandatory_club_membership_name: Joi.string().allow(''),
       whatsapp_group_link: Joi.string(),
+      max_participants: Joi.number().default(-1),
+      multiple_registration: Joi.number().default(0),
+      custom_message: Joi.string().allow(''),
+      default_category: Joi.string().default(''),
+      description: Joi.string().default(''),
     })
 
     const fileSchema = Joi.object({
