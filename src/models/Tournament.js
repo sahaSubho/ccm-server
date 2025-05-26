@@ -111,6 +111,17 @@ module.exports = (sequelize, DataTypes) => {
       new_player_added: DataTypes.BOOLEAN,
       parent_id: DataTypes.INTEGER,
       whatsapp_group_link: DataTypes.STRING,
+      max_participants: {
+        type: DataTypes.INTEGER,
+        defaultValue: -1,
+      },
+      multiple_registration: {
+        type: DataTypes.INTEGER,
+        defaultValue: 0,
+      },
+      custom_message: DataTypes.TEXT,
+      default_category: DataTypes.STRING,
+      description: DataTypes.TEXT,
     },
     {
       sequelize,
