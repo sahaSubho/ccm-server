@@ -66,16 +66,16 @@ class PlayersService {
 
   static CSOCTournamentMapping = {
     advance: 16599,
-    intermediate: 19538,
+    intermediate: '19538,29210',
     foundation: '24797,23696,28545',
     beginner: 19526,
   }
 
   static CSOCTournamentClassNameMapping = {
-    advance: '-P-AD',
-    intermediate: '-P-IN',
-    foundation: '-P-F',
-    beginner: '-P-B',
+    advance: '-P%-AD',
+    intermediate: '-P%-IN',
+    foundation: '-P%-F',
+    beginner: '-P%-B',
   }
 
   static areNamesSimilar = (_name1, _name2, threshold = 0.1) => {

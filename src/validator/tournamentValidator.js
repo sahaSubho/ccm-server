@@ -56,7 +56,7 @@ class TournamentValidator {
       ),
       mandatory_club_membership_name: Joi.string().allow(''),
       whatsapp_group_link: Joi.string(),
-      max_participants: Joi.number().default(-1),
+      max_participants: Joi.number().min(0).default(0),
       multiple_registration: Joi.number().default(0),
       custom_message: Joi.string().allow(''),
       default_category: Joi.string().default(''),
@@ -296,6 +296,103 @@ class TournamentValidator {
     })
     // validate request body against schema
     const { error, value } = schema.validate(req.body, options)
+
+    if (error) {
+      // on fail return comma separated errors
+      const errorMessage = error.details
+        .map((details) => {
+          return details.message
+        })
+        .join(', ')
+      next(new ApiError(httpStatus.BAD_REQUEST, errorMessage))
+    } else {
+      // on success replace req.body with validated value and trigger next middleware function
+      req.body = value
+      return next()
+    }
+  }
+
+  static updateTournamentValidator(req, res, next) {
+    const updateTournamentSchema = Joi.object({
+      name: Joi.string(),
+      organizer: Joi.string(),
+      federation: Joi.string(),
+      director: Joi.string(),
+      arbiter: Joi.string(),
+      time_control: Joi.string(),
+      tournament_type: Joi.string(),
+      start_date: Joi.date(),
+      end_date: Joi.date().greater(Joi.ref('start_date')),
+      reporting_time: Joi.string(), // TIME is stored as string
+      meeting_time: Joi.string(), // TIME is stored as string
+      rating: Joi.number(),
+      rounds: Joi.number(),
+      entry_fee: Joi.object(), // JSONB
+      address: Joi.string(),
+      city: Joi.string(),
+      state: Joi.string(),
+      country: Joi.string(),
+      brochure: Joi.string(),
+      display_pic: Joi.string(),
+      category: Joi.string(),
+      player_fide_ids: Joi.string().max(20000),
+      withdrawn_uuid: Joi.string().max(20000),
+      current_round: Joi.number(),
+      registration_inflow: Joi.number().default(100000),
+      brochure_details: Joi.object(), // JSONB
+      cct_id: Joi.number(),
+      created_by: Joi.number(),
+      is_active: Joi.boolean(),
+      order_id: Joi.string(),
+      previous_order_ids: Joi.object(), // JSONB
+      enable_registration: Joi.boolean(),
+      stakeholders_mobile_number: Joi.string(),
+      feedback_key: Joi.string().uuid(),
+      pairing_type: Joi.string(),
+      time_format: Joi.string(),
+      is_club_membership: Joi.number().valid(0, 1).default(0),
+      association_level: Joi.alternatives().conditional('is_club_membership', {
+        is: 1,
+        then: Joi.string(),
+        otherwise: Joi.optional(),
+      }),
+      association_name: Joi.alternatives().conditional('is_club_membership', {
+        is: 1,
+        then: Joi.string(),
+        otherwise: Joi.optional(),
+      }),
+      association_membership_id_prefix: Joi.alternatives().conditional(
+        'is_club_membership',
+        {
+          is: 1,
+          then: Joi.string(),
+          otherwise: Joi.optional(),
+        }
+      ),
+      association_membership_duration: Joi.alternatives().conditional(
+        'is_club_membership',
+        {
+          is: 1,
+          then: Joi.string(),
+          otherwise: Joi.optional(),
+        }
+      ),
+      mandatory_club_membership_name: Joi.string().allow(''),
+      prize: Joi.string(),
+      is_private: Joi.boolean(),
+      csoc_batch: Joi.string(),
+      password: Joi.string(),
+      new_player_added: Joi.boolean(),
+      parent_id: Joi.number(),
+      whatsapp_group_link: Joi.string(),
+      max_participants: Joi.number().min(0).default(0),
+      multiple_registration: Joi.number().default(0),
+      custom_message: Joi.string().allow(''),
+      default_category: Joi.string(),
+      description: Joi.string().allow(''),
+    })
+    // validate request body against schema
+    const { error, value } = updateTournamentSchema.validate(req.body, options)
 
     if (error) {
       // on fail return comma separated errors
