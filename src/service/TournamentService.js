@@ -1014,6 +1014,10 @@ class TournamentService {
         }
       }
 
+      if (data.rounds < 0) {
+        data.rounds = 5
+      }
+
       const pairings = [...Array(data.rounds).keys()].reduce((acc, curr) => {
         acc[curr + 1] = {
           paired: roundDetails
@@ -1192,27 +1196,29 @@ class TournamentService {
         tournament_id: tournamentId,
       })
       if (tournament.tournament_type === 'Circlechess_Online') {
-        const seen = new Set();
-        const duplicateIds = [];
+        const seen = new Set()
+        const duplicateIds = []
 
         for (const player of players) {
           if (player.cc_userid && seen.has(player.cc_userid)) {
-            duplicateIds.push(player.id); // mark for deletion
+            duplicateIds.push(player.id) // mark for deletion
           } else if (player.cc_userid) {
-            seen.add(player.cc_userid);
+            seen.add(player.cc_userid)
           }
         }
 
         if (duplicateIds.length > 0) {
           // Delete all duplicates from DB
-          await this.trnplayersDao.deleteByWhere({ id: duplicateIds });
+          await this.trnplayersDao.deleteByWhere({ id: duplicateIds })
 
           logger.info(
             `Deleted ${duplicateIds.length} duplicate player(s) in tournament ${tournamentId}`
-          );
+          )
 
           // Remove them from in-memory list
-          players = players.filter(player => !duplicateIds.includes(player.id));
+          players = players.filter((player) => {
+            return !duplicateIds.includes(player.id)
+          })
         }
       }
 
