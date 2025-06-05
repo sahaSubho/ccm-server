@@ -197,7 +197,9 @@ class TournamentService {
             if (data.id) {
               await this.tournamentDao.updateById(
                 {
-                  address: `https://learn.circlechess.com/playChess?tournamentId=${data.id}&tournamentName=${data.name}`,
+                  address: `https://learn.circlechess.com/playChess?tournamentId=${
+                    data.id
+                  }&tournamentName=${data.name?.replace(/\s/g, '-')}`,
                 },
                 data.id
               )
@@ -1199,13 +1201,13 @@ class TournamentService {
         const seen = new Set()
         const duplicateIds = []
 
-        for (const player of players) {
+        players.forEach((player) => {
           if (player.cc_userid && seen.has(player.cc_userid)) {
             duplicateIds.push(player.id) // mark for deletion
           } else if (player.cc_userid) {
             seen.add(player.cc_userid)
           }
-        }
+        })
 
         if (duplicateIds.length > 0) {
           // Delete all duplicates from DB
