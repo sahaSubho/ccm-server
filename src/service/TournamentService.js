@@ -958,8 +958,8 @@ class TournamentService {
             rating: player.gameplay_rating,
           }
         })
-        data.setDataValue('players_joined', joinedPlayers)
       }
+      data.setDataValue('players_joined', joinedPlayers)
 
       if (data.feedback_key) {
         const feedbacks = await this.ccTournamentFeedbackDao.findByWhere({
