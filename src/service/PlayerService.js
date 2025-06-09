@@ -193,7 +193,10 @@ class PlayersService {
               invalidPlayer.push(p.name)
             }
             break
-          } else if (p.name === r.name && p.age === r.age) {
+          } else if (
+            PlayersService.areNamesSimilar(p.name, r.name) &&
+            Number(p.age) === Number(r.age)
+          ) {
             MostMatchedPlayer = r
             if (p.team) {
               MostMatchedPlayer.team = p.team
