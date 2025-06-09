@@ -1759,11 +1759,11 @@ class TournamentService {
         round,
         tournament_id: tournamentId,
       }
-      let parent_id = player_id
+      let parent_id = player_id || opponent_id
       if (type === 'add') {
         message = 'Successfully added new board pairing'
         const player_data = await this.tournamentPairingsDao.findOneByWhere(
-          { id: player_id },
+          { id: parent_id },
           [
             'round',
             'tournament_id',
@@ -1774,7 +1774,7 @@ class TournamentService {
             'player_score',
           ]
         )
-        await this.tournamentPairingsDao.deleteByWhere({ id: player_id })
+        await this.tournamentPairingsDao.deleteByWhere({ id: parent_id })
         const new_player = await this.tournamentPairingsDao.create(player_data)
         parent_id = new_player.dataValues.id
       } else {
@@ -1783,10 +1783,12 @@ class TournamentService {
           { ...where, id: player_id }
         )
       }
-      await this.tournamentPairingsDao.updateWhere(
-        { is_unpaired: false, parent_id },
-        { ...where, id: opponent_id }
-      )
+      if (opponent_id && opponent_id !== parent_id) {
+        await this.tournamentPairingsDao.updateWhere(
+          { is_unpaired: false, parent_id },
+          { ...where, id: opponent_id }
+        )
+      }
 
       return responseHandler.returnSuccess(httpStatus.OK, message)
     } catch (e) {

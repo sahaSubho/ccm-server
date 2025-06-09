@@ -290,10 +290,10 @@ class TournamentValidator {
     const schema = Joi.object({
       round: Joi.number().required(),
       tournamentId: Joi.number().required(),
-      player_id: Joi.number().required(),
-      opponent_id: Joi.number().required(),
+      player_id: Joi.number(),
+      opponent_id: Joi.number(),
       type: Joi.string(),
-    })
+    }).or('player_id', 'opponent_id')
     // validate request body against schema
     const { error, value } = schema.validate(req.body, options)
 

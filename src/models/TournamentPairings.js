@@ -21,6 +21,11 @@ module.exports = (sequelize, DataTypes) => {
   }
   TournamentPairings.init(
     {
+      id: {
+        type: DataTypes.INTEGER,
+        autoIncrement: true,
+        primaryKey: true,
+      },
       round: DataTypes.INTEGER,
       parent_id: DataTypes.INTEGER,
       tournament_id: DataTypes.INTEGER,
@@ -60,12 +65,12 @@ module.exports = (sequelize, DataTypes) => {
       },
       table_id: {
         type: DataTypes.INTEGER,
-        defaultValue: 0
-      }
+        defaultValue: 0,
+      },
     },
     {
       sequelize,
-      modelName: (config.simulate ? 'temp_' : 'ccm_')+'tournament_pairings',
+      modelName: `${config.simulate ? 'temp_' : 'ccm_'}tournament_pairings`,
     }
   )
   return TournamentPairings

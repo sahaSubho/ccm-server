@@ -139,9 +139,17 @@ class SuperDao {
           return r.dataValues
         })
       })
-      .catch((e) => {
-        logger.error(e)
-        console.log(e.message)
+      .catch((err) => {
+        if (err instanceof sequelize.UniqueConstraintError) {
+          console.error('Unique constraint error details:')
+          err.errors.forEach((error) => {
+            console.error(`- Field: ${error.path}`)
+            console.error(`  Value: ${error.value}`)
+            console.error(`  Message: ${error.message}`)
+          })
+        } else {
+          console.error('Other error:', err)
+        }
       })
   }
 
