@@ -8,6 +8,7 @@ const { jwtStrategy } = require('./config/passport')
 const { errorConverter, errorHandler } = require('./middlewares/error')
 const check = require('./middlewares/apiKeyCheck')
 const ApiError = require('./helper/ApiError')
+const promBundle = require('express-prom-bundle')
 
 process.env.PWD = process.cwd()
 const app = express()
@@ -34,6 +35,18 @@ app.use(express.json())
 // jwt authentication
 app.use(passport.initialize())
 passport.use('jwt', jwtStrategy)
+
+// Prometheus metrics middleware (default path: /metrics)
+const metricsMiddleware = promBundle({
+  includeMethod: true,
+  includePath: true,
+  promClient: {
+    collectDefaultMetrics: {
+      // You can customize default metrics collection here
+    },
+  },
+})
+app.use(metricsMiddleware)
 
 app.get('/', async (req, res) => {
   res.status(200).send('Congratulations! API is working!')
