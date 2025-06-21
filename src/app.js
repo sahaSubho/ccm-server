@@ -8,6 +8,16 @@ const { jwtStrategy } = require('./config/passport')
 const { errorConverter, errorHandler } = require('./middlewares/error')
 const check = require('./middlewares/apiKeyCheck')
 const ApiError = require('./helper/ApiError')
+const Sentry = require("@sentry/node")
+Sentry.init({
+  dsn: "https://e555323ed5bcb7638b646c931192109e@o4507786239934464.ingest.us.sentry.io/4509535015534592",
+
+  // Setting this option to true will send default PII data to Sentry.
+  // For example, automatic IP address collection on events
+  sendDefaultPii: true,
+})
+
+
 
 process.env.PWD = process.cwd()
 const app = express()
@@ -48,7 +58,7 @@ app.use((req, res, next) => {
 
 // convert error to ApiError, if needed
 app.use(errorConverter)
-
+Sentry.setupExpressErrorHandler(app)
 // handle error
 app.use(errorHandler)
 const db = require('./models')
