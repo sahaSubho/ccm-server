@@ -115,17 +115,17 @@ class TournamentService {
       if (matches) {
         matches.forEach((part) => {
           if (part.includes('m')) {
-            minutes = Number(part)
+            minutes = part.replace(/\D/, '')
           } else if (part.includes('s')) {
-            seconds = Number(part)
+            seconds = part.replace(/\D/, '')
           } else {
-            minutes = Number(part)
+            minutes = part.replace(/\D/, '')
           }
         })
       }
     }
 
-    const totalTime = minutes + seconds / 60
+    const totalTime = Number(minutes) + Number(seconds / 60)
 
     // Classify based on total time
     if (totalTime < 3) {
@@ -790,7 +790,13 @@ class TournamentService {
         offset
       )
 
-      if (data?.length > 0) {
+      if (
+        data?.length > 0 &&
+        userId &&
+        data.some((d) => {
+          return d.mandatory_club_membership_name || d.entry_fee > 0
+        })
+      ) {
         const [results] = await sequelize.query(`
         SELECT tournament_registration_id, id
         FROM cc_tournaments  
@@ -807,56 +813,58 @@ class TournamentService {
         }, {})
 
         const [players] = await sequelize.query(`
-        SELECT tournament_id, player_id
-        FROM cc_registration_orders  
-        WHERE tournament_id IN (${data
-          .map((t) => {
-            return t.cct_id || 0
-          })
-          .join(',')})
-      `)
+            SELECT tournament_id, player_id
+            FROM cc_registration_orders  
+            WHERE tournament_id IN (${data
+              .map((t) => {
+                return t.cct_id || 0
+              })
+              .join(',')})
+          `)
 
         const playersIdMap = players.reduce((acc, row) => {
           acc[row.tournament_id] = row.player_id
           return acc
         }, {})
-
-        console.log(JSON.stringify(playersIdMap))
-
-        if (userId) {
-          const user = await this.CCUserDao.findOneByWhere({ user_id: userId })
-          const [clubs] = await sequelize.query(`
+        const user = await this.CCUserDao.findOneByWhere({ user_id: userId })
+        const [clubs] = await sequelize.query(`
             SELECT association_name
             FROM cc_association_registrations  
             WHERE mobile_number='${user.mobile_number}';
           `)
-          const club_memberships = clubs.map((c) => {
-            return c.association_name
-          })
-          const clubs_details = await this.tournamentDao.findByWhere({
-            association_name: data.map((d) => {
-              return d.mandatory_club_membership_name
-            }),
-          })
-          data.forEach(async (tournament) => {
-            tournament.is_registered = !!playersIdMap[tournament.cct_id]
-            tournament.is_free = !(
-              registrationsIdMap[tournament.cct_id] &&
-              (tournament.entry_fee > 0 ||
-                (tournament.mandatory_club_membership_name &&
-                  !club_memberships.includes(
-                    tournament.mandatory_club_membership_name
-                  )))
+        const club_memberships = clubs.map((c) => {
+          return c.association_name
+        })
+        const clubs_details = await this.tournamentDao.findByWhere({
+          association_name: data.map((d) => {
+            return d.mandatory_club_membership_name
+          }),
+        })
+        data.forEach(async (tournament) => {
+          tournament.is_registered = !!playersIdMap[tournament.cct_id]
+          tournament.is_free = !(
+            registrationsIdMap[tournament.cct_id] &&
+            (tournament.entry_fee > 0 ||
+              (tournament.mandatory_club_membership_name &&
+                !club_memberships.includes(
+                  tournament.mandatory_club_membership_name
+                )))
+          )
+          tournament.registration_tid =
+            registrationsIdMap[tournament.cct_id] || null
+          tournament.club = clubs_details.find((c) => {
+            return (
+              c.association_name === tournament.mandatory_club_membership_name
             )
-            tournament.registration_tid =
-              registrationsIdMap[tournament.cct_id] || null
-            tournament.club = clubs_details.find((c) => {
-              return (
-                c.association_name === tournament.mandatory_club_membership_name
-              )
-            })
           })
-        }
+        })
+      } else {
+        data.forEach(async (tournament) => {
+          tournament.is_registered = false
+          tournament.is_free = true
+          tournament.registration_tid = null
+          tournament.club = null
+        })
       }
       return responseHandler.returnSuccess(httpStatus.OK, message, data)
     } catch (e) {
