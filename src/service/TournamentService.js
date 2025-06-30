@@ -957,7 +957,7 @@ class TournamentService {
       // }
 
       // const players = await this.CCUserDao.findByWhere({ user_id: fide_ids })
-      const players = await this.trnplayersDao.findByWhere({tournament_id: id})
+      const players = await this.trnplayersDao.findByWhere({tournament_id: id, is_withdrawn: false })
 //instead fetch from tournament players
       let joinedPlayers = []
       if (players.length > 0) {

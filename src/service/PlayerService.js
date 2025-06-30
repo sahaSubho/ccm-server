@@ -720,46 +720,54 @@ class PlayersService {
       const newTournamentEnd = moment(newTournamentStart).add(duration, 'hours');
 
       const query = `
-        SELECT t.id, t.name, t.start_date, t.time_control
-        FROM cc_tournament_chessmasters t
-        INNER JOIN ccm_tournament_players p
-          ON t.id = p.tournament_id
-        WHERE 
-          p.cc_userid = :playerId
-          AND p.is_withdrawn = false
-          AND t.is_active = true
-          AND (
-            t.start_date BETWEEN :newStart AND :newEnd
-            OR :newStart BETWEEN t.start_date AND (
-              t.start_date + (
-                CASE
-                  WHEN (split_part(t.time_control, '+', 1)::int + split_part(t.time_control, '+', 2)::int) < 3 THEN INTERVAL '1 hour'       -- Bullet
-                  WHEN (split_part(t.time_control, '+', 1)::int + split_part(t.time_control, '+', 2)::int) < 10 THEN INTERVAL '2.5 hours'  -- Blitz
-                  WHEN (split_part(t.time_control, '+', 1)::int + split_part(t.time_control, '+', 2)::int) < 30 THEN INTERVAL '5 hours'    -- Rapid
-                  ELSE INTERVAL '8 hours'                                                                                                 -- Classical
-                END
-              )
+        WITH time_data AS (
+          SELECT 
+            t.id,
+            t.name,
+            t.start_date,
+            t.time_control,
+            COALESCE(NULLIF(regexp_replace(split_part(t.time_control, '+', 1), '[^0-9]', '', 'g'), ''), '0')::int AS base_time,
+            COALESCE(NULLIF(regexp_replace(split_part(t.time_control, '+', 2), '[^0-9]', '', 'g'), ''), '0')::int AS increment_time
+          FROM cc_tournament_chessmasters t
+          INNER JOIN ccm_tournament_players p
+            ON t.id = p.tournament_id
+          WHERE 
+            p.cc_userid = :playerId
+            AND p.is_withdrawn = false
+            AND t.is_active = true
+        )
+        SELECT id, name, start_date, time_control
+        FROM time_data
+        WHERE
+          start_date BETWEEN :newStart AND :newEnd
+          OR :newStart BETWEEN start_date AND (
+            start_date + (
+              CASE
+                WHEN (base_time + increment_time) < 3 THEN INTERVAL '1 hour'
+                WHEN (base_time + increment_time) < 10 THEN INTERVAL '2.5 hours'
+                WHEN (base_time + increment_time) < 30 THEN INTERVAL '5 hours'
+                ELSE INTERVAL '8 hours'
+              END
             )
           );
       `;
 
 
-      // const overlappingTournaments = await sequelize.query(query, {
-      //   replacements: {
-      //     playerId: data.playerId,
-      //     newStart: newTournamentStart.toDate(),
-      //     newEnd: newTournamentEnd.toDate(),
-      //     duration, // this will be like 1, 2.5, 5, or 8
-      //   },
-      //   type: sequelize.QueryTypes.SELECT,
-      // });
+      const overlappingTournaments = await sequelize.query(query, {
+        replacements: {
+          playerId: data.playerId,
+          newStart: newTournamentStart.toDate(),
+          newEnd: newTournamentEnd.toDate(),
+        },
+        type: sequelize.QueryTypes.SELECT,
+      });
 
-      // if (overlappingTournaments.length > 0) {
-      //   return responseHandler.returnError(
-      //     httpStatus.BAD_REQUEST,
-      //     `Already registered in an overlapping tournament (${overlappingTournaments[0].name}).`
-      //   );
-      // }
+      if (overlappingTournaments.length > 0) {
+        return responseHandler.returnError(
+          httpStatus.BAD_REQUEST,
+          `Already registered in an overlapping tournament (${overlappingTournaments[0].name}).`
+        );
+      }
 
 
       // Populate player data
