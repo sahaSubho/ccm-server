@@ -857,19 +857,20 @@ class TournamentService {
         return responseHandler.returnError(httpStatus.BAD_REQUEST, message)
       }
 
-      let fide_ids = []
-      if (data.player_fide_ids) {
-        fide_ids = data.player_fide_ids.split(',')
-      }
+      // let fide_ids = []
+      // if (data.player_fide_ids) {
+      //   fide_ids = data.player_fide_ids.split(',')
+      // }
 
-      const players = await this.CCUserDao.findByWhere({ user_id: fide_ids })
-
+      // const players = await this.CCUserDao.findByWhere({ user_id: fide_ids })
+      const players = await this.trnplayersDao.findByWhere({tournament_id: id})
+//instead fetch from tournament players
       let joinedPlayers = []
       if (players.length > 0) {
         joinedPlayers = players.map((player) => {
           return {
-            username: player.username,
-            rating: player.gameplay_rating,
+            username: player.name,
+            rating: player.rating,
           }
         })
         data.setDataValue('players_joined', joinedPlayers)

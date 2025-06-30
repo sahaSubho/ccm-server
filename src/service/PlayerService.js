@@ -693,6 +693,63 @@ class PlayersService {
         return responseHandler.returnError(httpStatus.BAD_REQUEST, message)
       }
 
+      function classifyTimeControl(tcString) {
+        const baseMinutes = parseInt(tcString.split('+')[0], 10);
+
+        if (baseMinutes <= 2) return { category: 'bullet', duration: 1 };
+        if (baseMinutes <= 5) return { category: 'blitz', duration: 2.5 };
+        if (baseMinutes <= 15) return { category: 'rapid', duration: 5 };
+        return { category: 'classical', duration: 8 };
+      }
+
+      const { duration } = classifyTimeControl(tournament.time_control || "5+3");
+
+      const newTournamentStart = moment(tournament.start_date);
+      const newTournamentEnd = moment(newTournamentStart).add(duration, 'hours');
+
+      const query = `
+        SELECT t.id, t.name, t.start_date, t.time_control
+        FROM cc_tournament_chessmasters t
+        INNER JOIN ccm_tournament_players p
+          ON t.id = p.tournament_id
+        WHERE 
+          p.cc_userid = :playerId
+          AND p.is_withdrawn = false
+          AND t.is_active = true
+          AND (
+            t.start_date BETWEEN :newStart AND :newEnd
+            OR :newStart BETWEEN t.start_date AND (
+              t.start_date + (
+                CASE
+                  WHEN (split_part(t.time_control, '+', 1)::int + split_part(t.time_control, '+', 2)::int) < 3 THEN INTERVAL '1 hour'       -- Bullet
+                  WHEN (split_part(t.time_control, '+', 1)::int + split_part(t.time_control, '+', 2)::int) < 10 THEN INTERVAL '2.5 hours'  -- Blitz
+                  WHEN (split_part(t.time_control, '+', 1)::int + split_part(t.time_control, '+', 2)::int) < 30 THEN INTERVAL '5 hours'    -- Rapid
+                  ELSE INTERVAL '8 hours'                                                                                                 -- Classical
+                END
+              )
+            )
+          );
+      `;
+
+
+      const overlappingTournaments = await sequelize.query(query, {
+        replacements: {
+          playerId: data.playerId,
+          newStart: newTournamentStart.toDate(),
+          newEnd: newTournamentEnd.toDate(),
+          duration, // this will be like 1, 2.5, 5, or 8
+        },
+        type: sequelize.QueryTypes.SELECT,
+      });
+
+      if (overlappingTournaments.length > 0) {
+        return responseHandler.returnError(
+          httpStatus.BAD_REQUEST,
+          `Already registered in an overlapping tournament (${overlappingTournaments[0].name}).`
+        );
+      }
+
+
       // Populate player data
       const playerData = {
         name: user.username || '',
