@@ -696,9 +696,9 @@ class PlayersService {
       function classifyTimeControl(tcString) {
         const baseMinutes = parseInt(tcString.split('+')[0], 10);
 
-        if (baseMinutes <= 2) return { category: 'bullet', duration: 1 };
-        if (baseMinutes <= 5) return { category: 'blitz', duration: 2.5 };
-        if (baseMinutes <= 15) return { category: 'rapid', duration: 5 };
+        if (baseMinutes < 3) return { category: 'bullet', duration: 1 };
+        if (baseMinutes < 10) return { category: 'blitz', duration: 2.5 };
+        if (baseMinutes < 30) return { category: 'rapid', duration: 5 };
         return { category: 'classical', duration: 8 };
       }
 
