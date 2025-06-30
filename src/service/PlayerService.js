@@ -744,22 +744,22 @@ class PlayersService {
       `;
 
 
-      const overlappingTournaments = await sequelize.query(query, {
-        replacements: {
-          playerId: data.playerId,
-          newStart: newTournamentStart.toDate(),
-          newEnd: newTournamentEnd.toDate(),
-          duration, // this will be like 1, 2.5, 5, or 8
-        },
-        type: sequelize.QueryTypes.SELECT,
-      });
+      // const overlappingTournaments = await sequelize.query(query, {
+      //   replacements: {
+      //     playerId: data.playerId,
+      //     newStart: newTournamentStart.toDate(),
+      //     newEnd: newTournamentEnd.toDate(),
+      //     duration, // this will be like 1, 2.5, 5, or 8
+      //   },
+      //   type: sequelize.QueryTypes.SELECT,
+      // });
 
-      if (overlappingTournaments.length > 0) {
-        return responseHandler.returnError(
-          httpStatus.BAD_REQUEST,
-          `Already registered in an overlapping tournament (${overlappingTournaments[0].name}).`
-        );
-      }
+      // if (overlappingTournaments.length > 0) {
+      //   return responseHandler.returnError(
+      //     httpStatus.BAD_REQUEST,
+      //     `Already registered in an overlapping tournament (${overlappingTournaments[0].name}).`
+      //   );
+      // }
 
 
       // Populate player data
