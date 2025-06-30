@@ -1290,6 +1290,19 @@ class TournamentService {
           return responseHandler.returnError(httpStatus.BAD_REQUEST, message)
         }
         // players = players.concat(newPlayers)
+        console.log(
+          'Pairing for round',
+          round - 1,
+          JSON.stringify(
+            pairing
+              .filter((p) => {
+                return p.player_result === '0.5-0.5'
+              })
+              .map((p) => {
+                return [p.parent_id, p.result]
+              })
+          )
+        )
         white = pairing
           .filter((p) => {
             return !p.parent_id
@@ -1524,6 +1537,14 @@ class TournamentService {
         },
         tournamentId
       )
+      if (tournament.current_round === 1) {
+        await this.tournamentConfigurationDao.updateWhere(
+          { sorting: true },
+          {
+            tournament_id: tournamentId,
+          }
+        )
+      }
       return responseHandler.returnSuccess(httpStatus.OK, message)
     } catch (e) {
       logger.error(e)
@@ -1980,7 +2001,7 @@ class TournamentService {
 
       if (
         tournament.rounds === Number(round) &&
-        !tournament.tournament_type === 'Ciclechess_Online'
+        tournament.tournament_type !== 'Ciclechess_Online'
       ) {
         const pendingScoreToUpload =
           await this.tournamentPairingsDao.checkExist({
@@ -1988,7 +2009,7 @@ class TournamentService {
             tournament_id: tournamentId,
             is_scored: false,
           })
-        if (pendingScoreToUpload) {
+        if (!pendingScoreToUpload) {
           const data = await this.tournamentPairingsDao.findWithPlayers({
             round: { [Op.lte]: round },
             tournament_id: tournamentId,
@@ -2027,14 +2048,13 @@ class TournamentService {
                 0,
                 prize.prizes.length
               )
-
               winningPlayers = winningPlayers.concat(
                 finalPlayers.map((p, i) => {
                   return {
                     tournament_id: tournamentId,
-                    name: p['player.name'],
-                    mobile_number: p['player.mobile'],
-                    upi_id: p['player.upi_id'],
+                    name: p['ccm_tournament_player.name'],
+                    mobile_number: p['ccm_tournament_player.mobile'],
+                    upi_id: p['ccm_tournament_player.upi_id'],
                     amount: prize.prizes[i].amount,
                     prize_name:
                       prize.prizes.length > 1
@@ -2045,14 +2065,13 @@ class TournamentService {
               )
             } else {
               const finalPlayers = [...players].splice(0, prize.prizes.length)
-
               winningPlayers = winningPlayers.concat(
                 finalPlayers.map((p, i) => {
                   return {
                     tournament_id: tournamentId,
-                    name: p['player.name'],
-                    mobile_number: p['player.mobile'],
-                    upi_id: p['player.upi_id'],
+                    name: p['ccm_tournament_player.name'],
+                    mobile_number: p['ccm_tournament_player.mobile'],
+                    upi_id: p['ccm_tournament_player.upi_id'],
                     amount: prize.prizes[i].amount,
                     prize_name:
                       prize.prizes.length > 1

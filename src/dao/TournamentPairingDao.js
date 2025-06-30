@@ -3,8 +3,9 @@ const SuperDao = require('./SuperDao')
 const models = require('../models')
 const config = require('../config/config')
 
-const TournamentPairings = models[(config.simulate ? 'temp_' : 'ccm_')+'tournament_pairings']
-const Players = models.players
+const TournamentPairings =
+  models[`${config.simulate ? 'temp_' : 'ccm_'}tournament_pairings`]
+const Players = models.ccm_tournament_players
 
 class TournamentPairingsDao extends SuperDao {
   constructor() {
