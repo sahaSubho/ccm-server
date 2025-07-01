@@ -88,6 +88,21 @@ class TournamentController {
     }
   }
 
+  getPrizeTournaments = async (req, res) => {
+    try {
+      const { count = 10 } = req.query
+      const tournaments = await this.tournamentService.getPrizeTournaments(
+        count
+      )
+
+      const { status, message, data } = tournaments.response
+      res.status(tournaments.statusCode).send({ status, message, data })
+    } catch (e) {
+      logger.error(e)
+      res.status(httpStatus.BAD_GATEWAY).send(e)
+    }
+  }
+
   getTournamentById = async (req, res) => {
     try {
       const { id } = req.params

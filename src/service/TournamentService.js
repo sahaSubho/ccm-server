@@ -770,6 +770,62 @@ class TournamentService {
     }
   }
 
+  getPrizeTournaments = async (count) => {
+    try {
+      const message = 'Fetched tournaments successfully.'
+      const data = await this.tournamentDao.findByWhere(
+        {
+          is_active: true,
+          enable_registration: true,
+          default_category: 'Prize',
+          tournament_type: 'Circlechess_Online',
+        },
+        undefined,
+        [
+          literal(
+            `CASE WHEN "start_date" >= CURRENT_DATE THEN "start_date" ELSE NULL END ASC,CASE WHEN "start_date" < CURRENT_DATE THEN "start_date" ELSE NULL END DESC`
+          ),
+        ],
+        count
+      )
+      const trnprizes = await this.tournamentPrizeMappingDao.findAllRaw({
+        tournament_id: data.map((t) => {
+          return t.id
+        }),
+      })
+      const playersCountMap = await this.trnplayersDao.findCountByGroup(
+        'tournament_id',
+        'id',
+        {
+          tournament_id: data.map((t) => {
+            return t.id
+          }),
+        }
+      )
+
+      data.forEach((tournament) => {
+        const playerCount = playersCountMap.find((p) => {
+          return p.tournament_id === tournament.id
+        })?.count
+        tournament.players_joined = playerCount || 0
+        const prize = trnprizes.find((p) => {
+          return p.tournament_id === tournament.id
+        })
+        const cashPrize = prize?.prizes?.reduce((acc, curr) => {
+          return acc + curr.amount
+        }, 0)
+        tournament.cash_prize = cashPrize
+      })
+      return responseHandler.returnSuccess(httpStatus.OK, message, data)
+    } catch (e) {
+      logger.error(e)
+      return responseHandler.returnError(
+        httpStatus.BAD_REQUEST,
+        'Something went wrong!'
+      )
+    }
+  }
+
   getCirclechesssTournaments = async (userId, limit = 10, offset = 0) => {
     try {
       const message = 'Fetched tournaments successfully.'

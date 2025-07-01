@@ -63,10 +63,9 @@ class JuspayService {
           httpStatus.BAD_REQUEST,
           juspayResponse.errorMessage
         )
-      } else {
-        const balance = juspayResponse['YESBIZ_UPI'].balance || 0
-        return responseHandler.returnSuccess(httpStatus.OK, message, balance)
       }
+      const balance = juspayResponse.YESBIZ_UPI.balance || 0
+      return responseHandler.returnSuccess(httpStatus.OK, message, balance)
     } catch (error) {
       return responseHandler.returnError(
         httpStatus.BAD_REQUEST,
