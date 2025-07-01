@@ -783,7 +783,7 @@ class TournamentService {
         undefined,
         [
           literal(
-            `CASE WHEN "start_date" >= CURRENT_DATE THEN "start_date" ELSE NULL END ASC,CASE WHEN "start_date" < CURRENT_DATE THEN "start_date" ELSE NULL END DESC`
+            `CASE WHEN "start_date" >= CURRENT_TIMESTAMP THEN "start_date" ELSE NULL END ASC,CASE WHEN "start_date" < CURRENT_TIMESTAMP THEN "start_date" ELSE NULL END DESC`
           ),
         ],
         count
