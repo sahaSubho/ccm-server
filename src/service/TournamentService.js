@@ -957,8 +957,11 @@ class TournamentService {
       // }
 
       // const players = await this.CCUserDao.findByWhere({ user_id: fide_ids })
-      const players = await this.trnplayersDao.findByWhere({tournament_id: id, is_withdrawn: false })
-//instead fetch from tournament players
+      const players = await this.trnplayersDao.findByWhere({
+        tournament_id: id,
+        is_withdrawn: false,
+      })
+      // instead fetch from tournament players
       let joinedPlayers = []
       if (players.length > 0) {
         joinedPlayers = players.map((player) => {
@@ -2101,8 +2104,12 @@ class TournamentService {
             .sort((a, b) => {
               return Number(b?.amount) - Number(a?.amount)
             })
-
-          await this.playersPrizePayoutDao.bulkCreate(winningPlayers)
+          await this.playersPrizePayoutDao.deleteByWhere({
+            tournament_id: tournamentId,
+          })
+          if (winningPlayers.length) {
+            await this.playersPrizePayoutDao.bulkCreate(winningPlayers)
+          }
         }
       }
       return responseHandler.returnSuccess(httpStatus.OK, message)
