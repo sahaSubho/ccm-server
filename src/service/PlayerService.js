@@ -100,6 +100,21 @@ class PlayersService {
       .trim() // Remove leading/trailing spaces
   }
 
+  static classifyTimeControl = (tcString) => {
+    const baseMinutes = parseInt(tcString.split('+')[0], 10)
+
+    if (baseMinutes < 3) {
+      return { category: 'bullet', duration: 1 }
+    }
+    if (baseMinutes < 10) {
+      return { category: 'blitz', duration: 2.5 }
+    }
+    if (baseMinutes < 30) {
+      return { category: 'rapid', duration: 5 }
+    }
+    return { category: 'classical', duration: 8 }
+  }
+
   processUniquePlayers = async (input, tournamentId, isChatbot = false) => {
     let message = ''
     let data = input
@@ -705,19 +720,12 @@ class PlayersService {
         return responseHandler.returnError(httpStatus.BAD_REQUEST, message)
       }
 
-      function classifyTimeControl(tcString) {
-        const baseMinutes = parseInt(tcString.split('+')[0], 10);
+      const { duration } = PlayersService.classifyTimeControl(
+        tournament.time_control || '5+3'
+      )
 
-        if (baseMinutes < 3) return { category: 'bullet', duration: 1 };
-        if (baseMinutes < 10) return { category: 'blitz', duration: 2.5 };
-        if (baseMinutes < 30) return { category: 'rapid', duration: 5 };
-        return { category: 'classical', duration: 8 };
-      }
-
-      const { duration } = classifyTimeControl(tournament.time_control || "5+3");
-
-      const newTournamentStart = moment(tournament.start_date);
-      const newTournamentEnd = moment(newTournamentStart).add(duration, 'hours');
+      const newTournamentStart = moment(tournament.start_date)
+      const newTournamentEnd = moment(newTournamentStart).add(duration, 'hours')
 
       const query = `
         WITH time_data AS (
@@ -750,8 +758,7 @@ class PlayersService {
               END
             )
           );
-      `;
-
+      `
 
       const overlappingTournaments = await sequelize.query(query, {
         replacements: {
@@ -760,15 +767,14 @@ class PlayersService {
           newEnd: newTournamentEnd.toDate(),
         },
         type: sequelize.QueryTypes.SELECT,
-      });
+      })
 
       if (overlappingTournaments.length > 0) {
         return responseHandler.returnError(
           httpStatus.BAD_REQUEST,
           `Already registered in an overlapping tournament (${overlappingTournaments[0].name}).`
-        );
+        )
       }
-
 
       // Populate player data
       const playerData = {
@@ -1168,21 +1174,14 @@ class PlayersService {
 
   createJuspayPayout = async (tournamentId, user) => {
     try {
-      let message
-      const players = await this.playersPrizePayoutDao.findByWhere({
+      let players = await this.playersPrizePayoutDao.findByWhere({
         tournament_id: tournamentId,
       })
       const tournament = await this.tournamentDao.findById(tournamentId)
-      if (
-        !players.some((p) => {
-          return p.upi_id.length || p.amount > 0
-        })
-      ) {
-        message =
-          'Amount should be greater than 0 and UPI Id should be available for all players!'
-        return responseHandler.returnError(httpStatus.BAD_REQUEST, message)
-      }
 
+      players = players.filter((p) => {
+        return p.upi_id.length && Number(p?.amount) > 0
+      })
       const random5char = Math.random().toString(36).substr(2, 5)
       const filter = (p) => {
         return tournamentId === 1
@@ -1206,7 +1205,7 @@ class PlayersService {
                 type: 'UPI_ID',
               },
               additionalInfo: {
-                remark: p.remarks,
+                remark: p.remarks || `prize payout for ${tournament.id}`,
               },
             }
           }),
@@ -1255,7 +1254,7 @@ class PlayersService {
 
       await Promise.allSettled(promises)
 
-      message =
+      const message =
         'Payout to all players have been inititated succesfully. You can check the status in the table.!'
 
       return responseHandler.returnSuccess(
