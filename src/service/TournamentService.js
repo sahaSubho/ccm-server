@@ -1261,9 +1261,9 @@ class TournamentService {
         round
       )} round of the tournament.`
 
-      const tournament = await this.tournamentDao.findById(tournamentId)
+      const tournament = await this.tournamentDao.findById(86)
       let players = await this.trnplayersDao.findByWhere({
-        tournament_id: tournamentId,
+        tournament_id: 86,
       })
       if (tournament.tournament_type === 'Circlechess_Online') {
         const seen = new Set()
@@ -1349,19 +1349,6 @@ class TournamentService {
           return responseHandler.returnError(httpStatus.BAD_REQUEST, message)
         }
         // players = players.concat(newPlayers)
-        console.log(
-          'Pairing for round',
-          round - 1,
-          JSON.stringify(
-            pairing
-              .filter((p) => {
-                return p.player_result === '0.5-0.5'
-              })
-              .map((p) => {
-                return [p.parent_id, p.result]
-              })
-          )
-        )
         white = pairing
           .filter((p) => {
             return !p.parent_id
@@ -2058,10 +2045,7 @@ class TournamentService {
         return responseHandler.returnError(httpStatus.BAD_REQUEST, message)
       }
 
-      if (
-        tournament.rounds === Number(round) &&
-        tournament.tournament_type !== 'Ciclechess_Online'
-      ) {
+      if (tournament.rounds === Number(round)) {
         const pendingScoreToUpload =
           await this.tournamentPairingsDao.checkExist({
             round,
@@ -2081,7 +2065,8 @@ class TournamentService {
             await this.tournamentConfigurationDao.findOneByWhere({
               tournament_id: tournamentId,
             })
-          const players = getTieBreaks(data, Number(round), trnConfig)
+          const convertedData = convertPlayersResultInNumeric(data, trnConfig)
+          const players = getTieBreaks(convertedData, round, trnConfig)
           const tournamentPrizeCategoryMappings =
             await this.tournamentPrizeMappingDao.findAllWithCategory({
               tournament_id: tournamentId,
