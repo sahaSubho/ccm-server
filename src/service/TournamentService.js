@@ -1261,9 +1261,9 @@ class TournamentService {
         round
       )} round of the tournament.`
 
-      const tournament = await this.tournamentDao.findById(86)
+      const tournament = await this.tournamentDao.findById(tournamentId)
       let players = await this.trnplayersDao.findByWhere({
-        tournament_id: 86,
+        tournament_id: tournamentId,
       })
       if (tournament.tournament_type === 'Circlechess_Online') {
         const seen = new Set()
