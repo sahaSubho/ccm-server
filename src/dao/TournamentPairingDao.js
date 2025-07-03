@@ -23,6 +23,7 @@ class TournamentPairingsDao extends SuperDao {
   async findWithPlayers(where) {
     return TournamentPairings.findAll({
       where,
+      order: [['id', 'asc']],
       include: {
         model: Players, // You can specify which user attributes to include
       },
