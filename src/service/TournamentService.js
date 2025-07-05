@@ -1274,6 +1274,8 @@ class TournamentService {
             duplicateIds.push(player.id) // mark for deletion
           } else if (player.cc_userid) {
             seen.add(player.cc_userid)
+          } else {
+            duplicateIds.push(player.id); // falsy cc_userid (e.g. 0, null)
           }
         })
 
