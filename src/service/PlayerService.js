@@ -100,6 +100,21 @@ class PlayersService {
       .trim() // Remove leading/trailing spaces
   }
 
+  static classifyTimeControl = (tcString) => {
+    const baseMinutes = parseInt(tcString.split('+')[0], 10)
+
+    if (baseMinutes < 3) {
+      return { category: 'bullet', duration: 1 }
+    }
+    if (baseMinutes < 10) {
+      return { category: 'blitz', duration: 2.5 }
+    }
+    if (baseMinutes < 30) {
+      return { category: 'rapid', duration: 5 }
+    }
+    return { category: 'classical', duration: 8 }
+  }
+
   processUniquePlayers = async (input, tournamentId, isChatbot = false) => {
     let message = ''
     let data = input
@@ -705,6 +720,62 @@ class PlayersService {
         return responseHandler.returnError(httpStatus.BAD_REQUEST, message)
       }
 
+      const { duration } = PlayersService.classifyTimeControl(
+        tournament.time_control || '5+3'
+      )
+
+      const newTournamentStart = moment(tournament.start_date)
+      const newTournamentEnd = moment(newTournamentStart).add(duration, 'hours')
+
+      const query = `
+        WITH time_data AS (
+          SELECT 
+            t.id,
+            t.name,
+            t.start_date,
+            t.time_control,
+            COALESCE(NULLIF(regexp_replace(split_part(t.time_control, '+', 1), '[^0-9]', '', 'g'), ''), '0')::int AS base_time,
+            COALESCE(NULLIF(regexp_replace(split_part(t.time_control, '+', 2), '[^0-9]', '', 'g'), ''), '0')::int AS increment_time
+          FROM cc_tournament_chessmasters t
+          INNER JOIN ccm_tournament_players p
+            ON t.id = p.tournament_id
+          WHERE 
+            p.cc_userid = :playerId
+            AND p.is_withdrawn = false
+            AND t.is_active = true
+        )
+        SELECT id, name, start_date, time_control
+        FROM time_data
+        WHERE
+          start_date BETWEEN :newStart AND :newEnd
+          OR :newStart BETWEEN start_date AND (
+            start_date + (
+              CASE
+                WHEN (base_time + increment_time) < 3 THEN INTERVAL '1 hour'
+                WHEN (base_time + increment_time) < 10 THEN INTERVAL '2.5 hours'
+                WHEN (base_time + increment_time) < 30 THEN INTERVAL '5 hours'
+                ELSE INTERVAL '8 hours'
+              END
+            )
+          );
+      `
+
+      const overlappingTournaments = await sequelize.query(query, {
+        replacements: {
+          playerId: data.playerId,
+          newStart: newTournamentStart.toDate(),
+          newEnd: newTournamentEnd.toDate(),
+        },
+        type: sequelize.QueryTypes.SELECT,
+      })
+
+      if (overlappingTournaments.length > 0) {
+        return responseHandler.returnError(
+          httpStatus.BAD_REQUEST,
+          `Already registered in an overlapping tournament (${overlappingTournaments[0].name}).`
+        )
+      }
+
       // Populate player data
       const playerData = {
         name: user.username || '',
@@ -782,7 +853,11 @@ class PlayersService {
           ratingType = 'rating'
       }
 
-      if (tournament.cct_id && tournament.enable_registration) {
+      if (
+        tournament.cct_id &&
+        tournament.enable_registration &&
+        tournament.tournament_type !== 'Circlechess_Online'
+      ) {
         try {
           const newPlayers = await sequelize.query(
             `Select 
@@ -1103,21 +1178,14 @@ class PlayersService {
 
   createJuspayPayout = async (tournamentId, user) => {
     try {
-      let message
-      const players = await this.playersPrizePayoutDao.findByWhere({
+      let players = await this.playersPrizePayoutDao.findByWhere({
         tournament_id: tournamentId,
       })
       const tournament = await this.tournamentDao.findById(tournamentId)
-      if (
-        !players.some((p) => {
-          return p.upi_id.length || p.amount > 0
-        })
-      ) {
-        message =
-          'Amount should be greater than 0 and UPI Id should be available for all players!'
-        return responseHandler.returnError(httpStatus.BAD_REQUEST, message)
-      }
 
+      players = players.filter((p) => {
+        return p.upi_id.length && Number(p?.amount) > 0
+      })
       const random5char = Math.random().toString(36).substr(2, 5)
       const filter = (p) => {
         return tournamentId === 1
@@ -1141,7 +1209,7 @@ class PlayersService {
                 type: 'UPI_ID',
               },
               additionalInfo: {
-                remark: p.remarks,
+                remark: p.remarks || `prize payout for ${tournament.id}`,
               },
             }
           }),
@@ -1190,7 +1258,7 @@ class PlayersService {
 
       await Promise.allSettled(promises)
 
-      message =
+      const message =
         'Payout to all players have been inititated succesfully. You can check the status in the table.!'
 
       return responseHandler.returnSuccess(

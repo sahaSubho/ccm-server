@@ -63,10 +63,9 @@ class JuspayService {
           httpStatus.BAD_REQUEST,
           juspayResponse.errorMessage
         )
-      } else {
-        const balance = juspayResponse['YESBIZ_UPI'].balance || 0
-        return responseHandler.returnSuccess(httpStatus.OK, message, balance)
       }
+      const balance = juspayResponse.YESBIZ_UPI.balance || 0
+      return responseHandler.returnSuccess(httpStatus.OK, message, balance)
     } catch (error) {
       return responseHandler.returnError(
         httpStatus.BAD_REQUEST,
@@ -171,6 +170,16 @@ class JuspayService {
         )
       }
       if (txn.label === 'FULFILLMENT_TXN') {
+        fetch('https://payment.circlechess.com/v1/juspay_payout_callback', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'api-key': '3c311b2d-f168-47c2-9d2a-de5c2df8677a',
+          },
+          body: JSON.stringify(txn),
+        }).catch((e) => {
+          logger.error('Error in sending to payment payout webhook', e)
+        })
         const txnObj = txn.info
         const id = txnObj.FulfillmentId.split('-').shift()
         const orderId = await this.redisService.getValue(id)

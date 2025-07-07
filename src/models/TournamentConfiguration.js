@@ -20,7 +20,7 @@ module.exports = (sequelize, DataTypes) => {
       tournament_id: DataTypes.INTEGER,
       tiebreaks: {
         type: DataTypes.JSONB,
-        defaultValue: '["BH-C1", "BH", "SB"]',
+        defaultValue: ['BH-C1', 'BH', 'SB'],
       },
       tiebreak_settings: {
         type: DataTypes.JSONB,
@@ -48,7 +48,9 @@ module.exports = (sequelize, DataTypes) => {
     },
     {
       sequelize,
-      modelName: (config.simulate ? 'temp_' : '')+'ccm_tournament_configurations',
+      modelName: `${
+        config.simulate ? 'temp_' : ''
+      }ccm_tournament_configurations`,
     }
   )
   return TournamentConfiguration

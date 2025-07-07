@@ -3,8 +3,9 @@ const SuperDao = require('./SuperDao')
 const models = require('../models')
 const config = require('../config/config')
 
-const TournamentPairings = models[(config.simulate ? 'temp_' : 'ccm_')+'tournament_pairings']
-const Players = models.players
+const TournamentPairings =
+  models[`${config.simulate ? 'temp_' : 'ccm_'}tournament_pairings`]
+const Players = models.ccm_tournament_players
 
 class TournamentPairingsDao extends SuperDao {
   constructor() {
@@ -22,6 +23,7 @@ class TournamentPairingsDao extends SuperDao {
   async findWithPlayers(where) {
     return TournamentPairings.findAll({
       where,
+      order: [['id', 'asc']],
       include: {
         model: Players, // You can specify which user attributes to include
       },
@@ -50,6 +52,26 @@ class TournamentPairingsDao extends SuperDao {
       group: [groupBy],
       where,
       raw: true,
+    })
+  }
+
+  async findPairings(round, tournamentId, limit, offset) {
+    return TournamentPairings.findAll({
+      where: {
+        parent_id: null, // Only get top-level pairings
+        round,
+        tournament_id: tournamentId,
+      },
+      include: [
+        {
+          model: TournamentPairings,
+          as: 'opponent',
+          required: false, // LEFT JOIN
+        },
+      ],
+      order: [['id', 'asc']],
+      limit,
+      offset,
     })
   }
 }

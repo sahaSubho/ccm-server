@@ -32,6 +32,8 @@ router.get(
   tournamentController.getJoinedTournamentByUserId
 )
 router.post('/verify-password', tournamentController.verifyPassword)
+
+router.get('/get-prize-tournaments', tournamentController.getPrizeTournaments)
 router.get(
   '/get-tournament-list',
   auth(),
