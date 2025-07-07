@@ -853,7 +853,11 @@ class PlayersService {
           ratingType = 'rating'
       }
 
-      if (tournament.cct_id && tournament.enable_registration) {
+      if (
+        tournament.cct_id &&
+        tournament.enable_registration &&
+        tournament.tournament_type !== 'Circlechess_Online'
+      ) {
         try {
           const newPlayers = await sequelize.query(
             `Select 

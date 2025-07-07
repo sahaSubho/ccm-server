@@ -123,6 +123,22 @@ class RedisService {
   removeKey = async (key) => {
     return this.redisHelper.del(key)
   }
+
+  rPush = async (key, value) => {
+    return this.redisHelper.rPush(key, value)
+  }
+
+  lRange = async (key, start, end) => {
+    return this.redisHelper.lRange(key, start, end)
+  }
+
+  lLen = async (key) => {
+    return this.redisHelper.lLen(key)
+  }
+
+  expire = async (key, seconds = 86400) => {
+    return this.redisHelper.expire(key, seconds)
+  }
 }
 
 module.exports = RedisService

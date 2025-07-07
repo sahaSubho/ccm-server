@@ -17,6 +17,16 @@ module.exports = (sequelize, DataTypes) => {
         targetKey: 'id',
         foreignKey: 'player_id',
       })
+      TournamentPairings.hasOne(models.ccm_tournament_pairings, {
+        as: 'opponent',
+        foreignKey: 'parent_id',
+        targetKey: 'id',
+      })
+      TournamentPairings.belongsTo(models.ccm_tournament_pairings, {
+        as: 'player',
+        foreignKey: 'parent_id',
+        targetKey: 'id',
+      })
     }
   }
   TournamentPairings.init(

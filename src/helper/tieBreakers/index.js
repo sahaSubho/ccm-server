@@ -127,7 +127,11 @@ function getTieBreaks(data, round, trnConfig) {
   const tieBreakerResult = calculateTB1TB2TB3(playersMapping)
 
   const othertieBreaks = trnConfig?.tiebreaks?.reduce((acc, code) => {
-    acc[code] = getTieBreakByCode(code, data, trnConfig?.tiebreak_settings?.[code])
+    acc[code] = getTieBreakByCode(
+      code,
+      data,
+      trnConfig?.tiebreak_settings?.[code]
+    )
     return acc
   }, {})
 
@@ -146,18 +150,20 @@ function getTieBreaks(data, round, trnConfig) {
           return d.player_id === id
         })
         .pop()
+      const tie_breaks = trnConfig?.tiebreaks?.reduce((acc, code, i) => {
+        acc[`TB${i + 1}`] = othertieBreaks[code]
+          ? othertieBreaks[code][e.player_id]
+          : tieBreakerResult[e.player_id][code]
+        return acc
+      }, {})
       return {
         ...e,
-        ...trnConfig?.tiebreaks?.reduce((acc, code, i) => {
-          acc[`TB${i + 1}`] = othertieBreaks[code]
-            ? othertieBreaks[code][e.player_id]
-            : tieBreakerResult[e.player_id][code]
-          return acc
-        }, {}),
+        ...tie_breaks,
         tieSum: Object.values(tieBreakerResult[e.player_id]).reduce((a, b) => {
           return a + b
         }, 0),
         point: Number(e.player_score) + Number(e.result),
+        tie_breaks,
       }
     })
     .sort((a, b) => {

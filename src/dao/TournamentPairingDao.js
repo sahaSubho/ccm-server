@@ -54,6 +54,26 @@ class TournamentPairingsDao extends SuperDao {
       raw: true,
     })
   }
+
+  async findPairings(round, tournamentId, limit, offset) {
+    return TournamentPairings.findAll({
+      where: {
+        parent_id: null, // Only get top-level pairings
+        round,
+        tournament_id: tournamentId,
+      },
+      include: [
+        {
+          model: TournamentPairings,
+          as: 'opponent',
+          required: false, // LEFT JOIN
+        },
+      ],
+      order: [['id', 'asc']],
+      limit,
+      offset,
+    })
+  }
 }
 
 module.exports = TournamentPairingsDao

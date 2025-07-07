@@ -277,10 +277,11 @@ class TournamentController {
       const { round, tournamentId } = req.query
       const pairing = await this.tournamentService.getPlayersRanking(
         round,
-        tournamentId
+        tournamentId,
+        limit,
+        offset
       )
-      const { status, message, data } = pairing.response
-      res.status(pairing.statusCode).send({ status, message, data })
+      res.status(pairing.statusCode).send(pairing.response)
     } catch (e) {
       logger.error(e)
       res.status(httpStatus.BAD_GATEWAY).send(e)
