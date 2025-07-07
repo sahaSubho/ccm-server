@@ -143,37 +143,34 @@ class TournamentService {
     return 'Classical'
   }
 
-  static removePairingsFromRedis = async (tournamentId, round, pairingId) => {
+  removePairingsFromRedis = async (tournamentId, round, pairingId) => {
     const hashKey = `ccm_pairings_${tournamentId}_${round}`
     const listKey = `ccm_pairings_order_${tournamentId}_${round}`
     await this.redisService.hDel(hashKey, pairingId)
     await this.redisService.lRem(listKey, 0, pairingId)
   }
 
-  static addPairingInRedis = async (
-    round,
-    tournamentId,
-    pairingId,
-    pairingObj
-  ) => {
+  addPairingInRedis = async (round, tournamentId, pairingId, pairingObj) => {
     const hashKey = `ccm_pairings_${tournamentId}_${round}`
     const listKey = `ccm_pairings_order_${tournamentId}_${round}`
     await this.redisService.hSet(hashKey, pairingId, JSON.stringify(pairingObj))
     await this.redisService.rPush(listKey, pairingId)
   }
 
-  static updatePairingInRedis = async (
-    round,
-    tournamentId,
-    pairingId,
-    data
-  ) => {
+  updatePairingInRedis = async (tournamentId, round, pairingId, data) => {
     const hashKey = `ccm_pairings_${tournamentId}_${round}`
     const existing = await this.redisService.hGet(hashKey, pairingId)
     if (existing) {
-      const parsed = {
-        ...JSON.parse(existing),
+      const parsed = JSON.parse(existing)
+      parsed.player = {
+        ...parsed.player,
         ...data,
+      }
+      if (parsed.opponent) {
+        parsed.opponent = {
+          ...parsed.opponent,
+          ...data,
+        }
       }
       await this.redisService.hSet(hashKey, pairingId, JSON.stringify(parsed))
     }
@@ -1867,22 +1864,14 @@ class TournamentService {
           { is_unpaired: true },
           { ...where, id: player_id }
         )
-        await TournamentService.removePairingsFromRedis(
-          tournamentId,
-          round,
-          player_id
-        )
+        await this.removePairingsFromRedis(tournamentId, round, player_id)
       }
       if (opponent_id) {
         await this.tournamentPairingsDao.updateWhere(
           { is_unpaired: true, parent_id: null },
           { ...where, id: opponent_id }
         )
-        await TournamentService.removePairingsFromRedis(
-          tournamentId,
-          round,
-          opponent_id
-        )
+        await this.removePairingsFromRedis(tournamentId, round, opponent_id)
       }
 
       return responseHandler.returnSuccess(httpStatus.OK, message)
@@ -1925,14 +1914,10 @@ class TournamentService {
           ]
         )
         await this.tournamentPairingsDao.deleteByWhere({ id: parent_id })
-        await TournamentService.removePairingsFromRedis(
-          tournamentId,
-          round,
-          parent_id
-        )
+        await this.removePairingsFromRedis(tournamentId, round, parent_id)
         const new_player = await this.tournamentPairingsDao.create(player_data)
         parent_id = new_player.dataValues.id
-        await TournamentService.addPairingsToRedis(
+        await this.addPairingInRedis(
           tournamentId,
           round,
           parent_id,
@@ -1949,12 +1934,10 @@ class TournamentService {
           { is_unpaired: false, parent_id },
           { ...where, id: opponent_id }
         )
-        await TournamentService.updatePairingInRedis(
-          tournamentId,
-          round,
-          opponent_id,
-          { is_unpaired: false, parent_id }
-        )
+        await this.updatePairingInRedis(tournamentId, round, opponent_id, {
+          is_unpaired: false,
+          parent_id,
+        })
       }
 
       return responseHandler.returnSuccess(httpStatus.OK, message)
@@ -2156,12 +2139,7 @@ class TournamentService {
       const message = `Updated tournament Status successfully.`
       await this.tournamentPairingsDao.updateById(body, id)
       const data = await this.tournamentPairingsDao.findById(id)
-      await TournamentService.updatePairingInRedis(
-        data.tournament_id,
-        data.round,
-        id,
-        data
-      )
+      await this.updatePairingInRedis(data.tournament_id, data.round, id, data)
       return responseHandler.returnSuccess(httpStatus.OK, message)
     } catch (e) {
       logger.error(e)
@@ -2201,12 +2179,10 @@ class TournamentService {
           } catch (error) {
             console.log('error', error)
           }
-          await TournamentService.updatePairingInRedis(
-            tournamentId,
-            round,
-            id,
-            { result: scores[id], is_scored: true }
-          )
+          await this.updatePairingInRedis(tournamentId, round, id, {
+            result: scores[id],
+            is_scored: true,
+          })
           // Update the pairing with new score
           return this.tournamentPairingsDao.updateById(
             { result: scores[id], is_scored: true },
@@ -2223,14 +2199,13 @@ class TournamentService {
           )
         })
         const redisUpdatePromises = Object.keys(scores).map((id) => {
-          return TournamentService.updatePairingInRedis(
-            tournamentId,
-            round,
-            id,
-            { result: scores[id], is_scored: true, cc_gameid: gameId }
-          )
+          return this.updatePairingInRedis(tournamentId, round, id, {
+            result: scores[id],
+            is_scored: true,
+            cc_gameid: gameId,
+          })
         })
-        promises = promises.concat(redisUpdatePromises)
+        await Promise.allSettled(redisUpdatePromises)
       }
       const result = await Promise.allSettled(promises)
       if (!result.length) {

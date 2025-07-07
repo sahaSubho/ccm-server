@@ -1,6 +1,6 @@
 const { spawn } = require('child_process')
 const fs = require('fs')
-const uploadFileToS3 = require("../uploadFiletoS3")
+const uploadFileToS3 = require('../uploadFiletoS3')
 const config = require('../../config/config')
 
 const pair = (input, players, teams = [], fileName = '') => {
@@ -17,16 +17,20 @@ const pair = (input, players, teams = [], fileName = '') => {
 
   let stderrData = ''
   return new Promise((resolve, reject) => {
-    const javafoCommand = spawn('java', [
-      '-ea',
-      '-Xmx10240m',
-      '-XX:+HeapDumpOnOutOfMemoryError',
-      '-jar',
-      javafoJarPath,
-      trfFilePath,
-      '-p',
-      outputFilePath,
-    ],{cwd: process.cwd()})
+    const javafoCommand = spawn(
+      'java',
+      [
+        '-ea',
+        '-Xmx4G',
+        '-XX:+HeapDumpOnOutOfMemoryError',
+        '-jar',
+        javafoJarPath,
+        trfFilePath,
+        '-p',
+        outputFilePath,
+      ],
+      { cwd: process.cwd() }
+    )
 
     javafoCommand.stdout.on('data', (data) => {
       console.log('[Java STDOUT]', data.toString())
@@ -39,9 +43,17 @@ const pair = (input, players, teams = [], fileName = '') => {
 
     javafoCommand.on('close', (code) => {
       console.log(`JaVaFo process exited with code ${code}`)
-      if(!config.simulate && config.env === 'production') {
-        uploadFileToS3(trfFilePath, process.env.AWS_S3_BUCKET_NAME, `pairings/input_${fileName}.trf`)
-        uploadFileToS3(outputFilePath, process.env.AWS_S3_BUCKET_NAME, `pairings/output_${fileName}.trf`)
+      if (!config.simulate && config.env === 'production') {
+        uploadFileToS3(
+          trfFilePath,
+          process.env.AWS_S3_BUCKET_NAME,
+          `pairings/input_${fileName}.trf`
+        )
+        uploadFileToS3(
+          outputFilePath,
+          process.env.AWS_S3_BUCKET_NAME,
+          `pairings/output_${fileName}.trf`
+        )
       }
       if (code === 0) {
         fs.readFile(outputFilePath, 'utf8', (err, data) => {
