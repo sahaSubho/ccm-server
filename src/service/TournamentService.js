@@ -143,6 +143,42 @@ class TournamentService {
     return 'Classical'
   }
 
+  static removePairingsFromRedis = async (tournamentId, round, pairingId) => {
+    const hashKey = `ccm_pairings_${tournamentId}_${round}`
+    const listKey = `ccm_pairings_order_${tournamentId}_${round}`
+    await this.redisService.hDel(hashKey, pairingId)
+    await this.redisService.lRem(listKey, 0, pairingId)
+  }
+
+  static addPairingInRedis = async (
+    round,
+    tournamentId,
+    pairingId,
+    pairingObj
+  ) => {
+    const hashKey = `ccm_pairings_${tournamentId}_${round}`
+    const listKey = `ccm_pairings_order_${tournamentId}_${round}`
+    await this.redisService.hSet(hashKey, pairingId, JSON.stringify(pairingObj))
+    await this.redisService.rPush(listKey, pairingId)
+  }
+
+  static updatePairingInRedis = async (
+    round,
+    tournamentId,
+    pairingId,
+    data
+  ) => {
+    const hashKey = `ccm_pairings_${tournamentId}_${round}`
+    const existing = await this.redisService.hGet(hashKey, pairingId)
+    if (existing) {
+      const parsed = {
+        ...JSON.parse(existing),
+        ...data,
+      }
+      await this.redisService.hSet(hashKey, pairingId, JSON.stringify(parsed))
+    }
+  }
+
   createLichessSwissTournament = async (tournamentBody, req) => {
     try {
       // Creating lichess arena tournament
@@ -1711,20 +1747,25 @@ class TournamentService {
     try {
       let message = 'Fetched tournament player pairings successfully.'
 
-      // Optionally use Redis
-      const redisKey = `ccm_pairings_${tournamentId}_${round}`
+      const hashKey = `ccm_pairings_${tournamentId}_${round}` // HASH: pairing data
+      const listKey = `ccm_pairings_order_${tournamentId}_${round}` // LIST: pairing order
 
       const start = offset
       const end = start + limit - 1
-      // Fetch from Redis
-      const pairings = await this.redisService.lRange(redisKey, start, end)
-      // If you stored JSON, parse it
-      const redisResults = pairings.map(JSON.parse)
 
-      // Optionally get total
-      const totalPairings = await this.redisService.lLen(redisKey)
+      // Get pairing IDs from the LIST
+      const pairingIds = await this.redisService.lRange(listKey, start, end)
 
-      if (redisResults.length > 0) {
+      // If any IDs found, fetch their HASH fields
+      let redisResults = []
+      if (pairingIds.length) {
+        const pairings = await this.redisService.hmGet(hashKey, pairingIds)
+        redisResults = pairings.map(JSON.parse)
+      }
+
+      const totalPairings = await this.redisService.lLen(listKey)
+
+      if (redisResults.length) {
         console.log('Using cached pairings from Redis')
         return responseHandler.returnSuccess(
           httpStatus.OK,
@@ -1741,14 +1782,13 @@ class TournamentService {
         limit,
         offset
       )
-      // console.log(JSON.stringify(data, null, 2))
 
       if (!data.length) {
         message = `Pairing of Round ${round} is not done yet! Please try again.`
         return responseHandler.returnError(httpStatus.BAD_REQUEST, message)
       }
 
-      // === 3) Add teams if needed ===
+      // === Add teams if needed ===
       const teams = await this.teamsDao.findByWhere({
         tournament_id: tournamentId,
       })
@@ -1760,9 +1800,10 @@ class TournamentService {
         }
       }
 
-      // === 4) Format results ===
+      // === Format results ===
       const players = data.map((pair) => {
         return {
+          pairing_id: pair.id, // assume `id` is unique pairing ID
           player: pair,
           opponent: pair.opponent || undefined,
           unpaired: pair.is_unpaired ? pair : undefined,
@@ -1773,13 +1814,30 @@ class TournamentService {
         }
       })
 
-      await this.redisService.removeKey(redisKey) // Clear old list
-      const rPushPromises = players.map((player) => {
-        // Push only player ID or JSON if you want
-        return this.redisService.rPush(redisKey, JSON.stringify(player))
-      })
-      await Promise.all(rPushPromises)
-      await this.redisService.expire(redisKey) // Set expiration if needed
+      // === Store in Redis using HASH + LIST ===
+      await this.redisService.removeKey(hashKey)
+      await this.redisService.removeKey(listKey)
+
+      const hashFields = []
+      const orderIds = []
+
+      for (const player of players) {
+        const field = player.pairing_id
+        hashFields.push(field, JSON.stringify(player))
+        orderIds.push(String(field))
+      }
+
+      // Store all in HASH at once
+      await this.redisService.hSet(hashKey, hashFields)
+
+      // Store order in LIST
+      if (orderIds.length) {
+        await this.redisService.rPush(listKey, ...orderIds)
+      }
+
+      // Optional: Set expiry on both keys
+      await this.redisService.expire(hashKey)
+      await this.redisService.expire(listKey)
 
       return responseHandler.returnSuccess(httpStatus.OK, message, players)
     } catch (e) {
@@ -1814,16 +1872,23 @@ class TournamentService {
           { is_unpaired: true },
           { ...where, id: player_id }
         )
+        await TournamentService.removePairingsFromRedis(
+          tournamentId,
+          round,
+          player_id
+        )
       }
       if (opponent_id) {
         await this.tournamentPairingsDao.updateWhere(
           { is_unpaired: true, parent_id: null },
           { ...where, id: opponent_id }
         )
+        await TournamentService.removePairingsFromRedis(
+          tournamentId,
+          round,
+          opponent_id
+        )
       }
-      // Removes pairings & standings from Redis cache
-      const redisKey = `ccm_pairings_${tournamentId}_${round}`
-      await this.redisService.removeKey(redisKey)
 
       return responseHandler.returnSuccess(httpStatus.OK, message)
     } catch (e) {
@@ -1865,8 +1930,19 @@ class TournamentService {
           ]
         )
         await this.tournamentPairingsDao.deleteByWhere({ id: parent_id })
+        await TournamentService.removePairingsFromRedis(
+          tournamentId,
+          round,
+          parent_id
+        )
         const new_player = await this.tournamentPairingsDao.create(player_data)
         parent_id = new_player.dataValues.id
+        await TournamentService.addPairingsToRedis(
+          tournamentId,
+          round,
+          parent_id,
+          player_data
+        )
       } else {
         await this.tournamentPairingsDao.updateWhere(
           { is_unpaired: false, is_withdrawn: false },
@@ -1878,11 +1954,13 @@ class TournamentService {
           { is_unpaired: false, parent_id },
           { ...where, id: opponent_id }
         )
+        await TournamentService.updatePairingInRedis(
+          tournamentId,
+          round,
+          opponent_id,
+          { is_unpaired: false, parent_id }
+        )
       }
-
-      // Removes pairings & standings from Redis cache
-      const redisKey = `ccm_pairings_${tournamentId}_${round}`
-      await this.redisService.removeKey(redisKey)
 
       return responseHandler.returnSuccess(httpStatus.OK, message)
     } catch (e) {
@@ -1916,7 +1994,7 @@ class TournamentService {
       // Optionally get total
       const totalPlayers = await this.redisService.lLen(redisKey)
 
-      if (redisResults.length > 0) {
+      if (redisResults.length === 0) {
         return responseHandler.returnSuccess(
           httpStatus.OK,
           message,
@@ -2082,6 +2160,13 @@ class TournamentService {
     try {
       const message = `Updated tournament Status successfully.`
       await this.tournamentPairingsDao.updateById(body, id)
+      const data = await this.tournamentPairingsDao.findById(id)
+      await TournamentService.updatePairingInRedis(
+        data.tournament_id,
+        data.round,
+        id,
+        data
+      )
       return responseHandler.returnSuccess(httpStatus.OK, message)
     } catch (e) {
       logger.error(e)
@@ -2121,6 +2206,13 @@ class TournamentService {
           } catch (error) {
             console.log('error', error)
           }
+          await TournamentService.updatePairingInRedis(
+            tournamentId,
+            round,
+            id,
+            { result: scores[id], is_scored: true }
+          )
+          // Update the pairing with new score
           return this.tournamentPairingsDao.updateById(
             { result: scores[id], is_scored: true },
             id
@@ -2135,6 +2227,15 @@ class TournamentService {
             id
           )
         })
+        const redisUpdatePromises = Object.keys(scores).map((id) => {
+          return TournamentService.updatePairingInRedis(
+            tournamentId,
+            round,
+            id,
+            { result: scores[id], is_scored: true, cc_gameid: gameId }
+          )
+        })
+        promises = promises.concat(redisUpdatePromises)
       }
       const result = await Promise.allSettled(promises)
       if (!result.length) {

@@ -104,7 +104,21 @@ class RedisHelper {
     }
   }
 
-  /**   * Set expiry for a key
+  /** * Remove value from a list
+   * @param {String} key
+   * @param {Integer} count
+   *  @param {String/JSON} value
+   * @returns {Integer/Boolean}
+   * */
+  lRem = async (key, count, value) => {
+    try {
+      return await this.redisClient.lRem(key, count, value)
+    } catch (e) {
+      return false
+    }
+  }
+
+  /** * Set expiry for a key
    * @param {String} key
    * @param {Integer} seconds
    * @returns {Boolean}
@@ -112,6 +126,61 @@ class RedisHelper {
   expire = async (key, seconds) => {
     try {
       return await this.redisClient.expire(key, seconds)
+    } catch (e) {
+      return false
+    }
+  }
+
+  /** * Get all keys matching a pattern
+   * @param {String} pattern
+   * @returns {Array/Boolean}
+   * */
+  hmSet = async (key, value) => {
+    try {
+      return await this.redisClient.hmSet(key, value)
+    } catch (e) {
+      return false
+    }
+  }
+
+  /**   * Get value from a hash map
+   * @param {String} key
+   * @param {String} field
+   * @returns {String/Boolean}
+   * */
+  hmGet = async (key, field) => {
+    try {
+      return await this.redisClient.hmGet(key, field)
+    } catch (e) {
+      return false
+    }
+  }
+
+  hGet = async (key, field) => {
+    try {
+      return await this.redisClient.hGet(key, field)
+    } catch (e) {
+      return false
+    }
+  }
+
+  hSet = async (key, field, value) => {
+    try {
+      return await this.redisClient.hSet(key, field, value)
+    } catch (error) {
+      console.log('error', error)
+      return false
+    }
+  }
+
+  /**   * Get all fields and values from a hash map
+   * @param {String} key
+   * @param {String} field
+   * @returns {Object/Boolean}
+   *  */
+  hDel = async (key, field) => {
+    try {
+      return await this.redisClient.hDel(key, field)
     } catch (e) {
       return false
     }
