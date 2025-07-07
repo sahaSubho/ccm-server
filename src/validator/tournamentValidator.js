@@ -128,7 +128,7 @@ class TournamentValidator {
     const schema = Joi.object({
       round: Joi.number().greater(0).required(),
       tournamentId: Joi.number().required(),
-      limit: Joi.number().default(20).min(1).max(1000),
+      limit: Joi.number().default(1000).min(1).max(1000),
       offset: Joi.number().default(0).min(0),
     })
 
