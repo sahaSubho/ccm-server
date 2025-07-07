@@ -1757,6 +1757,7 @@ class TournamentService {
       const pairingIds = await this.redisService.lRange(listKey, start, end)
 
       // If any IDs found, fetch their HASH fields
+      console.log('ids', start, end, pairingIds)
       let redisResults = []
       if (pairingIds.length) {
         const pairings = await this.redisService.hmGet(hashKey, pairingIds)
@@ -1819,21 +1820,15 @@ class TournamentService {
       await this.redisService.removeKey(listKey)
 
       const hashFields = []
-      const orderIds = []
 
       for (const player of players) {
         const field = player.pairing_id
         hashFields.push(field, JSON.stringify(player))
-        orderIds.push(String(field))
+        await this.redisService.rPush(listKey, String(field))
       }
 
       // Store all in HASH at once
       await this.redisService.hSet(hashKey, hashFields)
-
-      // Store order in LIST
-      if (orderIds.length) {
-        await this.redisService.rPush(listKey, ...orderIds)
-      }
 
       // Optional: Set expiry on both keys
       await this.redisService.expire(hashKey)
