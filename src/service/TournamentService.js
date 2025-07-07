@@ -1724,7 +1724,7 @@ class TournamentService {
       // Optionally get total
       const totalPairings = await this.redisService.lLen(redisKey)
 
-      if (redisResults.length === 0) {
+      if (redisResults.length > 0) {
         console.log('Using cached pairings from Redis')
         return responseHandler.returnSuccess(
           httpStatus.OK,
