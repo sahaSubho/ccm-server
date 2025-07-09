@@ -1187,13 +1187,8 @@ class TournamentService {
       data.setDataValue('pairings', pairings)
       data.setDataValue('currentRound', currentRound)
 
-      const trnprizes = await this.tournamentPrizeMappingDao.findAllRaw({
-        tournament_id: data.map((t) => {
-          return t.id
-        }),
-      })
-      const prizes = trnprizes.filter((p) => {
-        return p.tournament_id === id
+      const prizes = await this.tournamentPrizeMappingDao.findByWhere({
+        tournament_id: id,
       })
       const cashPrize =
         prizes?.reduce((acc, curr) => {
