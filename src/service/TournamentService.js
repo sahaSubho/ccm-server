@@ -805,21 +805,22 @@ class TournamentService {
       )
 
       const intentCountMap = await sequelize.query(
-        `SELECT 
+        `SELECT
           a.tournament_id,
           COUNT(*) AS user_count
-        FROM 
+        FROM
           cc_user_tournament_intent AS a
-        JOIN 
+        JOIN
           cc_users AS b ON a.user_key = b.user_key
-        WHERE 
+        WHERE
           a.wants_to_join = TRUE
-          AND b.user_id NOT IN (
-            SELECT cp.cc_userid 
-            FROM ccm_tournament_players AS cp 
+          AND NOT EXISTS (
+            SELECT 1
+            FROM ccm_tournament_players AS cp
             WHERE cp.tournament_id = a.tournament_id
+              AND cp.cc_userid = b.user_id
           )
-        GROUP BY 
+        GROUP BY
           a.tournament_id;`,
         {
           type: sequelize.QueryTypes.SELECT,
