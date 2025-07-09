@@ -800,6 +800,29 @@ class TournamentService {
           tournament_id: data.map((t) => {
             return t.id
           }),
+          is_withdrawn: false,
+        }
+      )
+
+      const intentCountMap = await sequelize.query(
+        `SELECT 
+          a.tournament_id,
+          COUNT(*) AS user_count
+        FROM 
+          cc_user_tournament_intent AS a
+        JOIN 
+          cc_users AS b ON a.user_key = b.user_key
+        WHERE 
+          a.wants_to_join = TRUE
+          AND b.user_id NOT IN (
+            SELECT cp.cc_userid 
+            FROM ccm_tournament_players AS cp 
+            WHERE cp.tournament_id = a.tournament_id
+          )
+        GROUP BY 
+          a.tournament_id;`,
+        {
+          type: sequelize.QueryTypes.SELECT,
         }
       )
 
@@ -815,6 +838,10 @@ class TournamentService {
           return acc + curr.amount
         }, 0)
         tournament.cash_prize = cashPrize
+        const intentCount = intentCountMap.find((p) => {
+          return p.tournament_id === tournament.id
+        })?.user_count
+        tournament.intent_count = intentCount
       })
       return responseHandler.returnSuccess(httpStatus.OK, message, data)
     } catch (e) {
@@ -1275,7 +1302,7 @@ class TournamentService {
           } else if (player.cc_userid) {
             seen.add(player.cc_userid)
           } else {
-            duplicateIds.push(player.id); // falsy cc_userid (e.g. 0, null)
+            duplicateIds.push(player.id) // falsy cc_userid (e.g. 0, null)
           }
         })
 
