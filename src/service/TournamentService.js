@@ -1613,10 +1613,6 @@ class TournamentService {
         }
       })
 
-      await this.redisService.removeKey(
-        `ccm_tournament_details_${tournamentId}`
-      )
-
       return responseHandler.returnSuccess(httpStatus.OK, message, data)
     } catch (e) {
       logger.error(e)
