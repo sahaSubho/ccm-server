@@ -22,6 +22,7 @@ module.exports = (sequelize, DataTypes) => {
       })
       Tournament.hasMany(models.tournament_prize_mappings, {
         foreignKey: 'tournament_id',
+        as: 'prizes',
       })
       Tournament.hasMany(models.ccm_teams, {
         foreignKey: 'tournament_id',

@@ -254,5 +254,14 @@ class SuperDao {
       raw: true,
     })
   }
+
+  async findByGroup(where, group, attributes) {
+    return this.Model.findAll({
+      attributes,
+      where,
+      group,
+      raw: true,
+    })
+  }
 }
 module.exports = SuperDao

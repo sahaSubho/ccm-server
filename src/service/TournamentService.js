@@ -832,12 +832,16 @@ class TournamentService {
           return p.tournament_id === tournament.id
         })?.count
         tournament.players_joined = playerCount || 0
-        const prize = trnprizes.find((p) => {
+        const prizes = trnprizes.filter((p) => {
           return p.tournament_id === tournament.id
         })
-        const cashPrize = prize?.prizes?.reduce((acc, curr) => {
-          return acc + curr.amount
-        }, 0)
+        const cashPrize =
+          prizes?.reduce((acc, curr) => {
+            const total = curr.prizes.reduce((a, b) => {
+              return a + Number(b.amount)
+            }, 0)
+            return acc + Number(total)
+          }, 0) || 0
         tournament.cash_prize = cashPrize
         const intentCount = intentCountMap.find((p) => {
           return p.tournament_id === tournament.id
@@ -874,6 +878,11 @@ class TournamentService {
         offset
       )
 
+      const trnprizes = await this.tournamentPrizeMappingDao.findAllRaw({
+        tournament_id: data.map((t) => {
+          return t.id
+        }),
+      })
       if (
         data?.length > 0 &&
         userId &&
@@ -941,6 +950,17 @@ class TournamentService {
               c.association_name === tournament.mandatory_club_membership_name
             )
           })
+          const prizes = trnprizes.filter((p) => {
+            return p.tournament_id === tournament.id
+          })
+          const cashPrize =
+            prizes?.reduce((acc, curr) => {
+              const total = curr.prizes.reduce((a, b) => {
+                return a + Number(b.amount)
+              }, 0)
+              return acc + Number(total)
+            }, 0) || 0
+          tournament.cash_prize = cashPrize
         })
       } else {
         data.forEach(async (tournament) => {
@@ -948,6 +968,17 @@ class TournamentService {
           tournament.is_free = true
           tournament.registration_tid = null
           tournament.club = null
+          const prizes = trnprizes.filter((p) => {
+            return p.tournament_id === tournament.id
+          })
+          const cashPrize =
+            prizes?.reduce((acc, curr) => {
+              const total = curr.prizes.reduce((a, b) => {
+                return a + Number(b.amount)
+              }, 0)
+              return acc + Number(total)
+            }, 0) || 0
+          tournament.cash_prize = cashPrize
         })
       }
       return responseHandler.returnSuccess(httpStatus.OK, message, data)
@@ -1155,6 +1186,23 @@ class TournamentService {
       }
       data.setDataValue('pairings', pairings)
       data.setDataValue('currentRound', currentRound)
+
+      const trnprizes = await this.tournamentPrizeMappingDao.findAllRaw({
+        tournament_id: data.map((t) => {
+          return t.id
+        }),
+      })
+      const prizes = trnprizes.filter((p) => {
+        return p.tournament_id === id
+      })
+      const cashPrize =
+        prizes?.reduce((acc, curr) => {
+          const total = curr.prizes.reduce((a, b) => {
+            return a + Number(b.amount)
+          }, 0)
+          return acc + Number(total)
+        }, 0) || 0
+      data.setDataValue('cash_prize', cashPrize)
 
       // await fetchLatestFidePlayers()
 
@@ -1564,6 +1612,10 @@ class TournamentService {
           })?.name,
         }
       })
+
+      await this.redisService.removeKey(
+        `ccm_tournament_details_${tournamentId}`
+      )
 
       return responseHandler.returnSuccess(httpStatus.OK, message, data)
     } catch (e) {

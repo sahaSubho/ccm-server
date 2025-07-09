@@ -22,6 +22,18 @@ class TournamentDao extends SuperDao {
   async remove(where) {
     return Tournament.destroy({ where })
   }
+
+  async findOneWithIncludes(id) {
+    return Tournament.findOne({
+      where: { id },
+      include: [
+        {
+          model: models.tournament_prize_mappings,
+          as: 'prizes',
+        },
+      ],
+    })
+  }
 }
 
 module.exports = TournamentDao
