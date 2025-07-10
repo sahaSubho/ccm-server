@@ -842,7 +842,9 @@ class TournamentService {
             }, 0)
             return acc + Number(total)
           }, 0) || 0
-        tournament.cash_prize = cashPrize
+        if (cashPrize) {
+          tournament.cash_prize = cashPrize
+        }
         const intentCount = intentCountMap.find((p) => {
           return p.tournament_id === tournament.id
         })?.user_count
