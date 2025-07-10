@@ -14,6 +14,7 @@ function formatPlayerData(player, round = 1, tournament_id = undefined) {
       player_rating: player.rating || 0,
       player_score: player.score || 0,
       cc_userid: player.cc_userid || 0,
+      age: player.age || 10,
     }
   }
   return {
@@ -26,6 +27,7 @@ function formatPlayerData(player, round = 1, tournament_id = undefined) {
     player_score: player.player_score,
     result: player.result,
     cc_userid: player.cc_userid || 0,
+    age: player.age || 10,
   }
 }
 
@@ -406,18 +408,16 @@ async function javaFoRoundPairing(
         else if (String(player?.player_result)?.replace(/\s/g, '') === '---') {
           matches[player.player_id][index - 1] = `${indexes[opp.player_id]} w -`
           matches[opp.player_id][index - 1] = `${indexes[player.player_id]} b -`
-        } else if (
-          player?.player_result === '0.5-0.5'
-        ) {
+        } else if (player?.player_result === '0.5-0.5') {
           matches[player.player_id][index - 1] = `${indexes[opp.player_id]} w =`
           matches[opp.player_id][index - 1] = `${indexes[player.player_id]} b =`
         } else {
           matches[player.player_id][index - 1] = `${indexes[opp.player_id]} w ${
-            player?.player_result?.replace(/0.5/g,'=')[0]
+            player?.player_result?.replace(/0.5/g, '=')[0]
           }`
 
           matches[opp.player_id][index - 1] = `${indexes[player.player_id]} b ${
-            opp?.player_result?.replace(/0.5/g,'=')[2]
+            opp?.player_result?.replace(/0.5/g, '=')[2]
           }`
         }
       }
@@ -467,7 +467,7 @@ async function javaFoRoundPairing(
       `${p?.player_fide_id?.toString().slice(0, 11).padStart(11, ' ')} ` +
       `${''.padEnd(10, ' ')} ` +
       `${p?.player_score?.toFixed(1).padStart(4, ' ')} ` +
-      `${ranks[p.player_id]?.toString().padStart(4, ' ')}`
+      `${p.key?.toString().padStart(4, ' ')}`
     ;[...Array(round - 1).keys()]
       .map((x) => {
         return matches[p.player_id][x] || '0000 - Z'

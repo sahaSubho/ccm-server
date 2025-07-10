@@ -1349,7 +1349,7 @@ class TournamentService {
 
       let white = []
       let black = []
-      let ranking = {}
+      const ranking = {}
       let lastRoundPairings = []
 
       if (round > 1) {
@@ -1365,12 +1365,12 @@ class TournamentService {
           return p.round === round - 1
         })
         pairing = convertPlayersResultInNumeric(pairing, trnConfig)
-        const playersRanking = getTieBreaks(pairing, round - 1, trnConfig)
+        // const playersRanking = getTieBreaks(pairing, round - 1, trnConfig)
 
-        ranking = playersRanking.reduce((a, b, i) => {
-          a[b.player_id] = i + 1
-          return a
-        }, {})
+        // ranking = playersRanking.reduce((a, b, i) => {
+        //   a[b.player_id] = i + 1
+        //   return a
+        // }, {})
 
         if (!pairing.length) {
           message = `The pairing of players for the ${TournamentService.getNumberWithOrdinal(

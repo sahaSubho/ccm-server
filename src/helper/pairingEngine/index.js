@@ -15,30 +15,23 @@ const pair = (input, players, teams = [], fileName = '') => {
   fs.writeFileSync(trfFilePath, input)
   fs.writeFileSync(outputFilePath, '')
 
-  let stderrData = ''
   return new Promise((resolve, reject) => {
-    const javafoCommand = spawn(
-      'java',
-      [
-        '-ea',
-        '-Xmx4G',
-        '-XX:+HeapDumpOnOutOfMemoryError',
-        '-jar',
-        javafoJarPath,
-        trfFilePath,
-        '-p',
-        outputFilePath,
-      ],
-      { cwd: process.cwd() }
-    )
+    const javafoCommand = spawn('java', [
+      '-ea',
+      '-Xmx4G',
+      '-XX:+UseG1GC',
+      '-XX:+TieredCompilation',
+      '-XX:TieredStopAtLevel=1',
+      '-noverify',
+      '-jar',
+      javafoJarPath,
+      trfFilePath,
+      '-p',
+      outputFilePath,
+    ])
 
     javafoCommand.stdout.on('data', (data) => {
       console.log('[Java STDOUT]', data.toString())
-    })
-
-    javafoCommand.stderr.on('data', (data) => {
-      console.error('[Java STDERR]', data.toString())
-      stderrData += data.toString()
     })
 
     javafoCommand.on('close', (code) => {
