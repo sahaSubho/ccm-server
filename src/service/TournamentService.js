@@ -847,10 +847,18 @@ class TournamentService {
         const prize = trnprizes.find((p) => {
           return p.tournament_id === tournament.id
         })
-        const cashPrize = prize?.prizes?.reduce((acc, curr) => {
-          return acc + curr.amount
-        }, 0)
+        const cashPrize =
+          prizes?.reduce((acc, curr) => {
+            const total = curr.prizes.reduce((a, b) => {
+              return a + Number(b.amount)
+            }, 0)
+            return acc + Number(total)
+          }, 0) || 0
         tournament.cash_prize = cashPrize
+        const intentCount = intentCountMap.find((p) => {
+          return p.tournament_id === tournament.id
+        })?.user_count
+        tournament.intent_count = intentCount
       })
       return responseHandler.returnSuccess(httpStatus.OK, message, data)
     } catch (e) {
@@ -1028,81 +1036,86 @@ class TournamentService {
 
   getTournamentById = async (id) => {
     try {
-      let message = 'Fetched tournament details successfully.'
-      const data = await this.tournamentDao.findOneWithUser(id, [
-        'id',
-        'email',
-        'phone_number',
-      ])
+      const message = 'Fetched tournament details successfully.'
+
+      const redisResult = await this.redisService.getValue(
+        `ccm_tournament_details_${id}`
+      )
+      if (redisResult) {
+        return responseHandler.returnSuccess(
+          httpStatus.OK,
+          message,
+          JSON.parse(redisResult)
+        )
+      }
+      // ✅ 1️⃣ Single findOne with JOINs
+      const data = await this.tournamentDao.findOneWithIncludes(id)
 
       if (!data) {
-        message = "Tournament doesn't exists!"
-        return responseHandler.returnError(httpStatus.BAD_REQUEST, message)
+        return responseHandler.returnError(
+          httpStatus.BAD_REQUEST,
+          "Tournament doesn't exist!"
+        )
       }
 
-      // let fide_ids = []
-      // if (data.player_fide_ids) {
-      //   fide_ids = data.player_fide_ids.split(',')
-      // }
+      // ✅ 2️⃣ Get players (only needed fields)
+      const players = await this.trnplayersDao.findByWhere(
+        {
+          tournament_id: id,
+          is_withdrawn: false,
+        },
+        ['name', 'rating']
+      )
 
-      // const players = await this.CCUserDao.findByWhere({ user_id: fide_ids })
-      const players = await this.trnplayersDao.findByWhere({
-        tournament_id: id,
-        is_withdrawn: false,
-      })
-      // instead fetch from tournament players
-      let joinedPlayers = []
-      if (players.length > 0) {
-        joinedPlayers = players.map((player) => {
-          return {
-            username: player.name,
-            rating: player.rating,
+      data.setDataValue('players_joined', players)
+
+      // ✅ 3️⃣ Use a single aggregate for pairings
+      const pairings = await this.tournamentPairingsDao.findByGroup(
+        { tournament_id: id },
+        ['round'],
+        [
+          'round',
+          [sequelize.fn('COUNT', sequelize.col('id')), 'pairing_count'],
+          [
+            sequelize.fn(
+              'SUM',
+              sequelize.literal('CASE WHEN is_scored = true THEN 1 ELSE 0 END')
+            ),
+            'scored_count',
+          ],
+        ]
+      )
+      const rounds = [...Array(data.rounds).keys()].reduce((acc, curr) => {
+        if (pairings.length) {
+          const pairing = pairings.find((p) => {
+            return p.round === curr + 1
+          })
+          acc[curr + 1] = {
+            paired: Number(pairing?.pairing_count) > 0,
+            scored: pairing?.pairing_count === pairing?.scored_count,
           }
-        })
-      }
-      data.setDataValue('players_joined', joinedPlayers)
-
-      if (data.feedback_key) {
-        const feedbacks = await this.ccTournamentFeedbackDao.findByWhere({
-          tournament_key: data.feedback_key,
-        })
-        data.setDataValue('feedbacks', feedbacks)
-      }
-      const roundDetails = await this.tournamentPairingsDao.findDistinct(
-        'round',
-        { tournament_id: id }
-      )
-      const playerCountMap = await this.tournamentPairingsDao.findCountByGroup(
-        'round',
-        'result',
-        {
-          tournament_id: id,
+        } else {
+          acc[curr + 1] = {
+            paired: false,
+            scored: false,
+          }
         }
-      )
-      const isScored = await this.tournamentPairingsDao.findCountByGroup(
-        'round',
-        'is_scored',
-        {
-          tournament_id: id,
-          is_scored: true,
-        }
-      )
-
-      // const maxScore = playerCount ? Math.round(playerCount / 2) : playerCount
+        return acc
+      }, {})
 
       let currentRound = data.current_round || 0
-      if (!data.current_round) {
-        currentRound =
-          roundDetails
-            .map((r) => {
-              return r.round
-            })
-            .sort()
-            .pop() || 0
+      const maxRound = Math.max(
+        0,
+        ...pairings.map((p) => {
+          return p.round
+        })
+      )
 
+      if (!data.current_round) {
+        currentRound = maxRound
         if (
-          isScored.some((s) => {
-            return s.round === currentRound
+          pairings.some((p) => {
+            return p.round === maxRound && p.pairing_count === p.scored_count
           })
         ) {
           currentRound += 1
@@ -1113,48 +1126,33 @@ class TournamentService {
         data.rounds = 5
       }
 
-      const pairings = [...Array(data.rounds).keys()].reduce((acc, curr) => {
-        acc[curr + 1] = {
-          paired: roundDetails
-            .map((r) => {
-              return r.round
-            })
-            .includes(curr + 1),
-          scored:
-            Number(
-              playerCountMap?.find((s) => {
-                return s.round === curr + 1
-              })?.count
-            ) ===
-            Number(
-              isScored?.find((s) => {
-                return s.round === curr + 1
-              })?.count
-            ),
-        }
-        return acc
-      }, {})
-
-      if (data.cct_id) {
-        const ccTournament = await sequelize.query(
-          `select tournament_key from cc_tournaments where id=${data.cct_id};`,
-          {
-            type: sequelize.QueryTypes.SELECT,
-          }
-        )
-        if (ccTournament.length > 0) {
-          data.setDataValue('tournamentKey', ccTournament[0].tournament_key)
-          data.setDataValue(
-            'weblink',
-            `https://circlechess.com/events/tournaments/${data.state}/${data.city}/${data.name}/${ccTournament[0].tournament_key}`
-          )
-        }
-      }
-      data.setDataValue('pairings', pairings)
+      data.setDataValue('pairings', rounds)
       data.setDataValue('currentRound', currentRound)
 
-      // await fetchLatestFidePlayers()
+      // ✅ 4️⃣ Link for web
+      if (data.feedback_key) {
+        data.setDataValue('tournamentKey', data.feedback_key)
+        data.setDataValue(
+          'weblink',
+          `https://circlechess.com/events/tournaments/${data.state}/${data.city}/${data.name}/${data.feedback_key}`
+        )
+      }
 
+      // ✅ 5️⃣ Sum prizes in JS if not precalculated
+      const cashPrize =
+        data.prizes?.reduce((acc, curr) => {
+          const total = curr.prizes.reduce((a, b) => {
+            return a + Number(b.amount)
+          }, 0)
+          return acc + Number(total)
+        }, 0) || 0
+      data.setDataValue('cash_prize', cashPrize)
+
+      await this.redisService.setValueWithExpiry(
+        `ccm_tournament_details_${id}`,
+        86400,
+        JSON.stringify(data)
+      )
       return responseHandler.returnSuccess(httpStatus.OK, message, data)
     } catch (e) {
       logger.error(e)
@@ -1559,6 +1557,10 @@ class TournamentService {
           })?.name,
         }
       })
+
+      await this.redisService.removeKey(
+        `ccm_tournament_details_${tournamentId}`
+      )
 
       return responseHandler.returnSuccess(httpStatus.OK, message, data)
     } catch (e) {
