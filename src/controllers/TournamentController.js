@@ -219,8 +219,7 @@ class TournamentController {
         round,
         tournamentId
       )
-      const { status, message, data } = pairings.response
-      res.status(pairings.statusCode).send({ status, message, data })
+      res.status(pairings.statusCode).send(pairings.response)
     } catch (e) {
       logger.error(e)
       res.status(httpStatus.BAD_GATEWAY).send(e)
@@ -266,8 +265,7 @@ class TournamentController {
         limit,
         offset
       )
-      const { status, message, data } = pairing.response
-      res.status(pairing.statusCode).send({ status, message, data })
+      res.status(pairing.statusCode).send(pairing.response)
     } catch (e) {
       logger.error(e)
       res.status(httpStatus.BAD_GATEWAY).send(e)

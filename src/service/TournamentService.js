@@ -1335,7 +1335,14 @@ class TournamentService {
         message = `The pairing of players already done for the ${TournamentService.getNumberWithOrdinal(
           round
         )} round.`
-        return responseHandler.returnError(httpStatus.BAD_REQUEST, message)
+        const res = await this.getPairings(
+          round,
+          tournamentId,
+          pairingData,
+          0,
+          message
+        )
+        return res
       }
 
       let data = []
@@ -1742,9 +1749,18 @@ class TournamentService {
    * @param {Number} tournamentId
    * @returns {Array}
    */
-  getPairings = async (round, tournamentId, limit = 20, offset = 0) => {
+  getPairings = async (
+    round,
+    tournamentId,
+    limit = 20,
+    offset = 0,
+    msg = undefined
+  ) => {
     try {
       let message = 'Fetched tournament player pairings successfully.'
+      if (msg) {
+        message = msg
+      }
 
       const hashKey = `ccm_pairings_${tournamentId}_${round}` // HASH: pairing data
       const listKey = `ccm_pairings_order_${tournamentId}_${round}` // LIST: pairing order
@@ -1756,7 +1772,6 @@ class TournamentService {
       const pairingIds = await this.redisService.lRange(listKey, start, end)
 
       // If any IDs found, fetch their HASH fields
-      console.log('ids', start, end, pairingIds)
       let redisResults = []
       if (pairingIds.length) {
         const pairings = await this.redisService.hmGet(hashKey, pairingIds)
@@ -1764,6 +1779,7 @@ class TournamentService {
       }
 
       const totalPairings = await this.redisService.lLen(listKey)
+      console.log('total Pairings found in redis', totalPairings)
 
       if (redisResults.length) {
         console.log('Using cached pairings from Redis')
