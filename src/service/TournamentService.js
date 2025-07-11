@@ -1338,15 +1338,6 @@ class TournamentService {
         round
       )} round of the tournament.`
 
-      const paringinInQueue = await this.redisService.getValue(
-        `ccm_pairing_queue_${tournamentId}_${round}`
-      )
-      if (paringinInQueue) {
-        message = 'Pairing already in the process. Please wait!'
-        console.log(message)
-        return responseHandler.returnError(httpStatus.BAD_REQUEST, message)
-      }
-
       const tournament = await this.tournamentDao.findById(tournamentId)
       let players = await this.trnplayersDao.findByWhere({
         tournament_id: tournamentId,
@@ -1559,10 +1550,19 @@ class TournamentService {
         })
       }
       try {
+        const paringinInQueue = await this.redisService.getValue(
+          `ccm_pairing_queue_${tournamentId}_${round}`
+        )
+        if (paringinInQueue) {
+          message = 'Pairing already in the process. Please wait!'
+          console.log(message)
+          return responseHandler.returnError(httpStatus.BAD_REQUEST, message)
+        }
+
         await this.redisService.setValueWithExpiry(
           `ccm_pairing_queue_${tournamentId}_${round}`,
-          moment().toISOString(),
-          86400
+          86400,
+          moment().toISOString()
         )
         const { whitePlayers, blackPlayers, leftTeams, rightTeams } =
           await javaFoRoundPairing(
@@ -1580,6 +1580,7 @@ class TournamentService {
           message = 'Failed to pair players! Please try again.'
           return responseHandler.returnError(httpStatus.BAD_REQUEST, message)
         }
+
         const res = await this.tournamentPairingsDao.bulkCreate(whitePlayers)
         await this.tournamentConfigurationDao.updateWhere(
           { sorting: false },
@@ -1645,9 +1646,9 @@ class TournamentService {
           `ccm_tournament_details_${tournamentId}`
         )
 
-        await this.redisService.removeKey(
-          `ccm_pairing_queue_${tournamentId}_${round}`
-        )
+        // await this.redisService.removeKey(
+        //   `ccm_pairing_queue_${tournamentId}_${round}`
+        // )
         return responseHandler.returnSuccess(httpStatus.OK, message, data)
       } catch (error) {
         await this.redisService.removeKey(
