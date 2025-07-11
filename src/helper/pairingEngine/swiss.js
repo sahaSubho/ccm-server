@@ -326,13 +326,26 @@ async function javaFoRoundPairing(
   teams = []
 ) {
   const numberOfPlayers = players.length
-  const tournamentDetails =
+  let tournamentDetails =
     `012  ${tournament.name}\n` +
     `042  ${tournament.start_date}\n` +
     `052  ${tournament.end_date}\n` +
     `062  ${numberOfPlayers}\n` +
-    `092  ${tournament.pairing_type}: Swiss-System\n` +
-    `XXR  ${tournament.rounds}\n`
+    `092  Swiss-System\n`
+  tournamentDetails += `XXR  ${tournament.rounds}\n`
+
+  console.log('numberOfPlayers', numberOfPlayers)
+  if (numberOfPlayers > 500) {
+    console.log('BBP Pairings enabled')
+    tournamentDetails +=
+      'BBW  1.0\n' +
+      'BBD  0.5\n' +
+      'BBL  0.0\n' +
+      'BBZ  0.0\n' +
+      'BBF  1.0\n' +
+      'BBU  1.0\n'
+  }
+
   const data = white.concat(black).sort((a, b) => {
     return a.round - b.round
   })
@@ -448,6 +461,7 @@ async function javaFoRoundPairing(
   const teamPlayers = {}
   for (let i = 0; i < formatedPlayers.length; i += 1) {
     const p = formatedPlayers[i]
+    // console.log('age', p.age)
     // refer trf_format.txt file
     if (teams.length > 0) {
       const tp = teams.find((t) => {
@@ -465,9 +479,9 @@ async function javaFoRoundPairing(
       `${p?.player_rating?.toString()?.slice(0, 4)?.padStart(4, ' ')} ` +
       `${'IND'.padStart(3, ' ')} ` +
       `${p?.player_fide_id?.toString().slice(0, 11).padStart(11, ' ')} ` +
-      `${''.padEnd(10, ' ')} ` +
+      `${`${(2025 - Number(p.age) || 2000).toString()}/00/00`} ` +
       `${p?.player_score?.toFixed(1).padStart(4, ' ')} ` +
-      `${p.key?.toString().padStart(4, ' ')}`
+      `${ranks?.[p.player_id]?.toString().padStart(4, ' ')}`
     ;[...Array(round - 1).keys()]
       .map((x) => {
         return matches[p.player_id][x] || '0000 - Z'
@@ -490,13 +504,17 @@ async function javaFoRoundPairing(
   } else if (config.color !== 'random') {
     result += `XXC ${config.color}1`
   }
-  const pairings = await runPairing(
-    result,
-    formatedPlayers,
-    teams,
-    `tournament_${tournament.id}_${round}`
-  )
-  return pairings
+  try {
+    const pairings = await runPairing(
+      result,
+      formatedPlayers,
+      teams,
+      `tournament_${tournament.id}_${round}`
+    )
+    return pairings
+  } catch (error) {
+    throw new Error(error.error)
+  }
 }
 
 module.exports = {

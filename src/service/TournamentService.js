@@ -1145,7 +1145,8 @@ class TournamentService {
           })
           acc[curr + 1] = {
             paired: Number(pairing?.pairing_count) > 0,
-            scored: pairing?.pairing_count === pairing?.scored_count,
+            scored:
+              Number(pairing?.pairing_count) === Number(pairing?.scored_count),
           }
         } else {
           acc[curr + 1] = {
@@ -1337,6 +1338,14 @@ class TournamentService {
         round
       )} round of the tournament.`
 
+      const paringinInQueue = await this.redisService.getValue(
+        `ccm_pairing_queue_${tournamentId}_${round}`
+      )
+      if (paringinInQueue) {
+        message = 'Pairing already in the process. Please wait!'
+        return responseHandler.returnError(httpStatus.BAD_REQUEST, message)
+      }
+
       const tournament = await this.tournamentDao.findById(tournamentId)
       let players = await this.trnplayersDao.findByWhere({
         tournament_id: tournamentId,
@@ -1404,7 +1413,7 @@ class TournamentService {
 
       let white = []
       let black = []
-      const ranking = {}
+      let ranking = {}
       let lastRoundPairings = []
 
       if (round > 1) {
@@ -1420,12 +1429,12 @@ class TournamentService {
           return p.round === round - 1
         })
         pairing = convertPlayersResultInNumeric(pairing, trnConfig)
-        // const playersRanking = getTieBreaks(pairing, round - 1, trnConfig)
+        const playersRanking = getTieBreaks(pairing, round - 1, trnConfig)
 
-        // ranking = playersRanking.reduce((a, b, i) => {
-        //   a[b.player_id] = i + 1
-        //   return a
-        // }, {})
+        ranking = playersRanking.reduce((a, b, i) => {
+          a[b.player_id] = i + 1
+          return a
+        }, {})
 
         if (!pairing.length) {
           message = `The pairing of players for the ${TournamentService.getNumberWithOrdinal(
@@ -1548,83 +1557,106 @@ class TournamentService {
           return (aRank?.rank ?? 0) - (bRank?.rank ?? 0)
         })
       }
-      const { whitePlayers, blackPlayers, leftTeams, rightTeams } =
-        await javaFoRoundPairing(
-          players,
-          round,
-          tournament,
-          white,
-          black,
-          ranking,
-          tnrConfig,
-          teams
+      try {
+        await this.redisService.setValueWithExpiry(
+          `ccm_pairing_queue_${tournamentId}_${round}`,
+          moment().toISOString(),
+          86400
         )
-      const res = await this.tournamentPairingsDao.bulkCreate(whitePlayers)
-      await this.tournamentConfigurationDao.updateWhere(
-        { sorting: false },
-        {
-          tournament_id: tournamentId,
-        }
-      )
-      if (!res) {
-        message = 'Failed to pair players! Please try again.'
-        return responseHandler.returnError(httpStatus.BAD_REQUEST, message)
-      }
-      const newOpponents = blackPlayers.map((b, i) => {
-        return {
-          ...b,
-          parent_id: res[i].id,
-        }
-      })
-      const oppRes = await this.tournamentPairingsDao.bulkCreate(newOpponents)
-
-      await this.tournamentDao.updateById(
-        { current_round: Number(round), new_player_added: false },
-        tournamentId
-      )
-
-      if (teams.length) {
-        const whiteTeams = leftTeams.map((lt) => {
-          return {
-            team_id: lt,
-            tournament_id: tournamentId,
+        const { whitePlayers, blackPlayers, leftTeams, rightTeams } =
+          await javaFoRoundPairing(
+            players,
             round,
+            tournament,
+            white,
+            black,
+            ranking,
+            tnrConfig,
+            teams
+          )
+
+        if (!whitePlayers) {
+          message = 'Failed to pair players! Please try again.'
+          return responseHandler.returnError(httpStatus.BAD_REQUEST, message)
+        }
+        const res = await this.tournamentPairingsDao.bulkCreate(whitePlayers)
+        await this.tournamentConfigurationDao.updateWhere(
+          { sorting: false },
+          {
+            tournament_id: tournamentId,
+          }
+        )
+        if (!res) {
+          message = 'Failed to pair players! Please try again.'
+          return responseHandler.returnError(httpStatus.BAD_REQUEST, message)
+        }
+        const newOpponents = blackPlayers.map((b, i) => {
+          return {
+            ...b,
+            parent_id: res[i].id,
           }
         })
-        const teamsRes = await this.teamPairingsDao.bulkCreate(whiteTeams)
+        const oppRes = await this.tournamentPairingsDao.bulkCreate(newOpponents)
 
-        if (teamsRes) {
-          const blackTeams = rightTeams.map((lt, i) => {
+        await this.tournamentDao.updateById(
+          { current_round: Number(round), new_player_added: false },
+          tournamentId
+        )
+
+        if (teams.length) {
+          const whiteTeams = leftTeams.map((lt) => {
             return {
               team_id: lt,
               tournament_id: tournamentId,
               round,
-              parent_id: teamsRes[i].id,
             }
           })
-          await this.teamPairingsDao.bulkCreate(blackTeams)
+          const teamsRes = await this.teamPairingsDao.bulkCreate(whiteTeams)
+
+          if (teamsRes) {
+            const blackTeams = rightTeams.map((lt, i) => {
+              return {
+                team_id: lt,
+                tournament_id: tournamentId,
+                round,
+                parent_id: teamsRes[i].id,
+              }
+            })
+            await this.teamPairingsDao.bulkCreate(blackTeams)
+          }
         }
+
+        data = res.map((w, i) => {
+          return {
+            player: w,
+            opponent: oppRes[i] || null,
+            unpaired: w.is_unpaired ? w : undefined,
+            teamA: teams?.find((t) => {
+              return t.player_uuids.includes(w.player_id)
+            })?.name,
+            teamB: teams?.find((t) => {
+              return t.player_uuids.includes(oppRes[i]?.player_id)
+            })?.name,
+          }
+        })
+
+        await this.redisService.removeKey(
+          `ccm_tournament_details_${tournamentId}`
+        )
+
+        await this.redisService.removeKey(
+          `ccm_pairing_queue_${tournamentId}_${round}`
+        )
+        return responseHandler.returnSuccess(httpStatus.OK, message, data)
+      } catch (error) {
+        await this.redisService.removeKey(
+          `ccm_pairing_queue_${tournamentId}_${round}`
+        )
+        return responseHandler.returnError(
+          httpStatus.BAD_REQUEST,
+          error.message
+        )
       }
-
-      data = res.map((w, i) => {
-        return {
-          player: w,
-          opponent: oppRes[i] || null,
-          unpaired: w.is_unpaired ? w : undefined,
-          teamA: teams?.find((t) => {
-            return t.player_uuids.includes(w.player_id)
-          })?.name,
-          teamB: teams?.find((t) => {
-            return t.player_uuids.includes(oppRes[i]?.player_id)
-          })?.name,
-        }
-      })
-
-      await this.redisService.removeKey(
-        `ccm_tournament_details_${tournamentId}`
-      )
-
-      return responseHandler.returnSuccess(httpStatus.OK, message, data)
     } catch (e) {
       logger.error(e)
       return responseHandler.returnError(
@@ -1687,6 +1719,8 @@ class TournamentService {
       await this.redisService.removeKey(redisKey)
       const standingsKey = `ccm_standings_${tournamentId}_${round}`
       await this.redisService.removeKey(standingsKey)
+      const trnKey = `ccm_tournament_details_${tournamentId}`
+      await this.redisService.removeKey(trnKey)
 
       return responseHandler.returnSuccess(httpStatus.OK, message)
     } catch (e) {
@@ -2045,7 +2079,7 @@ class TournamentService {
       // Optionally get total
       const totalPlayers = await this.redisService.lLen(redisKey)
 
-      if (redisResults.length === 0) {
+      if (redisResults.length > 0) {
         return responseHandler.returnSuccess(
           httpStatus.OK,
           message,
