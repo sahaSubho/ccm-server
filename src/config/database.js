@@ -44,8 +44,8 @@ module.exports = {
       },
     },
     pool: {
-      min: 0,
-      max: 5,
+      min: 8,
+      max: 32,
       ssl: {
         rejectUnauthorized: false,
       },
