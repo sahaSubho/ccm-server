@@ -47,7 +47,7 @@ class PlayersService {
     const rating = order.find((type) => {
       return ratings[type] !== 0 && ratings[type]
     })
-    return rating || 0 // No rating available
+    return ratings[rating] || 0 // No rating available
   }
 
   static parseGender = (gender) => {
