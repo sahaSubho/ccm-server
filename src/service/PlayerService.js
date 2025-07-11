@@ -1572,7 +1572,9 @@ class PlayersService {
       const promises = players.map((p) => {
         return this.trnplayersDao.updateWhere(
           {
-            name: p.name,
+            ...(tournament.tournament_type !== 'Circlechess_Online' && {
+              name: p.name,
+            }),
             rating: PlayersService.getRatingToConsider(
               tournament.time_format,
               p
