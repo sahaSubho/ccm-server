@@ -47,7 +47,7 @@ class PlayersService {
     const rating = order.find((type) => {
       return ratings[type] !== 0 && ratings[type]
     })
-    return rating || 0 // No rating available
+    return ratings[rating] || 0 // No rating available
   }
 
   static parseGender = (gender) => {
@@ -1572,7 +1572,9 @@ class PlayersService {
       const promises = players.map((p) => {
         return this.trnplayersDao.updateWhere(
           {
-            name: p.name,
+            ...(tournament.tournament_type !== 'Circlechess_Online' && {
+              name: p.name,
+            }),
             rating: PlayersService.getRatingToConsider(
               tournament.time_format,
               p
