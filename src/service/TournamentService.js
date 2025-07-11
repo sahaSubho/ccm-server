@@ -1559,9 +1559,8 @@ class TournamentService {
           return responseHandler.returnError(httpStatus.BAD_REQUEST, message)
         }
 
-        await this.redisService.setValueWithExpiry(
+        await this.redisService.setAtomicValue(
           `ccm_pairing_queue_${tournamentId}_${round}`,
-          86400,
           moment().toISOString()
         )
         const { whitePlayers, blackPlayers, leftTeams, rightTeams } =

@@ -38,6 +38,17 @@ class RedisHelper {
     }
   }
 
+  setAtomic = async (key, value) => {
+    try {
+      if (typeof value === 'JSON') {
+        value = JSON.stringify(value)
+      }
+      return await this.redisClient.set(key, value, 'NX', 'EX', 60)
+    } catch (e) {
+      return false
+    }
+  }
+
   /**
    * Get Value
    * @param {String} key
