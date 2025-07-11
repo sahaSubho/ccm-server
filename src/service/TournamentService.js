@@ -1094,13 +1094,13 @@ class TournamentService {
       const redisResult = await this.redisService.getValue(
         `ccm_tournament_details_${id}`
       )
-      if (redisResult) {
-        return responseHandler.returnSuccess(
-          httpStatus.OK,
-          message,
-          JSON.parse(redisResult)
-        )
-      }
+      // if (redisResult) {
+      //   return responseHandler.returnSuccess(
+      //     httpStatus.OK,
+      //     message,
+      //     JSON.parse(redisResult)
+      //   )
+      // }
       // ✅ 1️⃣ Single findOne with JOINs
       const data = await this.tournamentDao.findOneWithIncludes(id)
 
@@ -1343,6 +1343,7 @@ class TournamentService {
       )
       if (paringinInQueue) {
         message = 'Pairing already in the process. Please wait!'
+        console.log(message)
         return responseHandler.returnError(httpStatus.BAD_REQUEST, message)
       }
 
