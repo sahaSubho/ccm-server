@@ -1561,7 +1561,8 @@ class TournamentService {
 
         await this.redisService.setAtomicValue(
           `ccm_pairing_queue_${tournamentId}_${round}`,
-          moment().toISOString()
+          moment().toISOString(),
+          600
         )
         const { whitePlayers, blackPlayers, leftTeams, rightTeams } =
           await javaFoRoundPairing(

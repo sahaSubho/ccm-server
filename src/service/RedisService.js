@@ -107,8 +107,8 @@ class RedisService {
    * @param {Object} key
    * @returns {boolean}
    */
-  setAtomicValue = async (key, value) => {
-    const setValue = await this.redisHelper.setAtomic(key, value)
+  setAtomicValue = async (key, value, ttl) => {
+    const setValue = await this.redisHelper.setAtomic(key, value, ttl)
     if (!setValue) {
       return true
     }
