@@ -2428,10 +2428,15 @@ class TournamentService {
           `Tournament round matches provided round. Updating directly.`
         )
         const paringinInQueue = await this.redisService.getValue(
-          `ccm_pairing_queue_${tournamentId}_${round}`
+          `ccm_pairing_queue_${tournamentId}_${round + 1}`
         )
-        const pairingKey = `ccm_pairings_order_${tournamentId}_${round}`
+        const pairingKey = `ccm_pairings_order_${tournamentId}_${round + 1}`
         const pairingExits = await this.redisService.lLen(pairingKey)
+        console.log(
+          'Next Round Pairing Check in Queue or Generated',
+          paringinInQueue,
+          pairingExits
+        )
         if (
           tournament.tournament_type !== 'Circlechess_Online' ||
           (tournament.tournament_type === 'Circlechess_Online' &&
