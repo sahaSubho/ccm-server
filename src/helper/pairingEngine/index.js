@@ -1,12 +1,15 @@
 const { spawn } = require('child_process')
 const fs = require('fs')
-const uploadFileToS3 = require("../uploadFiletoS3")
+const uploadFileToS3 = require('../uploadFiletoS3')
 const config = require('../../config/config')
 
 const pair = (input, players, teams = [], fileName = '') => {
   const javafoJarPath = 'src/helper/pairingEngine/files/javafo.jar' // Path to javafo.jar in your project
   const trfFilePath = `uploads/files/input_${fileName}.trf` // Path to your input TRF file
   const outputFilePath = `uploads/files/output_${fileName}.trf` // Path to the output file
+  const bbpPairingFile =
+    '/var/www/cc-event/src/helper/pairingEngine/files/bbpPairings.exe'
+  let isBbpPairing = false
 
   if (!fs.existsSync('uploads/files')) {
     fs.mkdirSync('uploads/files', { recursive: true })
@@ -15,33 +18,54 @@ const pair = (input, players, teams = [], fileName = '') => {
   fs.writeFileSync(trfFilePath, input)
   fs.writeFileSync(outputFilePath, '')
 
-  let stderrData = ''
   return new Promise((resolve, reject) => {
-    const javafoCommand = spawn('java', [
+    let javafoCommand = spawn('java', [
       '-ea',
-      '-Xmx10240m',
-      '-XX:+HeapDumpOnOutOfMemoryError',
+      '-Xms4G',
+      '-Xmx4G',
+      '-XX:+UseG1GC',
+      '-XX:+TieredCompilation',
+      '-XX:TieredStopAtLevel=1',
+      '-noverify',
       '-jar',
       javafoJarPath,
       trfFilePath,
       '-p',
       outputFilePath,
-    ],{cwd: process.cwd()})
+    ])
+
+    if (players.length > 500) {
+      // The executable
+      const exe = bbpPairingFile
+
+      // Arguments as array — no spaces, each arg is separate!
+      const args = ['--dutch', trfFilePath, '-p', outputFilePath]
+
+      javafoCommand = spawn(exe, args)
+      isBbpPairing = true
+    }
 
     javafoCommand.stdout.on('data', (data) => {
-      console.log('[Java STDOUT]', data.toString())
-    })
-
-    javafoCommand.stderr.on('data', (data) => {
-      console.error('[Java STDERR]', data.toString())
-      stderrData += data.toString()
+      console.error('[Java STDOUT]', data.toString())
     })
 
     javafoCommand.on('close', (code) => {
-      console.log(`JaVaFo process exited with code ${code}`)
-      if(!config.simulate && config.env === 'production') {
-        uploadFileToS3(trfFilePath, process.env.AWS_S3_BUCKET_NAME, `pairings/input_${fileName}.trf`)
-        uploadFileToS3(outputFilePath, process.env.AWS_S3_BUCKET_NAME, `pairings/output_${fileName}.trf`)
+      console.log(
+        `${
+          isBbpPairing ? 'bbpPairing' : 'JavaFo'
+        } process exited with code ${code}`
+      )
+      if (!config.simulate && config.env === 'production') {
+        uploadFileToS3(
+          trfFilePath,
+          process.env.AWS_S3_BUCKET_NAME,
+          `pairings/input_${fileName}.trf`
+        )
+        uploadFileToS3(
+          outputFilePath,
+          process.env.AWS_S3_BUCKET_NAME,
+          `pairings/output_${fileName}.trf`
+        )
       }
       if (code === 0) {
         fs.readFile(outputFilePath, 'utf8', (err, data) => {
@@ -90,7 +114,8 @@ const pair = (input, players, teams = [], fileName = '') => {
           }
         })
       } else {
-        reject(new Error(`JaVaFo failed with code ${code}:\n${stderrData}`))
+        console.error(`JaVaFo failed with code ${code}\n`)
+        reject(new Error(`Pairing not generated from JavaFo engine`))
       }
     })
   })

@@ -103,6 +103,19 @@ class RedisService {
   }
 
   /**
+   * Set Value for Atomic
+   * @param {Object} key
+   * @returns {boolean}
+   */
+  setAtomicValue = async (key, value, ttl) => {
+    const setValue = await this.redisHelper.setAtomic(key, value, ttl)
+    if (!setValue) {
+      return true
+    }
+    return false
+  }
+
+  /**
    * Set Value with expiry
    * @param {Object} key
    * @returns {boolean}
@@ -122,6 +135,46 @@ class RedisService {
    */
   removeKey = async (key) => {
     return this.redisHelper.del(key)
+  }
+
+  rPush = async (key, value) => {
+    return this.redisHelper.rPush(key, value)
+  }
+
+  lRange = async (key, start, end) => {
+    return this.redisHelper.lRange(key, start, end)
+  }
+
+  lLen = async (key) => {
+    return this.redisHelper.lLen(key)
+  }
+
+  lRem = async (key, count, value) => {
+    return this.redisHelper.lRem(key, count, value)
+  }
+
+  expire = async (key, seconds = 86400) => {
+    return this.redisHelper.expire(key, seconds)
+  }
+
+  hmSet = async (key, field, value) => {
+    return this.redisHelper.hmSet(key, field, value)
+  }
+
+  hmGet = async (key, field) => {
+    return this.redisHelper.hmGet(key, field)
+  }
+
+  hSet = async (key, field, value) => {
+    return this.redisHelper.hSet(key, field, value)
+  }
+
+  hGet = async (key, field) => {
+    return this.redisHelper.hGet(key, field)
+  }
+
+  hDel = async (key, field) => {
+    return this.redisHelper.hDel(key, field)
   }
 }
 

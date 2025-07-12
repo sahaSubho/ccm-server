@@ -128,6 +128,8 @@ class TournamentValidator {
     const schema = Joi.object({
       round: Joi.number().greater(0).required(),
       tournamentId: Joi.number().required(),
+      limit: Joi.number().default(1000).min(1).max(1000),
+      offset: Joi.number().default(0).min(0),
     })
 
     // validate request body against schema
@@ -407,6 +409,10 @@ class TournamentValidator {
       req.body = value
       return next()
     }
+  }
+
+  static tournamentConfigValidator(req, res, next) {
+    const schema = Joi.object({})
   }
 }
 
