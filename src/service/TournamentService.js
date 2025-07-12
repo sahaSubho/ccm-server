@@ -2322,7 +2322,7 @@ class TournamentService {
   updatePairingTableId = async (id, body) => {
     try {
       console.log(`--- [updatePairingTableId] START | Pairing ID: ${id} ---`)
-      console.log(`Update payload:`, body)
+      console.log(`Update payload:`, JSON.stringify(body))
 
       const message = `Updated tournament Status successfully.`
 
@@ -2330,11 +2330,14 @@ class TournamentService {
       console.log(`Pairing updated in DB for ID: ${id}`)
 
       const data = await this.tournamentPairingsDao.findById(id)
-      console.log(`Fetched updated pairing:`, {
-        id: data.id,
-        tournament_id: data.tournament_id,
-        round: data.round,
-      })
+      console.log(
+        `Fetched updated pairing:`,
+        JSON.stringify({
+          id: data.id,
+          tournament_id: data.tournament_id,
+          round: data.round,
+        })
+      )
 
       await this.updatePairingInRedis(data.tournament_id, data.round, id, body)
       console.log(`Pairing updated in Redis.`)
@@ -2367,7 +2370,10 @@ class TournamentService {
         tournament?.current_round
       )
       let promises
-      if (tournament.current_round > round) {
+      if (
+        tournament.current_round > round &&
+        tournament.tournament_type !== 'Circlechess_Online'
+      ) {
         console.log(
           `Tournament round is ahead of provided round. Will adjust scores for future rounds.`
         )
@@ -2421,12 +2427,23 @@ class TournamentService {
         console.log(
           `Tournament round matches provided round. Updating directly.`
         )
-        promises = Object.keys(scores).map((id) => {
-          return this.tournamentPairingsDao.updateById(
-            { result: scores[id], is_scored: true, cc_gameid: gameId },
-            id
-          )
-        })
+        const paringinInQueue = await this.redisService.getValue(
+          `ccm_pairing_queue_${tournamentId}_${round}`
+        )
+        const pairingKey = `ccm_pairings_order_${tournamentId}_${round}`
+        const pairingExits = await this.redisService.lLen(pairingKey)
+        if (
+          tournament.tournament_type !== 'Circlechess_Online' ||
+          (tournament.tournament_type === 'Circlechess_Online' &&
+            !(paringinInQueue || pairingExits))
+        ) {
+          promises = Object.keys(scores).map((id) => {
+            return this.tournamentPairingsDao.updateById(
+              { result: scores[id], is_scored: true, cc_gameid: gameId },
+              id
+            )
+          })
+        }
         const redisUpdatePromises = Object.keys(scores).map((id) => {
           console.log(`Updating pairing in Redis for ID ${id}`)
           return this.updatePairingInRedis(tournamentId, round, id, {
