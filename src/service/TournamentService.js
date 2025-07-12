@@ -1908,9 +1908,10 @@ class TournamentService {
           `Pairings fetched from Redis HASH: Count = ${redisResults.length}`
         )
       }
-
-      const totalPairings = await this.redisService.lLen(listKey)
-      console.log(`Total pairings available in Redis LIST: ${totalPairings}`)
+      const total = await this.tournamentPairingsDao.getCountByWhere({
+        round,
+        tournament_id: tournamentId,
+      })
 
       if (redisResults.length) {
         console.log(`Returning pairings from Redis cache.`)
@@ -1918,7 +1919,7 @@ class TournamentService {
           httpStatus.OK,
           message,
           redisResults,
-          totalPairings
+          total
         )
       }
 
@@ -1986,11 +1987,6 @@ class TournamentService {
       await this.redisService.expire(listKey)
 
       console.log(`Pairings stored in Redis.`)
-
-      const total = await this.tournamentPairingsDao.getCountByWhere({
-        round,
-        tournament_id: tournamentId,
-      })
 
       console.log(`--- [getPairings] END | SUCCESS ---`)
       return responseHandler.returnSuccess(
