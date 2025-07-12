@@ -8,8 +8,10 @@ const { jwtStrategy } = require('./config/passport')
 const { errorConverter, errorHandler } = require('./middlewares/error')
 const check = require('./middlewares/apiKeyCheck')
 const ApiError = require('./helper/ApiError')
-const promBundle = require('express-prom-bundle')
 const Sentry = require("@sentry/node")
+const MonitoringHelper = require('./helper/monitoringHelper')
+const ApiTracingMiddleware = require('./middlewares/api-tracing-middleware')
+
 Sentry.init({
   dsn: "https://e555323ed5bcb7638b646c931192109e@o4507786239934464.ingest.us.sentry.io/4509535015534592",
 
@@ -47,20 +49,17 @@ app.use(passport.initialize())
 passport.use('jwt', jwtStrategy)
 
 // Prometheus metrics middleware (default path: /metrics)
-const metricsMiddleware = promBundle({
-  includeMethod: true,
-  includePath: true,
-  promClient: {
-    collectDefaultMetrics: {
-      // You can customize default metrics collection here
-    },
-  },
-})
-app.use(metricsMiddleware)
+app.use(MonitoringHelper.getMetricsMiddleware())
+
+// API tracing middleware for custom metrics
+app.use(ApiTracingMiddleware)
 
 app.get('/', async (req, res) => {
   res.status(200).send('Congratulations! API is working!')
 })
+
+// Prometheus metrics endpoint
+app.get('/metrics', MonitoringHelper.getMetrics)
 
 app.use('/api', check, routes)
 
