@@ -2182,6 +2182,7 @@ class TournamentService {
         const result = startingRanks.map((p) => {
           return {
             rank: p?.rank,
+            player_id: p?.players?.id,
             player_name: p?.players?.name,
             player_title: p?.players?.title,
             player_rating: p?.players?.rating,
@@ -2379,6 +2380,162 @@ class TournamentService {
     }
   }
 
+  reCalculateStandingsPrizes = async (round, tournamentId, rounds) => {
+    console.log(`All scores submitted. Recalculating standings.`)
+    const data = await this.tournamentPairingsDao.findWithPlayers({
+      round: { [Op.lte]: round },
+      tournament_id: tournamentId,
+    })
+    if (!data.length) {
+      console.log(`No players found for Round ${round}! Please try again.`)
+      return
+    }
+    console.log(`Fetched pairings for standings: Count = ${data.length}`)
+    const trnConfig = await this.tournamentConfigurationDao.findOneByWhere({
+      tournament_id: tournamentId,
+    })
+    const convertedData = convertPlayersResultInNumeric(data, trnConfig)
+    const players = getTieBreaks(convertedData, round, trnConfig)
+
+    const standingExists = await this.tournamentStandingsDao.checkExist({
+      round,
+      tournament_id: tournamentId,
+    })
+    console.log(`Standings already exist?`, standingExists)
+    if (!standingExists) {
+      await this.tournamentStandingsDao.bulkCreate(
+        players.map((p, i) => {
+          return {
+            ...p,
+            rank: i + 1,
+          }
+        })
+      )
+      console.log(`Standings created.`)
+    } else {
+      await this.tournamentStandingsDao.deleteByWhere({
+        round,
+        tournament_id: tournamentId,
+      })
+      await this.tournamentStandingsDao.bulkCreate(
+        players.map((p, i) => {
+          return {
+            ...p,
+            rank: i + 1,
+          }
+        })
+      )
+      console.log(`Standings replaced.`)
+    }
+
+    const listKey = `ccm_standings_${tournamentId}_${round}`
+    await this.redisService.removeKey(listKey) // Clear old list
+    const rPushPromises = players.map((player, i) => {
+      // Push only player ID or JSON if you want
+      return this.redisService.rPush(
+        listKey,
+        JSON.stringify({ ...player, rank: i + 1 })
+      )
+    })
+    await Promise.all(rPushPromises)
+    await this.redisService.expire(listKey) // Set expiration if needed
+
+    // Removes pairings from Redis cache
+    if (rounds === Number(round)) {
+      console.log(`Final round detected. Updating prize payouts.`)
+      const tournamentPrizeCategoryMappings =
+        await this.tournamentPrizeMappingDao.findAllWithCategory({
+          tournament_id: tournamentId,
+        })
+      console.log(
+        `Prize mappings count: ${tournamentPrizeCategoryMappings.length}`
+      )
+
+      if (tournamentPrizeCategoryMappings.length) {
+        let winningPlayers = []
+
+        tournamentPrizeCategoryMappings.forEach((prize) => {
+          if (prize.category_id) {
+            const operator = prize['prize_category.operator']
+            const value = prize['prize_category.value']
+            const filteredPlayers = players.filter((p) => {
+              return (
+                TournamentService.getFilterBasedOnOperator(
+                  operator,
+                  p,
+                  `player.${prize['prize_category.type']}`,
+                  value
+                ) && p['player.gender'] === prize['prize_category.gender']
+              )
+            })
+            const finalPlayers = filteredPlayers.splice(0, prize.prizes.length)
+            winningPlayers = winningPlayers.concat(
+              finalPlayers.map((p, i) => {
+                return {
+                  tournament_id: tournamentId,
+                  name: p['ccm_tournament_player.name'],
+                  mobile_number: p['ccm_tournament_player.mobile'],
+                  upi_id: p['ccm_tournament_player.upi_id'],
+                  amount: prize.prizes[i].amount,
+                  prize_name:
+                    prize.prizes.length > 1
+                      ? `${prize.name} - ${prize.prizes[i].title}`
+                      : prize.name,
+                }
+              })
+            )
+          } else {
+            const finalPlayers = [...players].splice(0, prize.prizes.length)
+            winningPlayers = winningPlayers.concat(
+              finalPlayers.map((p, i) => {
+                return {
+                  tournament_id: tournamentId,
+                  name: p['ccm_tournament_player.name'],
+                  mobile_number: p['ccm_tournament_player.mobile'],
+                  upi_id: p['ccm_tournament_player.upi_id'],
+                  amount: prize.prizes[i].amount,
+                  prize_name:
+                    prize.prizes.length > 1
+                      ? `${prize.name} - ${prize.prizes[i].title}`
+                      : prize.name,
+                }
+              })
+            )
+          }
+        })
+
+        winningPlayers = winningPlayers
+          .reduce((a, b) => {
+            const matchedItem = a.find((x) => {
+              return x?.name?.trim() === b?.name?.trim()
+            })
+            if (matchedItem) {
+              if (Number(b?.amount) > Number(matchedItem.amount)) {
+                const index = a.indexOf(matchedItem)
+                a[index] = b
+              }
+            } else {
+              a.push(b)
+            }
+            return a
+          }, [])
+          .sort((a, b) => {
+            return Number(b?.amount) - Number(a?.amount)
+          })
+        await this.playersPrizePayoutDao.deleteByWhere({
+          tournament_id: tournamentId,
+        })
+        console.log(`Old prize payouts cleared.`)
+        if (winningPlayers.length) {
+          await this.playersPrizePayoutDao.bulkCreate(winningPlayers)
+          console.log(
+            `New prize payouts created. Winners count: ${winningPlayers.length}`
+          )
+        }
+      }
+    }
+  }
+
   updateScoring = async (round, tournamentId, scores, gameId = '') => {
     try {
       console.log(
@@ -2397,7 +2554,7 @@ class TournamentService {
       )
       let promises
       if (
-        tournament.current_round > round &&
+        tournament.current_round > Number(round) &&
         tournament.tournament_type !== 'Circlechess_Online'
       ) {
         console.log(
@@ -2454,9 +2611,11 @@ class TournamentService {
           `Tournament round matches provided round. Updating directly.`
         )
         const paringinInQueue = await this.redisService.getValue(
-          `ccm_pairing_queue_${tournamentId}_${round + 1}`
+          `ccm_pairing_queue_${tournamentId}_${Number(round) + 1}`
         )
-        const pairingKey = `ccm_pairings_order_${tournamentId}_${round + 1}`
+        const pairingKey = `ccm_pairings_order_${tournamentId}_${
+          Number(round) + 1
+        }`
         const pairingExits = await this.redisService.lLen(pairingKey)
         console.log(
           'Next Round Pairing Check in Queue or Generated',
@@ -2474,6 +2633,8 @@ class TournamentService {
               id
             )
           })
+        } else {
+          console.log(`Round type of ${typeof round}`)
         }
         const redisUpdatePromises = Object.keys(scores).map((id) => {
           console.log(`Updating pairing in Redis for ID ${id}`)
@@ -2499,162 +2660,7 @@ class TournamentService {
         is_scored: false,
       })
       if (!pendingScoreToUpload) {
-        console.log(`All scores submitted. Recalculating standings.`)
-        const data = await this.tournamentPairingsDao.findWithPlayers({
-          round: { [Op.lte]: round },
-          tournament_id: tournamentId,
-        })
-        if (!data.length) {
-          message = `No players found for Round ${round}! Please try again.`
-          return responseHandler.returnError(httpStatus.BAD_REQUEST, message)
-        }
-        console.log(`Fetched pairings for standings: Count = ${data.length}`)
-        const trnConfig = await this.tournamentConfigurationDao.findOneByWhere({
-          tournament_id: tournamentId,
-        })
-        const convertedData = convertPlayersResultInNumeric(data, trnConfig)
-        const players = getTieBreaks(convertedData, round, trnConfig)
-
-        const standingExists = await this.tournamentStandingsDao.checkExist({
-          round,
-          tournament_id: tournamentId,
-        })
-        console.log(`Standings already exist?`, standingExists)
-        if (!standingExists) {
-          await this.tournamentStandingsDao.bulkCreate(
-            players.map((p, i) => {
-              return {
-                ...p,
-                rank: i + 1,
-              }
-            })
-          )
-          console.log(`Standings created.`)
-        } else {
-          await this.tournamentStandingsDao.deleteByWhere({
-            round,
-            tournament_id: tournamentId,
-          })
-          await this.tournamentStandingsDao.bulkCreate(
-            players.map((p, i) => {
-              return {
-                ...p,
-                rank: i + 1,
-              }
-            })
-          )
-          console.log(`Standings replaced.`)
-        }
-
-        const listKey = `ccm_standings_${tournamentId}_${round}`
-        await this.redisService.removeKey(listKey) // Clear old list
-        const rPushPromises = players.map((player, i) => {
-          // Push only player ID or JSON if you want
-          return this.redisService.rPush(
-            listKey,
-            JSON.stringify({ ...player, rank: i + 1 })
-          )
-        })
-        await Promise.all(rPushPromises)
-        await this.redisService.expire(listKey) // Set expiration if needed
-
-        // Removes pairings from Redis cache
-        if (tournament.rounds === Number(round)) {
-          console.log(`Final round detected. Updating prize payouts.`)
-          const tournamentPrizeCategoryMappings =
-            await this.tournamentPrizeMappingDao.findAllWithCategory({
-              tournament_id: tournamentId,
-            })
-          console.log(
-            `Prize mappings count: ${tournamentPrizeCategoryMappings.length}`
-          )
-
-          if (tournamentPrizeCategoryMappings.length) {
-            let winningPlayers = []
-
-            tournamentPrizeCategoryMappings.forEach((prize) => {
-              if (prize.category_id) {
-                const operator = prize['prize_category.operator']
-                const value = prize['prize_category.value']
-                const filteredPlayers = players.filter((p) => {
-                  return (
-                    TournamentService.getFilterBasedOnOperator(
-                      operator,
-                      p,
-                      `player.${prize['prize_category.type']}`,
-                      value
-                    ) && p['player.gender'] === prize['prize_category.gender']
-                  )
-                })
-                const finalPlayers = filteredPlayers.splice(
-                  0,
-                  prize.prizes.length
-                )
-                winningPlayers = winningPlayers.concat(
-                  finalPlayers.map((p, i) => {
-                    return {
-                      tournament_id: tournamentId,
-                      name: p['ccm_tournament_player.name'],
-                      mobile_number: p['ccm_tournament_player.mobile'],
-                      upi_id: p['ccm_tournament_player.upi_id'],
-                      amount: prize.prizes[i].amount,
-                      prize_name:
-                        prize.prizes.length > 1
-                          ? `${prize.name} - ${prize.prizes[i].title}`
-                          : prize.name,
-                    }
-                  })
-                )
-              } else {
-                const finalPlayers = [...players].splice(0, prize.prizes.length)
-                winningPlayers = winningPlayers.concat(
-                  finalPlayers.map((p, i) => {
-                    return {
-                      tournament_id: tournamentId,
-                      name: p['ccm_tournament_player.name'],
-                      mobile_number: p['ccm_tournament_player.mobile'],
-                      upi_id: p['ccm_tournament_player.upi_id'],
-                      amount: prize.prizes[i].amount,
-                      prize_name:
-                        prize.prizes.length > 1
-                          ? `${prize.name} - ${prize.prizes[i].title}`
-                          : prize.name,
-                    }
-                  })
-                )
-              }
-            })
-
-            winningPlayers = winningPlayers
-              .reduce((a, b) => {
-                const matchedItem = a.find((x) => {
-                  return x?.name?.trim() === b?.name?.trim()
-                })
-                if (matchedItem) {
-                  if (Number(b?.amount) > Number(matchedItem.amount)) {
-                    const index = a.indexOf(matchedItem)
-                    a[index] = b
-                  }
-                } else {
-                  a.push(b)
-                }
-                return a
-              }, [])
-              .sort((a, b) => {
-                return Number(b?.amount) - Number(a?.amount)
-              })
-            await this.playersPrizePayoutDao.deleteByWhere({
-              tournament_id: tournamentId,
-            })
-            console.log(`Old prize payouts cleared.`)
-            if (winningPlayers.length) {
-              await this.playersPrizePayoutDao.bulkCreate(winningPlayers)
-              console.log(
-                `New prize payouts created. Winners count: ${winningPlayers.length}`
-              )
-            }
-          }
-        }
+        this.reCalculateStandingsPrizes(round, tournamentId, tournament.rounds)
       }
       console.log(
         `--- [updateScoring] END | Round ${round} updated successfully ---`
