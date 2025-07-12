@@ -1987,8 +1987,18 @@ class TournamentService {
 
       console.log(`Pairings stored in Redis.`)
 
+      const total = await this.tournamentPairingsDao.getCountByWhere({
+        round,
+        tournament_id: tournamentId,
+      })
+
       console.log(`--- [getPairings] END | SUCCESS ---`)
-      return responseHandler.returnSuccess(httpStatus.OK, message, players)
+      return responseHandler.returnSuccess(
+        httpStatus.OK,
+        message,
+        players,
+        total
+      )
     } catch (e) {
       logger.error(`[getPairings] ERROR:`, e)
       return responseHandler.returnError(
