@@ -103,6 +103,19 @@ class RedisService {
   }
 
   /**
+   * Set Value for Atomic
+   * @param {Object} key
+   * @returns {boolean}
+   */
+  setAtomicValue = async (key, value, ttl) => {
+    const setValue = await this.redisHelper.setAtomic(key, value, ttl)
+    if (!setValue) {
+      return true
+    }
+    return false
+  }
+
+  /**
    * Set Value with expiry
    * @param {Object} key
    * @returns {boolean}

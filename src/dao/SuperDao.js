@@ -142,10 +142,16 @@ class SuperDao {
       .catch((err) => {
         if (err instanceof sequelize.UniqueConstraintError) {
           console.error('Unique constraint error details:')
+          const firstError = err.errors[0]
+          const modelName = firstError.instance
+            ? firstError.instance.constructor.name
+            : 'UnknownModel'
+
+          console.error(`Model: ${modelName} `)
+
           err.errors.forEach((error) => {
-            console.error(`- Field: ${error.path}`)
-            console.error(`  Value: ${error.value}`)
-            console.error(`  Message: ${error.message}`)
+            console.error(`- Field: ${error.path} : ${error.value}`)
+            console.error(`Message: ${error.message}`)
           })
         } else {
           console.error('Other error:', err)
