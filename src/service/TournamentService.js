@@ -2165,7 +2165,33 @@ class TournamentService {
           round - 1
         } is still going on! Please try after round ${round - 1} is ended.`
         console.log(message)
-        return responseHandler.returnError(httpStatus.BAD_REQUEST, message)
+        if (round > 1) {
+          return await this.getPlayersRanking(
+            round - 1,
+            tournamentId,
+            limit,
+            offset
+          )
+        }
+        const startingRanks = await this.playerStartingRankDao.findWithIncludes(
+          {
+            round,
+            tournament_id: tournamentId,
+          }
+        )
+        const result = startingRanks.map((p) => {
+          return {
+            rank: p?.rank,
+            player_name: p?.players?.name,
+            player_title: p?.players?.title,
+            player_rating: p?.players?.rating,
+            point: 0,
+            TB1: 0,
+            TB2: 0,
+            TB3: 0,
+          }
+        })
+        return responseHandler.returnSuccess(httpStatus.OK, message, result)
       }
 
       const results = await this.tournamentStandingsDao.findByWhere(

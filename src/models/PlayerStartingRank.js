@@ -16,6 +16,7 @@ module.exports = (sequelize, DataTypes) => {
       PlayerStartingRank.belongsTo(models.ccm_tournament_players, {
         targetKey: 'id',
         foreignKey: 'player_id',
+        as: 'players',
       })
     }
   }
