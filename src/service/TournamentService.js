@@ -2355,7 +2355,9 @@ class TournamentService {
       console.log(
         `--- [updateScoring] START | Round: ${round}, Tournament ID: ${tournamentId} ---`
       )
-      console.log(`Scores received:`, scores)
+      console.log(
+        `GameId: ${gameId}, Scores received:  ${JSON.stringify(scores)}`
+      )
       let message = `Updated scores of matches for Round ${round} successfully.`
       const tournament = await this.tournamentDao.findById(tournamentId)
       console.log(
