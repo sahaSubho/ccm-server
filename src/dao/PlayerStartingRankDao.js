@@ -9,7 +9,7 @@ class PlayerStartingRankDao extends SuperDao {
     super(PlayerStartingRank)
   }
 
-  async findWithIncludes(where) {
+  async findWithIncludes(where, limit = null, offset = null) {
     return PlayerStartingRank.findAll({
       where,
       include: [
@@ -18,6 +18,8 @@ class PlayerStartingRankDao extends SuperDao {
           as: 'players',
         },
       ],
+      limit,
+      offset,
     })
   }
 }

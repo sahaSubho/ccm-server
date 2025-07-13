@@ -1658,6 +1658,7 @@ class TournamentService {
 
         data = res.map((w, i) => {
           return {
+            pairing_id: w.id,
             player: w,
             opponent: oppRes[i] || null,
             unpaired: w.is_unpaired ? w : undefined,
@@ -1669,6 +1670,29 @@ class TournamentService {
             })?.name,
           }
         })
+
+        // === Save in Redis ===
+        const hashKey = `ccm_pairings_${tournamentId}_${round}`
+        const listKey = `ccm_pairings_order_${tournamentId}_${round}`
+        console.log(
+          `Saving fresh pairings to Redis: HASH=${hashKey}, LIST=${listKey}`
+        )
+        // === Remove if Already Exists ===
+        await this.redisService.removeKey(hashKey)
+        await this.redisService.removeKey(listKey)
+
+        const hashFields = []
+        for (const player of data) {
+          const field = player.pairing_id
+          hashFields.push(field, JSON.stringify(player))
+          await this.redisService.rPush(listKey, String(field))
+        }
+
+        await this.redisService.hSet(hashKey, hashFields)
+        await this.redisService.expire(hashKey)
+        await this.redisService.expire(listKey)
+
+        console.log(`Pairings stored in Redis.`)
 
         console.log(`Pairings prepared for response.`)
         await this.redisService.removeKey(
@@ -1968,26 +1992,6 @@ class TournamentService {
 
       console.log(`Final pairings mapped with teams.`)
 
-      // === Save in Redis ===
-      console.log(
-        `Saving fresh pairings to Redis: HASH=${hashKey}, LIST=${listKey}`
-      )
-      await this.redisService.removeKey(hashKey)
-      await this.redisService.removeKey(listKey)
-
-      const hashFields = []
-      for (const player of players) {
-        const field = player.pairing_id
-        hashFields.push(field, JSON.stringify(player))
-        await this.redisService.rPush(listKey, String(field))
-      }
-
-      await this.redisService.hSet(hashKey, hashFields)
-      await this.redisService.expire(hashKey)
-      await this.redisService.expire(listKey)
-
-      console.log(`Pairings stored in Redis.`)
-
       console.log(`--- [getPairings] END | SUCCESS ---`)
       return responseHandler.returnSuccess(
         httpStatus.OK,
@@ -2177,6 +2181,8 @@ class TournamentService {
           {
             round,
             tournament_id: tournamentId,
+            limit,
+            offset,
           }
         )
         const result = startingRanks.map((p) => {
@@ -2552,7 +2558,7 @@ class TournamentService {
         `| Current round:`,
         tournament?.current_round
       )
-      let promises
+      let promises = []
       if (
         tournament.current_round > Number(round) &&
         tournament.tournament_type !== 'Circlechess_Online'
@@ -2620,7 +2626,9 @@ class TournamentService {
         console.log(
           'Next Round Pairing Check in Queue or Generated',
           paringinInQueue,
-          pairingExits
+          pairingExits,
+          `ccm_pairing_queue_${tournamentId}_${Number(round) + 1}`,
+          pairingKey
         )
         if (
           tournament.tournament_type !== 'Circlechess_Online' ||
@@ -2633,34 +2641,41 @@ class TournamentService {
               id
             )
           })
+          const redisUpdatePromises = Object.keys(scores).map((id) => {
+            console.log(`Updating pairing in Redis for ID ${id}`)
+            return this.updatePairingInRedis(tournamentId, round, id, {
+              result: scores[id],
+              is_scored: true,
+              cc_gameid: gameId,
+            })
+          })
+          await Promise.allSettled(redisUpdatePromises)
         } else {
           console.log(`Round type of ${typeof round}`)
         }
-        const redisUpdatePromises = Object.keys(scores).map((id) => {
-          console.log(`Updating pairing in Redis for ID ${id}`)
-          return this.updatePairingInRedis(tournamentId, round, id, {
-            result: scores[id],
-            is_scored: true,
-            cc_gameid: gameId,
-          })
-        })
-        await Promise.allSettled(redisUpdatePromises)
         console.log(`All Redis updates settled.`)
       }
-      const result = await Promise.allSettled(promises)
-      console.log(`All DB updates settled.`)
-      if (!result.length) {
-        message = `Updating scores of Round ${round} is failed! Please try again.`
-        console.log(message)
-        return responseHandler.returnError(httpStatus.BAD_REQUEST, message)
-      }
-      const pendingScoreToUpload = await this.tournamentPairingsDao.checkExist({
-        round,
-        tournament_id: tournamentId,
-        is_scored: false,
-      })
-      if (!pendingScoreToUpload) {
-        this.reCalculateStandingsPrizes(round, tournamentId, tournament.rounds)
+      if (promises.length > 0) {
+        const result = await Promise.allSettled(promises)
+        console.log(`All DB updates settled.`)
+        if (!result.length) {
+          message = `Updating scores of Round ${round} is failed! Please try again.`
+          console.log(message)
+          return responseHandler.returnError(httpStatus.BAD_REQUEST, message)
+        }
+        const pendingScoreToUpload =
+          await this.tournamentPairingsDao.checkExist({
+            round,
+            tournament_id: tournamentId,
+            is_scored: false,
+          })
+        if (!pendingScoreToUpload) {
+          this.reCalculateStandingsPrizes(
+            round,
+            tournamentId,
+            tournament.rounds
+          )
+        }
       }
       console.log(
         `--- [updateScoring] END | Round ${round} updated successfully ---`
