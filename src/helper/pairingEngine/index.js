@@ -19,20 +19,7 @@ const pair = (input, players, teams = [], fileName = '') => {
   fs.writeFileSync(outputFilePath, '')
 
   return new Promise((resolve, reject) => {
-    let javafoCommand = spawn('java', [
-      '-ea',
-      '-Xms4G',
-      '-Xmx4G',
-      '-XX:+UseG1GC',
-      '-XX:+TieredCompilation',
-      '-XX:TieredStopAtLevel=1',
-      '-noverify',
-      '-jar',
-      javafoJarPath,
-      trfFilePath,
-      '-p',
-      outputFilePath,
-    ])
+    let javafoCommand
 
     if (players.length > 500) {
       // The executable
@@ -43,6 +30,21 @@ const pair = (input, players, teams = [], fileName = '') => {
 
       javafoCommand = spawn(exe, args)
       isBbpPairing = true
+    } else {
+      javafoCommand = spawn('java', [
+        '-ea',
+        '-Xms4G',
+        '-Xmx4G',
+        '-XX:+UseG1GC',
+        '-XX:+TieredCompilation',
+        '-XX:TieredStopAtLevel=1',
+        '-noverify',
+        '-jar',
+        javafoJarPath,
+        trfFilePath,
+        '-p',
+        outputFilePath,
+      ])
     }
 
     javafoCommand.stdout.on('data', (data) => {
