@@ -2129,6 +2129,16 @@ class TournamentService {
         `--- [getPlayersRanking] START | Tournament ID: ${tournamentId}, Round: ${round}, Limit: ${limit}, Offset: ${offset} ---`
       )
 
+      const ttlKey = `ccm_standings_ttl_${tournamentId}`
+      const ttlExists = await this.redisService.getValue(ttlKey)
+      if (!ttlExists) {
+        await this.redisService.setValueWithExpiry(
+          ttlKey,
+          60,
+          'recalculate_standing'
+        )
+      }
+
       let message = `Fetched players ranking after round ${round} successfully.`
 
       const redisKey = `ccm_standings_${tournamentId}_${round}`
@@ -2137,22 +2147,28 @@ class TournamentService {
       const start = offset
       const end = start + limit - 1
 
-      const players = await this.redisService.lRange(redisKey, start, end)
-      console.log(`Players fetched from Redis LIST: Count = ${players.length}`)
-
-      const redisResults = players.map(JSON.parse)
-
-      const totalPlayers = await this.redisService.lLen(redisKey)
-      console.log(`Total players in Redis LIST: ${totalPlayers}`)
-
-      if (redisResults.length > 0) {
-        console.log(`Returning ranking from Redis.`)
-        return responseHandler.returnSuccess(
-          httpStatus.OK,
-          message,
-          redisResults,
-          totalPlayers
+      try {
+        const players = await this.redisService.lRange(redisKey, start, end)
+        console.log(
+          `Players fetched from Redis LIST: Count = ${players.length}`
         )
+
+        const redisResults = players.map(JSON.parse)
+
+        const totalPlayers = await this.redisService.lLen(redisKey)
+        console.log(`Total players in Redis LIST: ${totalPlayers}`)
+
+        if (redisResults.length > 0) {
+          console.log(`Returning ranking from Redis.`)
+          return responseHandler.returnSuccess(
+            httpStatus.OK,
+            message,
+            redisResults,
+            totalPlayers
+          )
+        }
+      } catch (error) {
+        console.error(error)
       }
 
       console.log(`No cached standings found in Redis. Checking DB...`)
@@ -2169,6 +2185,26 @@ class TournamentService {
           round - 1
         } is still going on! Please try after round ${round - 1} is ended.`
         console.log(message)
+
+        const scoreUploadKey = `ccm_score_upload_${tournamentId}_${round}`
+        const scoreUploaded = await this.redisService.getValue(scoreUploadKey)
+        const redisResult = await this.redisService.getValue(
+          `ccm_tournament_details_${tournamentId}`
+        )
+        const tournament = JSON.parse(redisResult)
+        if (!ttlExists && Number(scoreUploaded) > 0) {
+          return await this.getPlayersRankingOld(
+            round,
+            tournamentId,
+            limit,
+            offset
+          )
+        }
+        if (
+          moment(tournament.start_date).diff(moment('2025-07-13'), 'days') < 0
+        ) {
+          return await this.getPlayersRankingOld(round, tournamentId)
+        }
         if (round > 1) {
           return await this.getPlayersRanking(
             round - 1,
@@ -2243,18 +2279,43 @@ class TournamentService {
     }
   }
 
-  getPlayersRankingOld = async (round, tournamentId) => {
+  getPlayersRankingOld = async (
+    round,
+    tournamentId,
+    limit = 1000,
+    offset = 0
+  ) => {
     try {
       let message = `Fetched players ranking after round ${round} successfully.`
       // Optionally use Redis
       const redisKey = `ccm_standings_${tournamentId}_${round}`
-      const redisResult = await this.redisService.getValue(redisKey)
-      if (redisResult) {
-        return responseHandler.returnSuccess(
-          httpStatus.OK,
-          message,
-          JSON.parse(redisResult)
+      console.log(`Checking Redis key: ${redisKey}`)
+
+      const start = offset
+      const end = start + limit - 1
+
+      try {
+        const players = await this.redisService.lRange(redisKey, start, end)
+        console.log(
+          `Players fetched from Redis LIST: Count = ${players.length}`
         )
+
+        const redisResults = players.map(JSON.parse)
+
+        const totalPlayers = await this.redisService.lLen(redisKey)
+        console.log(`Total players in Redis LIST: ${totalPlayers}`)
+
+        if (redisResults.length > 0) {
+          console.log(`Returning ranking from Redis.`)
+          return responseHandler.returnSuccess(
+            httpStatus.OK,
+            message,
+            redisResults,
+            totalPlayers
+          )
+        }
+      } catch (error) {
+        console.error(error)
       }
       const exists = await this.tournamentPairingsDao.checkExist({
         round,
@@ -2290,14 +2351,28 @@ class TournamentService {
         const convertedData = convertPlayersResultInNumeric(data, trnConfig)
         result = getTieBreaks(convertedData, round, trnConfig)
       }
-      // Optionally cache in Redis
-      await this.redisService.setValueWithExpiry(
-        redisKey,
-        86400,
-        JSON.stringify(result)
-      )
 
-      return responseHandler.returnSuccess(httpStatus.OK, message, result)
+      const listKey = `ccm_standings_${tournamentId}_${round}`
+      await this.redisService.removeKey(listKey) // Clear old list
+      const rPushPromises = result.map((player, i) => {
+        // Push only player ID or JSON if you want
+        return this.redisService.rPush(
+          listKey,
+          JSON.stringify({ ...player, rank: i + 1 })
+        )
+      })
+      await Promise.all(rPushPromises)
+      await this.redisService.expire(listKey) // Set expiration if needed
+
+      const total = result.length
+      const output = result.slice(offset, limit)
+
+      return responseHandler.returnSuccess(
+        httpStatus.OK,
+        message,
+        output,
+        total
+      )
     } catch (e) {
       logger.error(e)
       return responseHandler.returnError(
@@ -2388,6 +2463,8 @@ class TournamentService {
 
   reCalculateStandingsPrizes = async (round, tournamentId, rounds) => {
     console.log(`All scores submitted. Recalculating standings.`)
+    const scoreUploadKey = `ccm_score_upload_${tournamentId}_${round}`
+    await this.redisService.setValueWithExpiry(scoreUploadKey, 86400, 0)
     const data = await this.tournamentPairingsDao.findWithPlayers({
       round: { [Op.lte]: round },
       tournament_id: tournamentId,
@@ -2550,6 +2627,8 @@ class TournamentService {
       console.log(
         `GameId: ${gameId}, Scores received:  ${JSON.stringify(scores)}`
       )
+      const scoreUploadKey = `ccm_score_upload_${tournamentId}_${round}`
+      await this.redisService.setValueWithExpiry(scoreUploadKey, 86400, 1)
       let message = `Updated scores of matches for Round ${round} successfully.`
       const tournament = await this.tournamentDao.findById(tournamentId)
       console.log(
