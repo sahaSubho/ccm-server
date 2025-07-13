@@ -1326,6 +1326,66 @@ class TournamentService {
     return n + (s[(v - 20) % 10] || s[v] || s[0])
   }
 
+  storePairingToRedis = async (tournamentId, round, data = []) => {
+    let players = data
+    if (data.length === 0) {
+      const result = await this.tournamentPairingsDao.findPairings(
+        round,
+        tournamentId
+      )
+      console.log(`Pairings fetched from DB: Count = ${result.length}`)
+
+      // === Attach team names if any ===
+      const teams = await this.teamsDao.findByWhere({
+        tournament_id: tournamentId,
+      })
+      console.log(`Teams fetched for tournament: Count = ${teams.length}`)
+
+      const playerTeamMap = new Map()
+      for (const team of teams) {
+        for (const playerId of team.player_uuids) {
+          playerTeamMap.set(playerId, team.name)
+        }
+      }
+
+      players = data.map((pair) => {
+        return {
+          pairing_id: pair.id,
+          player: pair,
+          opponent: pair.opponent || undefined,
+          unpaired: pair.is_unpaired ? pair : undefined,
+          teamA: playerTeamMap.get(pair.player_id),
+          teamB: pair.opponent
+            ? playerTeamMap.get(pair.opponent.player_id)
+            : undefined,
+        }
+      })
+    }
+    console.log(`Saving Pairing in redis`)
+    // === Save in Redis ===
+    const hashKey = `ccm_pairings_${tournamentId}_${round}`
+    const listKey = `ccm_pairings_order_${tournamentId}_${round}`
+    console.log(
+      `Saving fresh pairings to Redis: HASH=${hashKey}, LIST=${listKey}`
+    )
+    // === Remove if Already Exists ===
+    await this.redisService.removeKey(hashKey)
+    await this.redisService.removeKey(listKey)
+
+    const hashFields = []
+    for (const player of players) {
+      const field = player.pairing_id
+      hashFields.push(field, JSON.stringify(player))
+      await this.redisService.rPush(listKey, String(field))
+    }
+
+    await this.redisService.hSet(hashKey, hashFields)
+    await this.redisService.expire(hashKey)
+    await this.redisService.expire(listKey)
+
+    console.log(`Pairings stored in Redis.`)
+  }
+
   /**
    * Create Tournament Pairing
    * @param {Number} round
@@ -1671,28 +1731,7 @@ class TournamentService {
           }
         })
 
-        // === Save in Redis ===
-        const hashKey = `ccm_pairings_${tournamentId}_${round}`
-        const listKey = `ccm_pairings_order_${tournamentId}_${round}`
-        console.log(
-          `Saving fresh pairings to Redis: HASH=${hashKey}, LIST=${listKey}`
-        )
-        // === Remove if Already Exists ===
-        await this.redisService.removeKey(hashKey)
-        await this.redisService.removeKey(listKey)
-
-        const hashFields = []
-        for (const player of data) {
-          const field = player.pairing_id
-          hashFields.push(field, JSON.stringify(player))
-          await this.redisService.rPush(listKey, String(field))
-        }
-
-        await this.redisService.hSet(hashKey, hashFields)
-        await this.redisService.expire(hashKey)
-        await this.redisService.expire(listKey)
-
-        console.log(`Pairings stored in Redis.`)
+        this.storePairingToRedis(tournamentId, round, data)
 
         console.log(`Pairings prepared for response.`)
         await this.redisService.removeKey(
@@ -1996,6 +2035,8 @@ class TournamentService {
         tournament_id: tournamentId,
       })
 
+      this.storePairingToRedis(tournamentId, round)
+
       console.log(`--- [getPairings] END | SUCCESS ---`)
       return responseHandler.returnSuccess(
         httpStatus.OK,
@@ -2266,12 +2307,17 @@ class TournamentService {
       })
 
       console.log(`Total player standings in DB: ${total}`)
+      const finalData = {
+        ...results,
+        ...results.tiebreaks,
+      }
 
       console.log(`--- [getPlayersRanking] END | SUCCESS ---`)
+      this.getPlayersRankingOld(round, tournamentId)
       return responseHandler.returnSuccess(
         httpStatus.OK,
         message,
-        results,
+        finalData,
         total
       )
     } catch (e) {
@@ -2286,7 +2332,7 @@ class TournamentService {
   getPlayersRankingOld = async (
     round,
     tournamentId,
-    limit = 1000,
+    limit = 2000,
     offset = 0
   ) => {
     try {
