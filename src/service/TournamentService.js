@@ -2181,17 +2181,17 @@ class TournamentService {
           {
             round,
             tournament_id: tournamentId,
-            limit,
-            offset,
-          }
+          },
+          limit,
+          offset
         )
         const result = startingRanks.map((p) => {
           return {
             rank: p?.rank,
-            player_id: p?.players?.id,
-            player_name: p?.players?.name,
-            player_title: p?.players?.title,
-            player_rating: p?.players?.rating,
+            player_id: p?.['players.id'],
+            player_name: p?.['players.name'],
+            player_title: p?.['players.title'],
+            player_rating: p?.['players.rating'],
             point: 0,
             TB1: 0,
             TB2: 0,

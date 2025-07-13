@@ -20,6 +20,7 @@ class PlayerStartingRankDao extends SuperDao {
       ],
       limit,
       offset,
+      raw: true,
     })
   }
 }
