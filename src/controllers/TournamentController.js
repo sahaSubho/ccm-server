@@ -106,7 +106,11 @@ class TournamentController {
   getTournamentById = async (req, res) => {
     try {
       const { id } = req.params
-      const tournaments = await this.tournamentService.getTournamentById(id)
+      const { userId } = req.query
+      const tournaments = await this.tournamentService.getTournamentById(
+        id,
+        userId
+      )
       const { status, message, data } = tournaments.response
       res.status(tournaments.statusCode).send({ status, message, data })
     } catch (e) {

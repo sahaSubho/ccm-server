@@ -1091,13 +1091,13 @@ class TournamentService {
     }
   }
 
-  getTournamentById = async (id) => {
+  getTournamentById = async (id, userId = null) => {
     try {
       const message = 'Fetched tournament details successfully.'
 
-      const redisResult = await this.redisService.getValue(
-        `ccm_tournament_details_${id}`
-      )
+      // const redisResult = await this.redisService.getValue(
+      //   `ccm_tournament_details_${id}`
+      // )
       // if (redisResult) {
       //   return responseHandler.returnSuccess(
       //     httpStatus.OK,
@@ -1116,15 +1116,26 @@ class TournamentService {
       }
 
       // ✅ 2️⃣ Get players (only needed fields)
-      const players = await this.trnplayersDao.findByWhere(
-        {
+      // const players = await this.trnplayersDao.findByWhere(
+      //   {
+      //     tournament_id: id,
+      //     is_withdrawn: false,
+      //   },
+      //   ['name', 'rating']
+      // )
+
+      // data.setDataValue('players_joined', players)
+
+      let isJoined = !userId
+      if (userId) {
+        isJoined = await this.trnplayersDao.checkExist({
+          cc_userid: userId,
           tournament_id: id,
           is_withdrawn: false,
-        },
-        ['name', 'rating']
-      )
+        })
+      }
 
-      data.setDataValue('players_joined', players)
+      data.setDataValue('is_joined', isJoined)
 
       // ✅ 3️⃣ Use a single aggregate for pairings
       const pairings = await this.tournamentPairingsDao.findByGroup(
