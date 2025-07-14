@@ -2420,8 +2420,6 @@ class TournamentService {
           })
         }
 
-        console.log('output', output.length, offset, limit)
-
         let pageNumber
         if (userId) {
           console.log(`Pairings for UserId: ${userId}`)
@@ -2447,7 +2445,6 @@ class TournamentService {
         await this.redisService.expire(listKey) // Set expiration if needed
 
         // await this.playerStartingRankDao.bulkCreate(startingRanks)
-        console.log('output........', total)
         return responseHandler.returnSuccess(
           httpStatus.OK,
           message,
