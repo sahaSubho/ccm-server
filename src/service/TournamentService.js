@@ -2082,7 +2082,12 @@ class TournamentService {
         if (ongoing) {
           message = `There is no Ongoing Games for round ${round}.`
           console.log(message)
-          return responseHandler.returnSuccess(httpStatus.OK, message, data, 0)
+          return responseHandler.returnSuccess(
+            httpStatus.OK,
+            message,
+            data.rows,
+            data.count
+          )
         }
         message = `Pairing of Round ${round} is not done yet! Please try again.`
         console.log(message)
