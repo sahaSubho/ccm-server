@@ -1993,7 +1993,6 @@ class TournamentService {
             const list = await this.redisService.lRange(listKey, 0, -1)
 
             // Find index in JS
-            console.log('pairingId', pairingId, JSON.stringify(list))
             const index = list.indexOf(String(pairingId))
             offset = Math.floor(index / limit) * limit
             pageNumber = Math.floor(index / limit) + 1
@@ -2275,47 +2274,70 @@ class TournamentService {
 
       const ttlKey = `ccm_standings_ttl_${tournamentId}`
       const ttlExists = await this.redisService.getValue(ttlKey)
-      if (search.length === 0) {
-        if (!ttlExists) {
-          await this.redisService.setValueWithExpiry(
-            ttlKey,
-            60,
-            'recalculate_standing'
-          )
-        }
-
-        const redisKey = `ccm_standings_${tournamentId}_${round}`
-        console.log(`Checking Redis key: ${redisKey}`)
-
-        const start = offset
-        const end = start + limit - 1
-
-        try {
-          const players = await this.redisService.lRange(redisKey, start, end)
-          console.log(
-            `Players fetched from Redis LIST: Count = ${players.length}`
-          )
-
-          const redisResults = players.map(JSON.parse)
-
-          const totalPlayers = await this.redisService.lLen(redisKey)
-          console.log(`Total players in Redis LIST: ${totalPlayers}`)
-
-          if (redisResults.length > 0) {
-            console.log(`Returning ranking from Redis.`)
-            return responseHandler.returnSuccess(
-              httpStatus.OK,
-              message,
-              redisResults,
-              totalPlayers
-            )
-          }
-        } catch (error) {
-          console.error(error)
-        }
-
-        console.log(`No cached standings found in Redis. Checking DB...`)
+      if (!ttlExists) {
+        await this.redisService.setValueWithExpiry(
+          ttlKey,
+          60,
+          'recalculate_standing'
+        )
       }
+
+      try {
+        // Optionally use Redis
+        const redisKey = `ccm_standings_${tournamentId}_${round}`
+        let totalPlayers = await this.redisService.lLen(redisKey)
+        console.log(`Checking Redis key: ${redisKey}`)
+        let pageNumber
+        if (userId) {
+          console.log(`Pairings for UserId: ${userId}`)
+          const userData = await this.tournamentStandingsDao.findWithPlayer({
+            '$ccm_tournament_player.cc_userid$': userId,
+            tournament_id: tournamentId,
+            round,
+          })
+          // Find index in JS
+          const index = Number(userData.rank) - 1
+          offset = Math.floor(index / limit) * limit
+          pageNumber = Math.floor(index / limit) + 1
+          console.log(`Page Number Found for User:${userId} Page:${pageNumber}`)
+        }
+
+        let start = offset
+        let end = start + limit - 1
+        if (search.length) {
+          start = 0
+          end = -1
+        }
+        const players = await this.redisService.lRange(redisKey, start, end)
+        console.log(
+          `Players fetched from Redis LIST: Count = ${players.length}`
+        )
+
+        let redisResults = players.map(JSON.parse)
+
+        if (search.length) {
+          redisResults = redisResults.filter((r) => {
+            return r.player_name.includes(search)
+          })
+          totalPlayers = redisResults.length
+        }
+        console.log(`Total players in Redis LIST: ${totalPlayers}`)
+
+        if (redisResults.length > 0) {
+          console.log(`Returning ranking from Redis.`)
+          return responseHandler.returnSuccess(
+            httpStatus.OK,
+            message,
+            redisResults,
+            totalPlayers,
+            pageNumber
+          )
+        }
+      } catch (error) {
+        console.error(error)
+      }
+
+      console.log(`No cached standings found in Redis. Checking DB...`)
 
       const exists = await this.tournamentStandingsDao.checkExist({
         round,
@@ -2324,7 +2346,7 @@ class TournamentService {
 
       console.log(`Standings exist in DB for round ${round}: ${exists}`)
 
-      if (!exists && search.length === 0) {
+      if (!exists) {
         message = `Round ${
           round - 1
         } is still going on! Please try after round ${round - 1} is ended.`
@@ -2341,23 +2363,35 @@ class TournamentService {
             round,
             tournamentId,
             limit,
-            offset
+            offset,
+            search,
+            userId
           )
         }
         if (
           moment(tournament.start_date).diff(moment('2025-07-13'), 'days') < 0
         ) {
-          return await this.getPlayersRankingOld(round, tournamentId)
+          return await this.getPlayersRankingOld(
+            round,
+            tournamentId,
+            limit,
+            offset,
+            search,
+            userId
+          )
         }
         if (round > 1) {
           return await this.getPlayersRanking(
             round - 1,
             tournamentId,
             limit,
-            offset
+            offset,
+            search,
+            userId
           )
         }
 
+        console.log('Fetching Players when Standings not exists')
         const players = await this.trnplayersDao.findByWhere({
           tournament_id: tournamentId,
         })
@@ -2371,12 +2405,37 @@ class TournamentService {
             player_name: p?.name,
             player_title: p?.title,
             player_rating: p?.rating,
+            cc_userid: p.cc_userid,
             point: 0,
             TB1: 0,
             TB2: 0,
             TB3: 0,
           }
         })
+
+        let output = startingRanks
+        if (search.length > 0) {
+          output = startingRanks.filter((r) => {
+            return r.player_name.includes(search)
+          })
+        }
+
+        console.log('output', output.length, offset, limit)
+
+        let pageNumber
+        if (userId) {
+          console.log(`Pairings for UserId: ${userId}`)
+          const userData = output.find((o) => {
+            return o.cc_userid === userId
+          })
+          // Find index in JS
+          const index = Number(userData.rank) - 1
+          offset = Math.floor(index / limit) * limit
+          pageNumber = Math.floor(index / limit) + 1
+          console.log(`Page Number Found for User:${userId} Page:${pageNumber}`)
+        }
+
+        const total = output.length
 
         const listKey = `ccm_standings_${tournamentId}_${round}`
         await this.redisService.removeKey(listKey) // Clear old list
@@ -2388,12 +2447,13 @@ class TournamentService {
         await this.redisService.expire(listKey) // Set expiration if needed
 
         // await this.playerStartingRankDao.bulkCreate(startingRanks)
-
+        console.log('output........', total)
         return responseHandler.returnSuccess(
           httpStatus.OK,
           message,
-          startingRanks.slice(offset, limit),
-          startingRanks.length
+          output.slice(offset, offset + limit),
+          total,
+          pageNumber
         )
       }
 
@@ -2440,40 +2500,13 @@ class TournamentService {
     round,
     tournamentId,
     limit = 2000,
-    offset = 0
+    offset = 0,
+    search = '',
+    userId = null
   ) => {
     try {
       let message = `Fetched players ranking after round ${round} successfully.`
-      // Optionally use Redis
-      const redisKey = `ccm_standings_${tournamentId}_${round}`
-      console.log(`Checking Redis key: ${redisKey}`)
 
-      const start = offset
-      const end = start + limit - 1
-
-      try {
-        const players = await this.redisService.lRange(redisKey, start, end)
-        console.log(
-          `Players fetched from Redis LIST: Count = ${players.length}`
-        )
-
-        const redisResults = players.map(JSON.parse)
-
-        const totalPlayers = await this.redisService.lLen(redisKey)
-        console.log(`Total players in Redis LIST: ${totalPlayers}`)
-
-        if (redisResults.length > 0) {
-          console.log(`Returning ranking from Redis.`)
-          return responseHandler.returnSuccess(
-            httpStatus.OK,
-            message,
-            redisResults,
-            totalPlayers
-          )
-        }
-      } catch (error) {
-        console.error(error)
-      }
       const exists = await this.tournamentPairingsDao.checkExist({
         round,
         tournament_id: tournamentId,
@@ -2521,14 +2554,34 @@ class TournamentService {
       await Promise.all(rPushPromises)
       await this.redisService.expire(listKey) // Set expiration if needed
 
-      const total = result.length
-      const output = result.slice(offset, limit)
+      let output = result
+      if (search.length > 0) {
+        output = result.filter((r) => {
+          return r.player_name.includes(search)
+        })
+      }
+
+      let pageNumber
+      if (userId) {
+        console.log(`Pairings for UserId: ${userId}`)
+        const userData = output.find((o) => {
+          return o.cc_userid === userId
+        })
+        // Find index in JS
+        const index = Number(userData.rank) - 1
+        offset = Math.floor(index / limit) * limit
+        pageNumber = Math.floor(index / limit) + 1
+        console.log(`Page Number Found for User:${userId} Page:${pageNumber}`)
+      }
+
+      const total = output.length
 
       return responseHandler.returnSuccess(
         httpStatus.OK,
         message,
-        output,
-        total
+        output.slice(offset, offset + limit),
+        total,
+        pageNumber
       )
     } catch (e) {
       logger.error(e)

@@ -3,6 +3,7 @@ const SuperDao = require('./SuperDao')
 const models = require('../models')
 
 const TournamentStandings = models.ccm_tournament_standings
+const Players = models.ccm_tournament_players
 
 class TournamentStandingsDao extends SuperDao {
   constructor() {
@@ -24,6 +25,17 @@ class TournamentStandingsDao extends SuperDao {
       limit,
       offset,
       order: [['rank', 'asc']],
+      raw: true,
+    })
+  }
+
+  async findWithPlayer(where) {
+    return TournamentStandings.findOne({
+      where,
+      order: [['rank', 'asc']],
+      include: {
+        model: Players, // You can specify which user attributes to include
+      },
       raw: true,
     })
   }

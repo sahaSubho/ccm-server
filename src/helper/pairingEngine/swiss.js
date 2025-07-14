@@ -2,6 +2,14 @@
 /* eslint-disable no-plusplus */
 const runPairing = require('./runPairing')
 
+function cleanName(rawName) {
+  return rawName
+    .normalize('NFKD') // Normalize Unicode
+    .replace(/[\u0300-\u036f]/g, '') // Remove accents/diacritics
+    .replace(/[^a-zA-Z0-9 .'-]/g, '') // Remove weird characters
+    .trim() // Remove leading/trailing spaces
+}
+
 function formatPlayerData(player, round = 1, tournament_id = undefined) {
   if (round === 1) {
     return {
@@ -10,7 +18,7 @@ function formatPlayerData(player, round = 1, tournament_id = undefined) {
       player_id: player.id,
       player_title: player.title || '',
       player_fide_id: player.fide_id || 0,
-      player_name: player.name,
+      player_name: cleanName(player.name),
       player_rating: player.rating || 0,
       player_score: player.score || 0,
       cc_userid: player.cc_userid || 0,
@@ -22,7 +30,7 @@ function formatPlayerData(player, round = 1, tournament_id = undefined) {
     tournament_id,
     player_id: player.player_id,
     player_fide_id: player.player_fide_id || 0,
-    player_name: player.player_name,
+    player_name: cleanName(player.player_name),
     player_rating: player.player_rating || 0,
     player_score: player.player_score,
     result: player.result,
@@ -335,16 +343,16 @@ async function javaFoRoundPairing(
   tournamentDetails += `XXR  ${tournament.rounds}\n`
 
   console.log('numberOfPlayers', numberOfPlayers)
-  if (numberOfPlayers > 500) {
-    console.log('BBP Pairings enabled')
-    tournamentDetails +=
-      'BBW  1.0\n' +
-      'BBD  0.5\n' +
-      'BBL  0.0\n' +
-      'BBZ  0.0\n' +
-      'BBF  1.0\n' +
-      'BBU  1.0\n'
-  }
+  // if (numberOfPlayers > 500) {
+  console.log('BBP Pairings enabled')
+  tournamentDetails +=
+    'BBW  1.0\n' +
+    'BBD  0.5\n' +
+    'BBL  0.0\n' +
+    'BBZ  0.0\n' +
+    'BBF  1.0\n' +
+    'BBU  1.0\n'
+  // }
 
   const data = white.concat(black).sort((a, b) => {
     return a.round - b.round
