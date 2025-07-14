@@ -276,12 +276,13 @@ class TournamentController {
 
   getPlayersRanking = async (req, res) => {
     try {
-      const { round, tournamentId, limit, offset } = req.query
+      const { round, tournamentId, limit, offset, search } = req.query
       const pairing = await this.tournamentService.getPlayersRanking(
         round,
         tournamentId,
         limit,
-        offset
+        offset,
+        search
       )
       res.status(pairing.statusCode).send(pairing.response)
     } catch (e) {
