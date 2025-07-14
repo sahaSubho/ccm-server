@@ -19,34 +19,36 @@ const pair = (input, players, teams = [], fileName = '') => {
   fs.writeFileSync(outputFilePath, '')
 
   return new Promise((resolve, reject) => {
-    let javafoCommand = spawn('java', [
-      '-ea',
-      '-Xms4G',
-      '-Xmx4G',
-      '-XX:+UseG1GC',
-      '-XX:+TieredCompilation',
-      '-XX:TieredStopAtLevel=1',
-      '-noverify',
-      '-jar',
-      javafoJarPath,
-      trfFilePath,
-      '-p',
-      outputFilePath,
-    ])
+    // let javafoCommand
 
-    if (players.length > 500) {
-      // The executable
-      const exe = bbpPairingFile
+    // if (players.length > 500) {
+    // The executable
+    const exe = bbpPairingFile
 
-      // Arguments as array — no spaces, each arg is separate!
-      const args = ['--dutch', trfFilePath, '-p', outputFilePath]
+    // Arguments as array — no spaces, each arg is separate!
+    const args = ['--dutch', trfFilePath, '-p', outputFilePath]
 
-      javafoCommand = spawn(exe, args)
-      isBbpPairing = true
-    }
+    const javafoCommand = spawn(exe, args)
+    isBbpPairing = true
+    // } else {
+    //   javafoCommand = spawn('java', [
+    //     '-ea',
+    //     '-Xms4G',
+    //     '-Xmx4G',
+    //     '-XX:+UseG1GC',
+    //     '-XX:+TieredCompilation',
+    //     '-XX:TieredStopAtLevel=1',
+    //     '-noverify',
+    //     '-jar',
+    //     javafoJarPath,
+    //     trfFilePath,
+    //     '-p',
+    //     outputFilePath,
+    //   ])
+    // }
 
     javafoCommand.stdout.on('data', (data) => {
-      console.error('[Java STDOUT]', data.toString())
+      console.error('Pairing Output', data.toString())
     })
 
     javafoCommand.on('close', (code) => {

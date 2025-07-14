@@ -64,11 +64,26 @@ class TournamentPairingsDao extends SuperDao {
       },
       include: [
         {
+          model: Players,
+          attributes: ['title'],
+        },
+        {
           model: TournamentPairings,
           as: 'opponent',
           required: false, // LEFT JOIN
+          include: [
+            {
+              model: Players,
+              attributes: ['title'],
+            },
+          ],
         },
       ],
+      attributes: {
+        include: [
+          [sequelize.col('ccm_tournament_player.title'), 'player_title'],
+        ],
+      },
       order: [['id', 'asc']],
       limit,
       offset,
