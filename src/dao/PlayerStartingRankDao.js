@@ -18,6 +18,7 @@ class PlayerStartingRankDao extends SuperDao {
           as: 'players',
         },
       ],
+      order: [['rank', 'asc']],
       limit,
       offset,
       raw: true,
