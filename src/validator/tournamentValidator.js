@@ -132,6 +132,7 @@ class TournamentValidator {
       offset: Joi.number().default(0).min(0),
       ongoing: Joi.boolean().default(false),
       search: Joi.string().allow('').default(''),
+      userId: Joi.number(),
     })
 
     // validate request body against schema

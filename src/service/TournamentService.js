@@ -1337,7 +1337,7 @@ class TournamentService {
         round,
         tournamentId
       )
-      console.log(`Pairings fetched from DB: Count = ${result.length}`)
+      console.log(`Pairings fetched from DB: Count = ${result.count}`)
 
       // === Attach team names if any ===
       const teams = await this.teamsDao.findByWhere({
@@ -1352,7 +1352,7 @@ class TournamentService {
         }
       }
 
-      players = data.map((pair) => {
+      players = result.rows.map((pair) => {
         return {
           pairing_id: pair.id,
           player: pair,
@@ -1484,6 +1484,7 @@ class TournamentService {
           0,
           '',
           false,
+          null,
           message
         )
         return res
@@ -1953,6 +1954,7 @@ class TournamentService {
     offset = 0,
     search = '',
     ongoing = false,
+    userId = null,
     msg = undefined
   ) => {
     try {
@@ -1965,44 +1967,106 @@ class TournamentService {
         message = msg
         console.log(`Custom message supplied: ${msg}`)
       }
+      let pageNumber
 
       if (search.length === 0) {
         const hashKey = `ccm_pairings_${tournamentId}_${round}`
         let listKey = `ccm_pairings_order_${tournamentId}_${round}`
 
-        const start = offset
-        const end = start + limit - 1
-
         if (ongoing) {
           listKey = `ccm_pairings_ongoing_${tournamentId}_${round}`
         }
+        const totalPairings = await this.redisService.lLen(listKey)
+        if (totalPairings > 0) {
+          if (userId) {
+            console.log(`Pairings for UserId: ${userId}`)
+            const userData = await this.tournamentPairingsDao.findOneByWhere({
+              cc_userid: userId,
+              tournament_id: tournamentId,
+              round,
+            })
 
-        console.log(`Checking Redis keys: HASH=${hashKey}, LIST=${listKey}`)
+            let pairingId = userData.id
+            if (userData.parent_id) {
+              pairingId = userData.parent_id
+            }
+            const list = await this.redisService.lRange(listKey, 0, -1)
 
-        const pairingIds = await this.redisService.lRange(listKey, start, end)
-        console.log(`Pairing IDs from Redis LIST: Count = ${pairingIds.length}`)
-
-        let redisResults = []
-        if (pairingIds.length) {
-          const pairings = await this.redisService.hmGet(hashKey, pairingIds)
-          redisResults = pairings.map(JSON.parse)
-          console.log(
-            `Pairings fetched from Redis HASH: Count = ${redisResults.length}`
-          )
-          const totalPairings = await this.redisService.lLen(listKey)
-          console.log(`Total pairings in Redis LIST: ${totalPairings}`)
-
-          if (redisResults.length) {
-            console.log(`Returning pairings from Redis cache.`)
-            return responseHandler.returnSuccess(
-              httpStatus.OK,
-              message,
-              redisResults,
-              totalPairings
+            // Find index in JS
+            console.log('pairingId', pairingId, JSON.stringify(list))
+            const index = list.indexOf(String(pairingId))
+            offset = Math.floor(index / limit) * limit
+            pageNumber = Math.floor(index / limit) + 1
+            console.log(
+              `Page Number Found for User:${userId} Page:${pageNumber}`
             )
+          }
+
+          const start = offset
+          const end = start + limit - 1
+
+          console.log(`Checking Redis keys: HASH=${hashKey}, LIST=${listKey}`)
+
+          const pairingIds = await this.redisService.lRange(listKey, start, end)
+          console.log(
+            `Pairing IDs from Redis LIST: Count = ${pairingIds.length}`
+          )
+
+          let redisResults = []
+          if (pairingIds.length) {
+            const pairings = await this.redisService.hmGet(hashKey, pairingIds)
+            redisResults = pairings.map(JSON.parse)
+            console.log(
+              `Pairings fetched from Redis HASH: Count = ${redisResults.length}`
+            )
+            console.log(`Total pairings in Redis LIST: ${totalPairings}`)
+
+            if (redisResults.length) {
+              console.log(`Returning pairings from Redis cache.`)
+              return responseHandler.returnSuccess(
+                httpStatus.OK,
+                message,
+                redisResults,
+                totalPairings,
+                pageNumber
+              )
+            }
           }
         }
         console.log(`No cached pairings found. Querying DB...`)
+      }
+
+      if (userId) {
+        console.log(`Pairings for UserId: ${userId}`)
+        const userData = await this.tournamentPairingsDao.findOneByWhere({
+          cc_userid: userId,
+          tournament_id: tournamentId,
+          round,
+        })
+
+        let pairingId = userData.id
+        if (userData.parent_id) {
+          pairingId = userData.parent_id
+        }
+        const list = await this.tournamentPairingsDao.findByWhere(
+          {
+            parent_id: null,
+            round,
+            tournament_id: tournamentId,
+          },
+          ['id']
+        )
+
+        // Find index in JS
+        const index = list
+          .map((l) => {
+            return l.id
+          })
+          .indexOf(pairingId)
+        offset = Math.floor(index / limit) * limit
+        pageNumber = Math.floor(index / limit) + 1
+
+        console.log(`Page Number Found for User:${userId} Page:${pageNumber}`)
       }
 
       const data = await this.tournamentPairingsDao.findPairings(
@@ -2062,7 +2126,8 @@ class TournamentService {
         httpStatus.OK,
         message,
         players,
-        data.count
+        data.count,
+        pageNumber
       )
     } catch (e) {
       logger.error(`[getPairings] ERROR:`, e)
@@ -2193,7 +2258,8 @@ class TournamentService {
     tournamentId,
     limit = 20,
     offset = 0,
-    search = ''
+    search = '',
+    userId = null
   ) => {
     try {
       console.log(
