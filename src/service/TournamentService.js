@@ -2324,7 +2324,7 @@ class TournamentService {
 
       console.log(`Standings exist in DB for round ${round}: ${exists}`)
 
-      if (!exists) {
+      if (!exists && search.length === 0) {
         message = `Round ${
           round - 1
         } is still going on! Please try after round ${round - 1} is ended.`
