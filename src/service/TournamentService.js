@@ -173,6 +173,8 @@ class TournamentService {
         }
       }
       await this.redisService.hSet(hashKey, pairingId, JSON.stringify(parsed))
+      const ongoingKey = `ccm_pairings_ongoing_${tournamentId}_${round}`
+      await this.redisService.lRem(ongoingKey, 1, pairingId)
     }
   }
 
@@ -1365,6 +1367,8 @@ class TournamentService {
     // === Save in Redis ===
     const hashKey = `ccm_pairings_${tournamentId}_${round}`
     const listKey = `ccm_pairings_order_${tournamentId}_${round}`
+    const ongoingKey = `ccm_pairings_ongoing_${tournamentId}_${round}`
+
     console.log(
       `Saving fresh pairings to Redis: HASH=${hashKey}, LIST=${listKey}`
     )
@@ -1377,6 +1381,10 @@ class TournamentService {
       const field = player.pairing_id
       hashFields.push(field, JSON.stringify(player))
       await this.redisService.rPush(listKey, String(field))
+      // Storing in ongoingKey only after pairing creation
+      if (data.length > 0) {
+        await this.redisService.rPush(ongoingKey, String(field))
+      }
     }
 
     await this.redisService.hSet(hashKey, hashFields)
@@ -1472,6 +1480,8 @@ class TournamentService {
           tournamentId,
           pairingData,
           0,
+          '',
+          false,
           message
         )
         return res
@@ -1939,11 +1949,13 @@ class TournamentService {
     tournamentId,
     limit = 20,
     offset = 0,
+    search = '',
+    ongoing = false,
     msg = undefined
   ) => {
     try {
       console.log(
-        `--- [getPairings] START | Tournament ID: ${tournamentId}, Round: ${round}, Limit: ${limit}, Offset: ${offset} ---`
+        `--- [getPairings] START | Tournament ID: ${tournamentId}, Round: ${round}, Limit: ${limit}, Offset: ${offset} Ongoing: ${ongoing} ---`
       )
 
       let message = 'Fetched tournament player pairings successfully.'
@@ -1952,55 +1964,66 @@ class TournamentService {
         console.log(`Custom message supplied: ${msg}`)
       }
 
-      const hashKey = `ccm_pairings_${tournamentId}_${round}`
-      const listKey = `ccm_pairings_order_${tournamentId}_${round}`
+      if (search.length === 0) {
+        const hashKey = `ccm_pairings_${tournamentId}_${round}`
+        let listKey = `ccm_pairings_order_${tournamentId}_${round}`
 
-      const start = offset
-      const end = start + limit - 1
+        const start = offset
+        const end = start + limit - 1
 
-      console.log(`Checking Redis keys: HASH=${hashKey}, LIST=${listKey}`)
+        if (ongoing) {
+          listKey = `ccm_pairings_ongoing_${tournamentId}_${round}`
+        }
 
-      const pairingIds = await this.redisService.lRange(listKey, start, end)
-      console.log(`Pairing IDs from Redis LIST: Count = ${pairingIds.length}`)
+        console.log(`Checking Redis keys: HASH=${hashKey}, LIST=${listKey}`)
 
-      let redisResults = []
-      if (pairingIds.length) {
-        const pairings = await this.redisService.hmGet(hashKey, pairingIds)
-        redisResults = pairings.map(JSON.parse)
-        console.log(
-          `Pairings fetched from Redis HASH: Count = ${redisResults.length}`
-        )
+        const pairingIds = await this.redisService.lRange(listKey, start, end)
+        console.log(`Pairing IDs from Redis LIST: Count = ${pairingIds.length}`)
+
+        let redisResults = []
+        if (pairingIds.length) {
+          const pairings = await this.redisService.hmGet(hashKey, pairingIds)
+          redisResults = pairings.map(JSON.parse)
+          console.log(
+            `Pairings fetched from Redis HASH: Count = ${redisResults.length}`
+          )
+          const totalPairings = await this.redisService.lLen(listKey)
+          console.log(`Total pairings in Redis LIST: ${totalPairings}`)
+
+          if (redisResults.length) {
+            console.log(`Returning pairings from Redis cache.`)
+            return responseHandler.returnSuccess(
+              httpStatus.OK,
+              message,
+              redisResults,
+              totalPairings
+            )
+          }
+        }
+        console.log(`No cached pairings found. Querying DB...`)
       }
-
-      const totalPairings = await this.redisService.lLen(listKey)
-      console.log(`Total pairings in Redis LIST: ${totalPairings}`)
-
-      if (redisResults.length) {
-        console.log(`Returning pairings from Redis cache.`)
-        return responseHandler.returnSuccess(
-          httpStatus.OK,
-          message,
-          redisResults,
-          totalPairings
-        )
-      }
-
-      console.log(`No cached pairings found. Querying DB...`)
 
       const data = await this.tournamentPairingsDao.findPairings(
         round,
         tournamentId,
         limit,
-        offset
+        offset,
+        ongoing,
+        search
       )
 
-      if (!data.length) {
+      if (!data.count) {
+        if (ongoing) {
+          message = `There is no Ongoing Games for round ${round}.`
+          console.log(message)
+          return responseHandler.returnSuccess(httpStatus.OK, message, data, 0)
+        }
         message = `Pairing of Round ${round} is not done yet! Please try again.`
         console.log(message)
         return responseHandler.returnError(httpStatus.BAD_REQUEST, message)
       }
 
-      console.log(`Pairings fetched from DB: Count = ${data.length}`)
+      console.log(`Pairings fetched from DB: Count = ${data.count}`)
 
       // === Attach team names if any ===
       const teams = await this.teamsDao.findByWhere({
@@ -2015,7 +2038,7 @@ class TournamentService {
         }
       }
 
-      const players = data.map((pair) => {
+      const players = data.rows.map((pair) => {
         return {
           pairing_id: pair.id,
           player: pair,
@@ -2030,11 +2053,6 @@ class TournamentService {
 
       console.log(`Final pairings mapped with teams.`)
 
-      const total = await this.tournamentPairingsDao.getCountByWhere({
-        round,
-        tournament_id: tournamentId,
-      })
-
       this.storePairingToRedis(tournamentId, round)
 
       console.log(`--- [getPairings] END | SUCCESS ---`)
@@ -2042,7 +2060,7 @@ class TournamentService {
         httpStatus.OK,
         message,
         players,
-        Math.round(total / 2)
+        data.count
       )
     } catch (e) {
       logger.error(`[getPairings] ERROR:`, e)
@@ -2258,28 +2276,44 @@ class TournamentService {
             offset
           )
         }
-        const startingRanks = await this.playerStartingRankDao.findWithIncludes(
-          {
-            round,
-            tournament_id: tournamentId,
-          },
-          limit,
-          offset
-        )
-        const result = startingRanks.map((p) => {
+
+        const players = await this.trnplayersDao.findByWhere({
+          tournament_id: tournamentId,
+        })
+        const sortedPlayers = sortByInitialRankings(players)
+        const startingRanks = sortedPlayers.map((p, i) => {
           return {
-            rank: p?.rank,
-            player_id: p?.['players.id'],
-            player_name: p?.['players.name'],
-            player_title: p?.['players.title'],
-            player_rating: p?.['players.rating'],
+            round: Number(round),
+            tournament_id: tournamentId,
+            player_id: p.id,
+            rank: i + 1,
+            player_name: p?.name,
+            player_title: p?.title,
+            player_rating: p?.rating,
             point: 0,
             TB1: 0,
             TB2: 0,
             TB3: 0,
           }
         })
-        return responseHandler.returnSuccess(httpStatus.OK, message, result)
+
+        const listKey = `ccm_standings_${tournamentId}_${round}`
+        await this.redisService.removeKey(listKey) // Clear old list
+        const rPushPromises = startingRanks.map((player, i) => {
+          // Push only player ID or JSON if you want
+          return this.redisService.rPush(listKey, JSON.stringify(player))
+        })
+        await Promise.all(rPushPromises)
+        await this.redisService.expire(listKey) // Set expiration if needed
+
+        // await this.playerStartingRankDao.bulkCreate(startingRanks)
+
+        return responseHandler.returnSuccess(
+          httpStatus.OK,
+          message,
+          startingRanks.slice(offset, limit),
+          startingRanks.length
+        )
       }
 
       const results = await this.tournamentStandingsDao.findByWhere(
