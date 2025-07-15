@@ -1571,6 +1571,10 @@ class TournamentService {
         round
       )} round of the tournament.`
 
+      console.log('Removing Pairing Queue if exists')
+      await this.redisService.removeKey(
+        `ccm_pairing_queue_${tournamentId}_${round}`
+      )
       const tournament = await this.tournamentDao.findById(tournamentId)
       console.log(
         `Tournament fetched: ID=${tournament?.id}, Type=${tournament?.tournament_type}, Total Rounds=${tournament?.rounds}`
@@ -3136,7 +3140,11 @@ class TournamentService {
       if (promises.length > 0) {
         const result = await Promise.allSettled(promises)
         console.log(`All DB updates settled.`)
-        if (!result.length) {
+        if (
+          result.some((r) => {
+            return r.status === 'rejected'
+          })
+        ) {
           message = `Updating scores of Round ${round} is failed! Please try again.`
           console.log(message)
           return responseHandler.returnError(httpStatus.BAD_REQUEST, message)
