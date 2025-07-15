@@ -925,6 +925,29 @@ class TournamentService {
           return t.id
         }),
       })
+      // ✅ 2️⃣ Get players count
+      const playerCountMap = await this.trnplayersDao.findCountByGroup(
+        'tournament_id',
+        'id',
+        {
+          tournament_id: data.map((t) => {
+            return t.id
+          }),
+          is_withdrawn: false,
+        }
+      )
+
+      const playerExitsMap = await this.trnplayersDao.findCountByGroup(
+        'tournament_id',
+        'id',
+        {
+          tournament_id: data.map((t) => {
+            return t.id
+          }),
+          cc_userid: userId,
+          is_withdrawn: false,
+        }
+      )
       if (
         data?.length > 0 &&
         userId &&
@@ -975,7 +998,9 @@ class TournamentService {
             return d.mandatory_club_membership_name
           }),
         })
+
         data.forEach(async (tournament) => {
+          delete tournament.player_fide_ids
           tournament.is_registered = !!playersIdMap[tournament.cct_id]
           tournament.is_free = !(
             registrationsIdMap[tournament.cct_id] &&
@@ -1003,9 +1028,17 @@ class TournamentService {
               return acc + Number(total)
             }, 0) || 0
           tournament.cash_prize = cashPrize
+          tournament.player_count = playerCountMap.find((p) => {
+            return p.tournament_id === tournament.id
+          })?.count
+          tournament.is_joined =
+            playerExitsMap.find((p) => {
+              return p.tournament_id === tournament.id
+            })?.count > 0
         })
       } else {
         data.forEach(async (tournament) => {
+          delete tournament.player_fide_ids
           tournament.is_registered = false
           tournament.is_free = true
           tournament.registration_tid = null
@@ -1021,6 +1054,13 @@ class TournamentService {
               return acc + Number(total)
             }, 0) || 0
           tournament.cash_prize = cashPrize
+          tournament.player_count = playerCountMap.find((p) => {
+            return p.tournament_id === tournament.id
+          })?.count
+          tournament.is_joined =
+            playerExitsMap.find((p) => {
+              return p.tournament_id === tournament.id
+            })?.count > 0
         })
       }
       return responseHandler.returnSuccess(httpStatus.OK, message, data)
@@ -1115,16 +1155,13 @@ class TournamentService {
         )
       }
 
-      // ✅ 2️⃣ Get players (only needed fields)
-      // const players = await this.trnplayersDao.findByWhere(
-      //   {
-      //     tournament_id: id,
-      //     is_withdrawn: false,
-      //   },
-      //   ['name', 'rating']
-      // )
+      // ✅ 2️⃣ Get players count
+      const playerCount = await this.trnplayersDao.getCountByWhere({
+        tournament_id: id,
+        is_withdrawn: false,
+      })
 
-      // data.setDataValue('players_joined', players)
+      data.setDataValue('player_count', playerCount)
 
       let isJoined = !userId
       if (userId) {
