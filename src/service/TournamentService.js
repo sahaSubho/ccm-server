@@ -1161,9 +1161,9 @@ class TournamentService {
         is_withdrawn: false,
       })
 
-      data.setDataValue('player_count', playerCount)
+      data.setDataValue('players_count', playerCount)
 
-      let isJoined = !userId
+      let isJoined = false
       if (userId) {
         isJoined = await this.trnplayersDao.checkExist({
           cc_userid: userId,
@@ -1171,7 +1171,6 @@ class TournamentService {
           is_withdrawn: false,
         })
       }
-
       data.setDataValue('is_joined', isJoined)
 
       // ✅ 3️⃣ Use a single aggregate for pairings
