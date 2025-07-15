@@ -778,7 +778,7 @@ class PlayersService {
 
       // Populate player data
       const playerData = {
-        name: user.username || '',
+        name: PlayersService.cleanName(user.username) || '',
         fide_id: Number(user.fide_id) || null,
         rating: Number(user.gameplay_rating) || 0,
         gender: '',
@@ -1404,6 +1404,7 @@ class PlayersService {
         type: sequelize.QueryTypes.SELECT,
       })
 
+      delete player.mobile
       const result = {
         tournamentName,
         details: {
