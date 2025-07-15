@@ -55,13 +55,30 @@ class TournamentPairingsDao extends SuperDao {
     })
   }
 
-  async findPairings(round, tournamentId, limit, offset) {
-    return TournamentPairings.findAll({
-      where: {
-        parent_id: null, // Only get top-level pairings
-        round,
-        tournament_id: tournamentId,
-      },
+  async findPairings(
+    round,
+    tournamentId,
+    limit,
+    offset,
+    ongoing = false,
+    search = ''
+  ) {
+    const where = {
+      parent_id: null, // Only get top-level pairings
+      round,
+      tournament_id: tournamentId,
+    }
+    if (ongoing) {
+      where['is_scored'] = false
+    }
+    if (search.length) {
+      where[sequelize.Op.or] = [
+        { player_name: { [sequelize.Op.iLike]: `%${search}%` } },
+        { '$opponent.player_name$': { [sequelize.Op.iLike]: `%${search}%` } },
+      ]
+    }
+    return TournamentPairings.findAndCountAll({
+      where: where,
       include: [
         {
           model: Players,

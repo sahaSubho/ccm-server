@@ -69,18 +69,18 @@ const apiResponseStatusCounter = new promBundle.promClient.Counter({
  * @returns {string} API name
  */
 function getApiName(request) {
-  let pathSplit = request.path.split('/')
+	let pathSplit = request.path.split('/');
+	pathSplit = pathSplit.filter((value) => value).map((value) => (matchRegex(value) ? 'XXX' : value));
+	const url = `${request.method}-${pathSplit.join('.')}`;
+	return url;
+}
 
-  // Filter out empty values and replace numbers with 'XXX'
-  pathSplit = pathSplit
-    .filter((value) => {
-      return value
-    })
-    .map((value) => {
-      return !Number.isNaN(value) ? 'XXX' : value
-    })
-
-  return `${request.method}-${pathSplit.join('.')}`
+function matchRegex(value) {
+	const digitsRegex = new RegExp('^[0-9_]+$');
+	const handIdRegex = new RegExp(/HH[A-Za-z0-9]+/g);
+	const uuidRegex = new RegExp(/^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}/g);
+	const tournamentIdRegex = new RegExp(/\d+_play$/);
+	return digitsRegex.test(value) || handIdRegex.test(value) || uuidRegex.test(value) || tournamentIdRegex.test(value);
 }
 
 /**

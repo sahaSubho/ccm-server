@@ -106,7 +106,11 @@ class TournamentController {
   getTournamentById = async (req, res) => {
     try {
       const { id } = req.params
-      const tournaments = await this.tournamentService.getTournamentById(id)
+      const { userId } = req.query
+      const tournaments = await this.tournamentService.getTournamentById(
+        id,
+        userId
+      )
       const { status, message, data } = tournaments.response
       res.status(tournaments.statusCode).send({ status, message, data })
     } catch (e) {
@@ -258,12 +262,16 @@ class TournamentController {
 
   getPairings = async (req, res) => {
     try {
-      const { round, tournamentId, limit, offset } = req.query
+      const { round, tournamentId, limit, offset, ongoing, search, userId } =
+        req.query
       const pairing = await this.tournamentService.getPairings(
         round,
         tournamentId,
         limit,
-        offset
+        offset,
+        search,
+        ongoing,
+        userId
       )
       res.status(pairing.statusCode).send(pairing.response)
     } catch (e) {
@@ -274,12 +282,14 @@ class TournamentController {
 
   getPlayersRanking = async (req, res) => {
     try {
-      const { round, tournamentId, limit, offset } = req.query
+      const { round, tournamentId, limit, offset, search, userId } = req.query
       const pairing = await this.tournamentService.getPlayersRanking(
         round,
         tournamentId,
         limit,
-        offset
+        offset,
+        search,
+        userId
       )
       res.status(pairing.statusCode).send(pairing.response)
     } catch (e) {

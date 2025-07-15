@@ -1,11 +1,43 @@
+const sequelize = require('sequelize')
 const SuperDao = require('./SuperDao')
 const models = require('../models')
 
 const TournamentStandings = models.ccm_tournament_standings
+const Players = models.ccm_tournament_players
 
 class TournamentStandingsDao extends SuperDao {
   constructor() {
     super(TournamentStandings)
+  }
+
+  async findAndCountAll(round, tournamentId, limit, offset, search = '') {
+    const where = {
+      round,
+      tournament_id: tournamentId,
+    }
+    if (search.length) {
+      where[sequelize.Op.or] = [
+        { player_name: { [sequelize.Op.iLike]: `%${search}%` } },
+      ]
+    }
+    return TournamentStandings.findAndCountAll({
+      where,
+      limit,
+      offset,
+      order: [['rank', 'asc']],
+      raw: true,
+    })
+  }
+
+  async findWithPlayer(where) {
+    return TournamentStandings.findOne({
+      where,
+      order: [['rank', 'asc']],
+      include: {
+        model: Players, // You can specify which user attributes to include
+      },
+      raw: true,
+    })
   }
 }
 

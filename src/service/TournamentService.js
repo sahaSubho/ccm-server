@@ -173,6 +173,10 @@ class TournamentService {
         }
       }
       await this.redisService.hSet(hashKey, pairingId, JSON.stringify(parsed))
+      if (data?.result) {
+        const ongoingKey = `ccm_pairings_ongoing_${tournamentId}_${round}`
+        await this.redisService.lRem(ongoingKey, 1, pairingId)
+      }
     }
   }
 
@@ -1087,13 +1091,13 @@ class TournamentService {
     }
   }
 
-  getTournamentById = async (id) => {
+  getTournamentById = async (id, userId = null) => {
     try {
       const message = 'Fetched tournament details successfully.'
 
-      const redisResult = await this.redisService.getValue(
-        `ccm_tournament_details_${id}`
-      )
+      // const redisResult = await this.redisService.getValue(
+      //   `ccm_tournament_details_${id}`
+      // )
       // if (redisResult) {
       //   return responseHandler.returnSuccess(
       //     httpStatus.OK,
@@ -1112,15 +1116,26 @@ class TournamentService {
       }
 
       // ✅ 2️⃣ Get players (only needed fields)
-      const players = await this.trnplayersDao.findByWhere(
-        {
+      // const players = await this.trnplayersDao.findByWhere(
+      //   {
+      //     tournament_id: id,
+      //     is_withdrawn: false,
+      //   },
+      //   ['name', 'rating']
+      // )
+
+      // data.setDataValue('players_joined', players)
+
+      let isJoined = !userId
+      if (userId) {
+        isJoined = await this.trnplayersDao.checkExist({
+          cc_userid: userId,
           tournament_id: id,
           is_withdrawn: false,
-        },
-        ['name', 'rating']
-      )
+        })
+      }
 
-      data.setDataValue('players_joined', players)
+      data.setDataValue('is_joined', isJoined)
 
       // ✅ 3️⃣ Use a single aggregate for pairings
       const pairings = await this.tournamentPairingsDao.findByGroup(
@@ -1333,7 +1348,7 @@ class TournamentService {
         round,
         tournamentId
       )
-      console.log(`Pairings fetched from DB: Count = ${result.length}`)
+      console.log(`Pairings fetched from DB: Count = ${result.count}`)
 
       // === Attach team names if any ===
       const teams = await this.teamsDao.findByWhere({
@@ -1348,7 +1363,7 @@ class TournamentService {
         }
       }
 
-      players = data.map((pair) => {
+      players = result.rows.map((pair) => {
         return {
           pairing_id: pair.id,
           player: pair,
@@ -1365,6 +1380,8 @@ class TournamentService {
     // === Save in Redis ===
     const hashKey = `ccm_pairings_${tournamentId}_${round}`
     const listKey = `ccm_pairings_order_${tournamentId}_${round}`
+    const ongoingKey = `ccm_pairings_ongoing_${tournamentId}_${round}`
+
     console.log(
       `Saving fresh pairings to Redis: HASH=${hashKey}, LIST=${listKey}`
     )
@@ -1377,6 +1394,10 @@ class TournamentService {
       const field = player.pairing_id
       hashFields.push(field, JSON.stringify(player))
       await this.redisService.rPush(listKey, String(field))
+      // Storing in ongoingKey only after pairing creation
+      if (data.length > 0) {
+        await this.redisService.rPush(ongoingKey, String(field))
+      }
     }
 
     await this.redisService.hSet(hashKey, hashFields)
@@ -1472,6 +1493,9 @@ class TournamentService {
           tournamentId,
           pairingData,
           0,
+          '',
+          false,
+          null,
           message
         )
         return res
@@ -1939,11 +1963,14 @@ class TournamentService {
     tournamentId,
     limit = 20,
     offset = 0,
+    search = '',
+    ongoing = false,
+    userId = null,
     msg = undefined
   ) => {
     try {
       console.log(
-        `--- [getPairings] START | Tournament ID: ${tournamentId}, Round: ${round}, Limit: ${limit}, Offset: ${offset} ---`
+        `--- [getPairings] START | Tournament ID: ${tournamentId}, Round: ${round}, Limit: ${limit}, Offset: ${offset} Ongoing: ${ongoing}  SearchKeyword: ${search} ---`
       )
 
       let message = 'Fetched tournament player pairings successfully.'
@@ -1951,56 +1978,133 @@ class TournamentService {
         message = msg
         console.log(`Custom message supplied: ${msg}`)
       }
+      let pageNumber
 
-      const hashKey = `ccm_pairings_${tournamentId}_${round}`
-      const listKey = `ccm_pairings_order_${tournamentId}_${round}`
+      if (search.length === 0) {
+        const hashKey = `ccm_pairings_${tournamentId}_${round}`
+        let listKey = `ccm_pairings_order_${tournamentId}_${round}`
 
-      const start = offset
-      const end = start + limit - 1
+        if (ongoing) {
+          listKey = `ccm_pairings_ongoing_${tournamentId}_${round}`
+        }
+        const totalPairings = await this.redisService.lLen(listKey)
+        if (totalPairings > 0) {
+          if (userId) {
+            console.log(`Pairings for UserId: ${userId}`)
+            const userData = await this.tournamentPairingsDao.findOneByWhere({
+              cc_userid: userId,
+              tournament_id: tournamentId,
+              round,
+            })
 
-      console.log(`Checking Redis keys: HASH=${hashKey}, LIST=${listKey}`)
+            let pairingId = userData.id
+            if (userData.parent_id) {
+              pairingId = userData.parent_id
+            }
+            const list = await this.redisService.lRange(listKey, 0, -1)
 
-      const pairingIds = await this.redisService.lRange(listKey, start, end)
-      console.log(`Pairing IDs from Redis LIST: Count = ${pairingIds.length}`)
+            // Find index in JS
+            const index = list.indexOf(String(pairingId))
+            offset = Math.floor(index / limit) * limit
+            pageNumber = Math.floor(index / limit) + 1
+            console.log(
+              `Page Number Found for User:${userId} Page:${pageNumber}`
+            )
+          }
 
-      let redisResults = []
-      if (pairingIds.length) {
-        const pairings = await this.redisService.hmGet(hashKey, pairingIds)
-        redisResults = pairings.map(JSON.parse)
-        console.log(
-          `Pairings fetched from Redis HASH: Count = ${redisResults.length}`
-        )
+          const start = offset
+          const end = start + limit - 1
+
+          console.log(`Checking Redis keys: HASH=${hashKey}, LIST=${listKey}`)
+
+          const pairingIds = await this.redisService.lRange(listKey, start, end)
+          console.log(
+            `Pairing IDs from Redis LIST: Count = ${pairingIds.length}`
+          )
+
+          let redisResults = []
+          if (pairingIds.length) {
+            const pairings = await this.redisService.hmGet(hashKey, pairingIds)
+            redisResults = pairings.map(JSON.parse)
+            console.log(
+              `Pairings fetched from Redis HASH: Count = ${redisResults.length}`
+            )
+            console.log(`Total pairings in Redis LIST: ${totalPairings}`)
+
+            if (redisResults.length) {
+              console.log(`Returning pairings from Redis cache.`)
+              return responseHandler.returnSuccess(
+                httpStatus.OK,
+                message,
+                redisResults,
+                totalPairings,
+                pageNumber
+              )
+            }
+          }
+        }
+        console.log(`No cached pairings found. Querying DB...`)
       }
 
-      const totalPairings = await this.redisService.lLen(listKey)
-      console.log(`Total pairings in Redis LIST: ${totalPairings}`)
+      if (userId) {
+        console.log(`Pairings for UserId: ${userId}`)
+        const userData = await this.tournamentPairingsDao.findOneByWhere({
+          cc_userid: userId,
+          tournament_id: tournamentId,
+          round,
+        })
 
-      if (redisResults.length) {
-        console.log(`Returning pairings from Redis cache.`)
-        return responseHandler.returnSuccess(
-          httpStatus.OK,
-          message,
-          redisResults,
-          totalPairings
+        let pairingId = userData.id
+        if (userData.parent_id) {
+          pairingId = userData.parent_id
+        }
+        const list = await this.tournamentPairingsDao.findByWhere(
+          {
+            parent_id: null,
+            round,
+            tournament_id: tournamentId,
+          },
+          ['id']
         )
-      }
 
-      console.log(`No cached pairings found. Querying DB...`)
+        // Find index in JS
+        const index = list
+          .map((l) => {
+            return l.id
+          })
+          .indexOf(pairingId)
+        offset = Math.floor(index / limit) * limit
+        pageNumber = Math.floor(index / limit) + 1
+
+        console.log(`Page Number Found for User:${userId} Page:${pageNumber}`)
+      }
 
       const data = await this.tournamentPairingsDao.findPairings(
         round,
         tournamentId,
         limit,
-        offset
+        offset,
+        ongoing,
+        search
       )
 
-      if (!data.length) {
+      if (!data.count) {
+        if (ongoing) {
+          message = `There is no Ongoing Games for round ${round}.`
+          console.log(message)
+          return responseHandler.returnSuccess(
+            httpStatus.OK,
+            message,
+            data.rows,
+            data.count
+          )
+        }
         message = `Pairing of Round ${round} is not done yet! Please try again.`
         console.log(message)
         return responseHandler.returnError(httpStatus.BAD_REQUEST, message)
       }
 
-      console.log(`Pairings fetched from DB: Count = ${data.length}`)
+      console.log(`Pairings fetched from DB: Count = ${data.count}`)
 
       // === Attach team names if any ===
       const teams = await this.teamsDao.findByWhere({
@@ -2015,7 +2119,7 @@ class TournamentService {
         }
       }
 
-      const players = data.map((pair) => {
+      const players = data.rows.map((pair) => {
         return {
           pairing_id: pair.id,
           player: pair,
@@ -2030,11 +2134,6 @@ class TournamentService {
 
       console.log(`Final pairings mapped with teams.`)
 
-      const total = await this.tournamentPairingsDao.getCountByWhere({
-        round,
-        tournament_id: tournamentId,
-      })
-
       this.storePairingToRedis(tournamentId, round)
 
       console.log(`--- [getPairings] END | SUCCESS ---`)
@@ -2042,7 +2141,8 @@ class TournamentService {
         httpStatus.OK,
         message,
         players,
-        Math.round(total / 2)
+        data.count,
+        pageNumber
       )
     } catch (e) {
       logger.error(`[getPairings] ERROR:`, e)
@@ -2168,11 +2268,20 @@ class TournamentService {
    * @param {Number} tournamentId
    * @returns {Array}
    */
-  getPlayersRanking = async (round, tournamentId, limit = 20, offset = 0) => {
+  getPlayersRanking = async (
+    round,
+    tournamentId,
+    limit = 20,
+    offset = 0,
+    search = '',
+    userId = null
+  ) => {
     try {
       console.log(
-        `--- [getPlayersRanking] START | Tournament ID: ${tournamentId}, Round: ${round}, Limit: ${limit}, Offset: ${offset} ---`
+        `--- [getPlayersRanking] START | Tournament ID: ${tournamentId}, Round: ${round}, Limit: ${limit}, Offset: ${offset} SearchTerm: ${search}---`
       )
+
+      let message = `Fetched players ranking after round ${round} successfully.`
 
       const ttlKey = `ccm_standings_ttl_${tournamentId}`
       const ttlExists = await this.redisService.getValue(ttlKey)
@@ -2184,23 +2293,45 @@ class TournamentService {
         )
       }
 
-      let message = `Fetched players ranking after round ${round} successfully.`
-
-      const redisKey = `ccm_standings_${tournamentId}_${round}`
-      console.log(`Checking Redis key: ${redisKey}`)
-
-      const start = offset
-      const end = start + limit - 1
-
       try {
+        // Optionally use Redis
+        const redisKey = `ccm_standings_${tournamentId}_${round}`
+        let totalPlayers = await this.redisService.lLen(redisKey)
+        console.log(`Checking Redis key: ${redisKey}`)
+        let pageNumber
+        if (userId) {
+          console.log(`Pairings for UserId: ${userId}`)
+          const userData = await this.tournamentStandingsDao.findWithPlayer({
+            '$ccm_tournament_player.cc_userid$': userId,
+            tournament_id: tournamentId,
+            round,
+          })
+          // Find index in JS
+          const index = Number(userData.rank) - 1
+          offset = Math.floor(index / limit) * limit
+          pageNumber = Math.floor(index / limit) + 1
+          console.log(`Page Number Found for User:${userId} Page:${pageNumber}`)
+        }
+
+        let start = offset
+        let end = start + limit - 1
+        if (search.length) {
+          start = 0
+          end = -1
+        }
         const players = await this.redisService.lRange(redisKey, start, end)
         console.log(
           `Players fetched from Redis LIST: Count = ${players.length}`
         )
 
-        const redisResults = players.map(JSON.parse)
+        let redisResults = players.map(JSON.parse)
 
-        const totalPlayers = await this.redisService.lLen(redisKey)
+        if (search.length) {
+          redisResults = redisResults.filter((r) => {
+            return r.player_name.includes(search)
+          })
+          totalPlayers = redisResults.length
+        }
         console.log(`Total players in Redis LIST: ${totalPlayers}`)
 
         if (redisResults.length > 0) {
@@ -2209,7 +2340,8 @@ class TournamentService {
             httpStatus.OK,
             message,
             redisResults,
-            totalPlayers
+            totalPlayers,
+            pageNumber
           )
         }
       } catch (error) {
@@ -2242,75 +2374,118 @@ class TournamentService {
             round,
             tournamentId,
             limit,
-            offset
+            offset,
+            search,
+            userId
           )
         }
         if (
           moment(tournament.start_date).diff(moment('2025-07-13'), 'days') < 0
         ) {
-          return await this.getPlayersRankingOld(round, tournamentId)
+          return await this.getPlayersRankingOld(
+            round,
+            tournamentId,
+            limit,
+            offset,
+            search,
+            userId
+          )
         }
         if (round > 1) {
           return await this.getPlayersRanking(
             round - 1,
             tournamentId,
             limit,
-            offset
+            offset,
+            search,
+            userId
           )
         }
-        const startingRanks = await this.playerStartingRankDao.findWithIncludes(
-          {
-            round,
-            tournament_id: tournamentId,
-          },
-          limit,
-          offset
-        )
-        const result = startingRanks.map((p) => {
+
+        console.log('Fetching Players when Standings not exists')
+        const players = await this.trnplayersDao.findByWhere({
+          tournament_id: tournamentId,
+        })
+        const sortedPlayers = sortByInitialRankings(players)
+        const startingRanks = sortedPlayers.map((p, i) => {
           return {
-            rank: p?.rank,
-            player_id: p?.['players.id'],
-            player_name: p?.['players.name'],
-            player_title: p?.['players.title'],
-            player_rating: p?.['players.rating'],
+            round: Number(round),
+            tournament_id: tournamentId,
+            player_id: p.id,
+            rank: i + 1,
+            player_name: p?.name,
+            player_title: p?.title,
+            player_rating: p?.rating,
+            cc_userid: p.cc_userid,
             point: 0,
             TB1: 0,
             TB2: 0,
             TB3: 0,
           }
         })
-        return responseHandler.returnSuccess(httpStatus.OK, message, result)
+
+        let output = startingRanks
+        if (search.length > 0) {
+          output = startingRanks.filter((r) => {
+            return r.player_name.includes(search)
+          })
+        }
+
+        let pageNumber
+        if (userId) {
+          console.log(`Pairings for UserId: ${userId}`)
+          const userData = output.find((o) => {
+            return o.cc_userid === userId
+          })
+          // Find index in JS
+          const index = Number(userData.rank) - 1
+          offset = Math.floor(index / limit) * limit
+          pageNumber = Math.floor(index / limit) + 1
+          console.log(`Page Number Found for User:${userId} Page:${pageNumber}`)
+        }
+
+        const total = output.length
+
+        const listKey = `ccm_standings_${tournamentId}_${round}`
+        await this.redisService.removeKey(listKey) // Clear old list
+        const rPushPromises = startingRanks.map((player, i) => {
+          // Push only player ID or JSON if you want
+          return this.redisService.rPush(listKey, JSON.stringify(player))
+        })
+        await Promise.all(rPushPromises)
+        await this.redisService.expire(listKey) // Set expiration if needed
+
+        // await this.playerStartingRankDao.bulkCreate(startingRanks)
+        return responseHandler.returnSuccess(
+          httpStatus.OK,
+          message,
+          output.slice(offset, offset + limit),
+          total,
+          pageNumber
+        )
       }
 
-      const results = await this.tournamentStandingsDao.findByWhere(
-        {
-          round,
-          tournament_id: tournamentId,
-        },
-        undefined,
-        ['rank', 'asc'],
+      const results = await this.tournamentStandingsDao.findAndCountAll(
+        round,
+        tournamentId,
         limit,
-        offset
+        offset,
+        search
       )
 
-      console.log(`Players fetched from DB: Count = ${results.length}`)
-
-      if (!results.length) {
-        message = `No players found for Round ${round}! Please try again.`
+      if (!results.count) {
+        message = `No players standings found for Round ${round}! Please try again.`
         console.log(message)
         return responseHandler.returnError(httpStatus.BAD_REQUEST, message)
       }
 
-      const total = await this.tournamentStandingsDao.getCountByWhere({
-        round,
-        tournament_id: tournamentId,
+      console.log(`Total player standings in DB: ${results.count}`)
+      const finalData = results.rows.map((r) => {
+        return {
+          ...r,
+          ...r.tie_breaks,
+        }
       })
-
-      console.log(`Total player standings in DB: ${total}`)
-      const finalData = {
-        ...results,
-        ...results.tiebreaks,
-      }
 
       console.log(`--- [getPlayersRanking] END | SUCCESS ---`)
       this.getPlayersRankingOld(round, tournamentId)
@@ -2318,7 +2493,7 @@ class TournamentService {
         httpStatus.OK,
         message,
         finalData,
-        total
+        results.count
       )
     } catch (e) {
       logger.error(`[getPlayersRanking] ERROR:`, e)
@@ -2333,40 +2508,13 @@ class TournamentService {
     round,
     tournamentId,
     limit = 2000,
-    offset = 0
+    offset = 0,
+    search = '',
+    userId = null
   ) => {
     try {
       let message = `Fetched players ranking after round ${round} successfully.`
-      // Optionally use Redis
-      const redisKey = `ccm_standings_${tournamentId}_${round}`
-      console.log(`Checking Redis key: ${redisKey}`)
 
-      const start = offset
-      const end = start + limit - 1
-
-      try {
-        const players = await this.redisService.lRange(redisKey, start, end)
-        console.log(
-          `Players fetched from Redis LIST: Count = ${players.length}`
-        )
-
-        const redisResults = players.map(JSON.parse)
-
-        const totalPlayers = await this.redisService.lLen(redisKey)
-        console.log(`Total players in Redis LIST: ${totalPlayers}`)
-
-        if (redisResults.length > 0) {
-          console.log(`Returning ranking from Redis.`)
-          return responseHandler.returnSuccess(
-            httpStatus.OK,
-            message,
-            redisResults,
-            totalPlayers
-          )
-        }
-      } catch (error) {
-        console.error(error)
-      }
       const exists = await this.tournamentPairingsDao.checkExist({
         round,
         tournament_id: tournamentId,
@@ -2414,14 +2562,34 @@ class TournamentService {
       await Promise.all(rPushPromises)
       await this.redisService.expire(listKey) // Set expiration if needed
 
-      const total = result.length
-      const output = result.slice(offset, limit)
+      let output = result
+      if (search.length > 0) {
+        output = result.filter((r) => {
+          return r.player_name.includes(search)
+        })
+      }
+
+      let pageNumber
+      if (userId) {
+        console.log(`Pairings for UserId: ${userId}`)
+        const userData = output.find((o) => {
+          return o.cc_userid === userId
+        })
+        // Find index in JS
+        const index = Number(userData.rank) - 1
+        offset = Math.floor(index / limit) * limit
+        pageNumber = Math.floor(index / limit) + 1
+        console.log(`Page Number Found for User:${userId} Page:${pageNumber}`)
+      }
+
+      const total = output.length
 
       return responseHandler.returnSuccess(
         httpStatus.OK,
         message,
-        output,
-        total
+        output.slice(offset, offset + limit),
+        total,
+        pageNumber
       )
     } catch (e) {
       logger.error(e)
