@@ -2601,14 +2601,14 @@ class TournamentService {
 
         const total = output.length
 
-        const listKey = `ccm_standings_${tournamentId}_${round}`
-        await this.redisService.removeKey(listKey) // Clear old list
-        const rPushPromises = startingRanks.map((player, i) => {
-          // Push only player ID or JSON if you want
-          return this.redisService.rPush(listKey, JSON.stringify(player))
-        })
-        await Promise.all(rPushPromises)
-        await this.redisService.expire(listKey) // Set expiration if needed
+        // const listKey = `ccm_standings_${tournamentId}_${round}`
+        // await this.redisService.removeKey(listKey) // Clear old list
+        // const rPushPromises = startingRanks.map((player, i) => {
+        //   // Push only player ID or JSON if you want
+        //   return this.redisService.rPush(listKey, JSON.stringify(player))
+        // })
+        // await Promise.all(rPushPromises)
+        // await this.redisService.expire(listKey) // Set expiration if needed
 
         // await this.playerStartingRankDao.bulkCreate(startingRanks)
         return responseHandler.returnSuccess(
