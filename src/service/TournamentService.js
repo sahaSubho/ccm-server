@@ -2460,10 +2460,26 @@ class TournamentService {
         let pageNumber
         if (userId) {
           console.log(`Standings for UserId: ${userId}`)
-          if (
-            moment(tournament.start_date).diff(moment('2025-07-13'), 'days') <=
-            0
-          ) {
+          // if (
+          //   moment(tournament.start_date).diff(moment('2025-07-13'), 'days') <=
+          //   0
+          // ) {
+          //   return await this.getPlayersRankingOld(
+          //     round,
+          //     tournamentId,
+          //     limit,
+          //     offset,
+          //     search,
+          //     userId
+          //   )
+          // }
+          const userData = await this.tournamentStandingsDao.findWithPlayer({
+            '$ccm_tournament_player.cc_userid$': userId,
+            tournament_id: tournamentId,
+            round,
+          })
+
+          if (!userData) {
             return await this.getPlayersRankingOld(
               round,
               tournamentId,
@@ -2473,11 +2489,6 @@ class TournamentService {
               userId
             )
           }
-          const userData = await this.tournamentStandingsDao.findWithPlayer({
-            '$ccm_tournament_player.cc_userid$': userId,
-            tournament_id: tournamentId,
-            round,
-          })
           // Find index in JS
           const index = Number(userData?.rank) - 1
           offset = Math.floor(index / limit) * limit
@@ -2852,7 +2863,7 @@ class TournamentService {
   reCalculateStandingsPrizes = async (round, tournamentId, rounds) => {
     console.log(`All scores submitted. Recalculating standings.`)
     const scoreUploadKey = `ccm_score_upload_${tournamentId}_${round}`
-    await this.redisService.setValueWithExpiry(scoreUploadKey, 86400, 0)
+    await this.redisService.setValueWithExpiry(scoreUploadKey, 86400, '0')
     const data = await this.tournamentPairingsDao.findWithPlayers({
       round: { [Op.lte]: round },
       tournament_id: tournamentId,
@@ -3016,7 +3027,7 @@ class TournamentService {
         `GameId: ${gameId}, Scores received:  ${JSON.stringify(scores)}`
       )
       const scoreUploadKey = `ccm_score_upload_${tournamentId}_${round}`
-      await this.redisService.setValueWithExpiry(scoreUploadKey, 86400, 1)
+      await this.redisService.setValueWithExpiry(scoreUploadKey, 86400, '1')
       let message = `Updated scores of matches for Round ${round} successfully.`
       const tournament = await this.tournamentDao.findById(tournamentId)
       console.log(
