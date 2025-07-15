@@ -1576,6 +1576,13 @@ class TournamentService {
         `Tournament fetched: ID=${tournament?.id}, Type=${tournament?.tournament_type}, Total Rounds=${tournament?.rounds}`
       )
 
+      if (round === 1 && tournament.tournament_type === 'Circlechess_Online') {
+        await this.trnplayersDao.deleteByWhere({
+          tournament_id: tournamentId,
+          is_withdrawn: true,
+        })
+      }
+
       let players = await this.trnplayersDao.findByWhere({
         tournament_id: tournamentId,
       })
@@ -2440,6 +2447,10 @@ class TournamentService {
           'recalculate_standing'
         )
       }
+      const redisResult = await this.redisService.getValue(
+        `ccm_tournament_details_${tournamentId}`
+      )
+      const tournament = JSON.parse(redisResult)
 
       try {
         // Optionally use Redis
@@ -2448,14 +2459,38 @@ class TournamentService {
         console.log(`Checking Redis key: ${redisKey}`)
         let pageNumber
         if (userId) {
-          console.log(`Pairings for UserId: ${userId}`)
+          console.log(`Standings for UserId: ${userId}`)
+          // if (
+          //   moment(tournament.start_date).diff(moment('2025-07-13'), 'days') <=
+          //   0
+          // ) {
+          //   return await this.getPlayersRankingOld(
+          //     round,
+          //     tournamentId,
+          //     limit,
+          //     offset,
+          //     search,
+          //     userId
+          //   )
+          // }
           const userData = await this.tournamentStandingsDao.findWithPlayer({
             '$ccm_tournament_player.cc_userid$': userId,
             tournament_id: tournamentId,
             round,
           })
+
+          if (!userData) {
+            return await this.getPlayersRankingOld(
+              round,
+              tournamentId,
+              limit,
+              offset,
+              search,
+              userId
+            )
+          }
           // Find index in JS
-          const index = Number(userData.rank) - 1
+          const index = Number(userData?.rank) - 1
           offset = Math.floor(index / limit) * limit
           pageNumber = Math.floor(index / limit) + 1
           console.log(`Page Number Found for User:${userId} Page:${pageNumber}`)
@@ -2513,10 +2548,6 @@ class TournamentService {
 
         const scoreUploadKey = `ccm_score_upload_${tournamentId}_${round}`
         const scoreUploaded = await this.redisService.getValue(scoreUploadKey)
-        const redisResult = await this.redisService.getValue(
-          `ccm_tournament_details_${tournamentId}`
-        )
-        const tournament = JSON.parse(redisResult)
         if (!ttlExists && Number(scoreUploaded) > 0) {
           return await this.getPlayersRankingOld(
             round,
@@ -2594,14 +2625,14 @@ class TournamentService {
 
         const total = output.length
 
-        const listKey = `ccm_standings_${tournamentId}_${round}`
-        await this.redisService.removeKey(listKey) // Clear old list
-        const rPushPromises = startingRanks.map((player, i) => {
-          // Push only player ID or JSON if you want
-          return this.redisService.rPush(listKey, JSON.stringify(player))
-        })
-        await Promise.all(rPushPromises)
-        await this.redisService.expire(listKey) // Set expiration if needed
+        // const listKey = `ccm_standings_${tournamentId}_${round}`
+        // await this.redisService.removeKey(listKey) // Clear old list
+        // const rPushPromises = startingRanks.map((player, i) => {
+        //   // Push only player ID or JSON if you want
+        //   return this.redisService.rPush(listKey, JSON.stringify(player))
+        // })
+        // await Promise.all(rPushPromises)
+        // await this.redisService.expire(listKey) // Set expiration if needed
 
         // await this.playerStartingRankDao.bulkCreate(startingRanks)
         return responseHandler.returnSuccess(
@@ -2710,7 +2741,9 @@ class TournamentService {
       await Promise.all(rPushPromises)
       await this.redisService.expire(listKey) // Set expiration if needed
 
-      let output = result
+      let output = result.map((player, i) => {
+        return { ...player, rank: i + 1 }
+      })
       if (search.length > 0) {
         output = result.filter((r) => {
           return r.player_name.includes(search)
@@ -2719,7 +2752,7 @@ class TournamentService {
 
       let pageNumber
       if (userId) {
-        console.log(`Pairings for UserId: ${userId}`)
+        console.log(`Standings Old for UserId: ${userId}`)
         const userData = output.find((o) => {
           return o.cc_userid === userId
         })
@@ -2830,7 +2863,7 @@ class TournamentService {
   reCalculateStandingsPrizes = async (round, tournamentId, rounds) => {
     console.log(`All scores submitted. Recalculating standings.`)
     const scoreUploadKey = `ccm_score_upload_${tournamentId}_${round}`
-    await this.redisService.setValueWithExpiry(scoreUploadKey, 86400, 0)
+    await this.redisService.setValueWithExpiry(scoreUploadKey, 86400, '0')
     const data = await this.tournamentPairingsDao.findWithPlayers({
       round: { [Op.lte]: round },
       tournament_id: tournamentId,
@@ -2994,7 +3027,7 @@ class TournamentService {
         `GameId: ${gameId}, Scores received:  ${JSON.stringify(scores)}`
       )
       const scoreUploadKey = `ccm_score_upload_${tournamentId}_${round}`
-      await this.redisService.setValueWithExpiry(scoreUploadKey, 86400, 1)
+      await this.redisService.setValueWithExpiry(scoreUploadKey, 86400, '1')
       let message = `Updated scores of matches for Round ${round} successfully.`
       const tournament = await this.tournamentDao.findById(tournamentId)
       console.log(
