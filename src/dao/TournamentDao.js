@@ -27,12 +27,12 @@ class TournamentDao extends SuperDao {
 
       where.start_date = {
         [Op.gte]: startOfToday,
-        [Op.lt]: startOfTomorrow
+        [Op.lt]: startOfTomorrow,
       }
-  }
-	  console.log('Generated WHERE clause:', JSON.stringify(where, null, 2))
+    }
+    console.log('Generated WHERE clause:', JSON.stringify(where, null, 2))
 
-	     // Add more filters as needed...
+    // Add more filters as needed...
 
     return await Tournament.findAll({ where })
   }
@@ -58,6 +58,10 @@ class TournamentDao extends SuperDao {
         {
           model: models.tournament_prize_mappings,
           as: 'prizes',
+        },
+        {
+          model: models.users,
+          as: 'user',
         },
       ],
     })
