@@ -1253,6 +1253,7 @@ class TournamentService {
           return acc + Number(total)
         }, 0) || 0
       data.setDataValue('cash_prize', cashPrize)
+      data.setDataValue('player_fide_ids', '')
 
       await this.redisService.setValueWithExpiry(
         `ccm_tournament_details_${id}`,
