@@ -1506,22 +1506,21 @@ class TournamentService {
         return responseHandler.returnError(httpStatus.BAD_REQUEST, message)
       }
 
-      let data = []
+      const data = []
 
-      let white = []
-      let black = []
-      let ranking = {}
-      let lastRoundPairings = []
+      const white = []
+      const black = []
+      const ranking = {}
+      const lastRoundPairings = []
 
-      let teams = []
+      const teams = []
 
       const tnrConfig = await this.tournamentConfigurationDao.findOneByWhere({
         tournament_id: tournamentId,
       })
       console.log(`Tournament config fetched: Sorting=${tnrConfig?.sorting}`)
-      
-      try {
 
+      try {
         const { whitePlayers, blackPlayers, leftTeams, rightTeams } =
           await javaFoRoundPairing(
             players,
@@ -2529,7 +2528,7 @@ class TournamentService {
           )
         }
         if (
-          moment(tournament.start_date).diff(moment('2025-07-13'), 'days') < 0
+          moment(tournament.start_date).diff(moment('2025-07-13'), 'days') <= 0
         ) {
           return await this.getPlayersRankingOld(
             round,
