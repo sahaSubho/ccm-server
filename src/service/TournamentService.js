@@ -1576,6 +1576,13 @@ class TournamentService {
         `Tournament fetched: ID=${tournament?.id}, Type=${tournament?.tournament_type}, Total Rounds=${tournament?.rounds}`
       )
 
+      if (round === 1 && tournament.tournament_type === 'Circlechess_Online') {
+        await this.trnplayersDao.deleteByWhere({
+          tournament_id: tournamentId,
+          is_withdrawn: true,
+        })
+      }
+
       let players = await this.trnplayersDao.findByWhere({
         tournament_id: tournamentId,
       })
