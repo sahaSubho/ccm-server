@@ -35,6 +35,12 @@ router.post('/verify-password', tournamentController.verifyPassword)
 
 router.get('/get-prize-tournaments', tournamentController.getPrizeTournaments)
 router.get(
+  '/generate-test-pairing',
+  auth(),
+  tournamentValidator.pairingValidator,
+  tournamentController.createTournamentPairingTest
+)
+router.get(
   '/get-tournament-list',
   auth(),
   tournamentController.getTournamentsByUser

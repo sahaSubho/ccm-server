@@ -1444,6 +1444,118 @@ class TournamentService {
     console.log(`Pairings stored in Redis.`)
   }
 
+  createTournamentPairingTest = async (round, tournamentId) => {
+    try {
+      console.log(
+        `--- [createTournamentPairing] START | Round: ${round}, Tournament ID: ${tournamentId} ---`
+      )
+
+      let message = `Paired successfully for the ${TournamentService.getNumberWithOrdinal(
+        round
+      )} round of the tournament.`
+
+      const tournament = await this.tournamentDao.findById(tournamentId)
+      console.log(
+        `Tournament fetched: ID=${tournament?.id}, Type=${tournament?.tournament_type}, Total Rounds=${tournament?.rounds}`
+      )
+
+      let players = await this.trnplayersDao.findByWhere({
+        tournament_id: tournamentId,
+      })
+      console.log(`Players fetched: Count = ${players.length}`)
+      if (tournament.tournament_type === 'Circlechess_Online') {
+        console.log(`Checking for duplicate CC users...`)
+        const seen = new Set()
+        const duplicateIds = []
+
+        players.forEach((player) => {
+          if (player.cc_userid && seen.has(player.cc_userid)) {
+            duplicateIds.push(player.id) // mark for deletion
+          } else if (player.cc_userid) {
+            seen.add(player.cc_userid)
+          } else {
+            duplicateIds.push(player.id) // falsy cc_userid (e.g. 0, null)
+          }
+        })
+
+        if (duplicateIds.length > 0) {
+          // Delete all duplicates from DB
+          await this.trnplayersDao.deleteByWhere({ id: duplicateIds })
+
+          logger.info(
+            `Deleted ${duplicateIds.length} duplicate player(s) in tournament ${tournamentId}`
+          )
+
+          // Remove them from in-memory list
+          players = players.filter((player) => {
+            return !duplicateIds.includes(player.id)
+          })
+        }
+      }
+
+      if (round > tournament.rounds) {
+        message = 'Pairing already done for all rounds in the tournament.'
+        console.log(message)
+        return responseHandler.returnError(httpStatus.BAD_REQUEST, message)
+      }
+
+      if (!players.length) {
+        message =
+          'The pairing process cannot be initiated as there are no players available for matching. Please upload player information first.'
+        console.log(message)
+        return responseHandler.returnError(httpStatus.BAD_REQUEST, message)
+      }
+
+      let data = []
+
+      let white = []
+      let black = []
+      let ranking = {}
+      let lastRoundPairings = []
+
+      let teams = []
+
+      const tnrConfig = await this.tournamentConfigurationDao.findOneByWhere({
+        tournament_id: tournamentId,
+      })
+      console.log(`Tournament config fetched: Sorting=${tnrConfig?.sorting}`)
+      
+      try {
+
+        const { whitePlayers, blackPlayers, leftTeams, rightTeams } =
+          await javaFoRoundPairing(
+            players,
+            round,
+            tournament,
+            white,
+            black,
+            ranking,
+            tnrConfig,
+            teams
+          )
+
+        if (!whitePlayers) {
+          message = 'Failed to pair players! Please try again.'
+          console.log(message)
+          return responseHandler.returnError(httpStatus.BAD_REQUEST, message)
+        }
+        return responseHandler.returnSuccess(httpStatus.OK, message, data)
+      } catch (error) {
+        console.error(`[createTournamentPairing] ERROR in try block:`, error)
+        return responseHandler.returnError(
+          httpStatus.BAD_REQUEST,
+          error.message
+        )
+      }
+    } catch (e) {
+      console.error(`[createTournamentPairing] Uncaught ERROR:`, e)
+      return responseHandler.returnError(
+        httpStatus.BAD_REQUEST,
+        'Something went wrong!'
+      )
+    }
+  }
+
   /**
    * Create Tournament Pairing
    * @param {Number} round

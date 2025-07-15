@@ -216,6 +216,21 @@ class TournamentController {
     }
   }
 
+  createTournamentPairingTest = async (req, res) => {
+    try {
+      const { round, tournamentId } = req.query
+	    console.log(round , tournamentId)
+      const pairings = await this.tournamentService.createTournamentPairingTest(
+        round,
+        tournamentId
+      )
+      res.status(pairings.statusCode).send(pairings.response)
+    } catch (e) {
+      logger.error(e)
+      res.status(httpStatus.BAD_GATEWAY).send(e)
+    }
+  }
+
   createTournamentPairing = async (req, res) => {
     try {
       const { round, tournamentId } = req.query
