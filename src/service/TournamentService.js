@@ -1571,10 +1571,6 @@ class TournamentService {
         round
       )} round of the tournament.`
 
-      console.log('Removing Pairing Queue if exists')
-      await this.redisService.removeKey(
-        `ccm_pairing_queue_${tournamentId}_${round}`
-      )
       const tournament = await this.tournamentDao.findById(tournamentId)
       console.log(
         `Tournament fetched: ID=${tournament?.id}, Type=${tournament?.tournament_type}, Total Rounds=${tournament?.rounds}`
@@ -1829,7 +1825,7 @@ class TournamentService {
         await this.redisService.setAtomicValue(
           `ccm_pairing_queue_${tournamentId}_${round}`,
           moment().toISOString(),
-          600
+          60
         )
         console.log(`Pairing lock acquired in Redis.`)
         const { whitePlayers, blackPlayers, leftTeams, rightTeams } =
