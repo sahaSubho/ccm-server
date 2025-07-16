@@ -44,6 +44,7 @@ const envValidation = Joi.object()
     CIRCLECHESS_API_URL: Joi.string().required(),
     GAME_SERVICE_API_URL: Joi.string(),
     SIMULATION_MODE: Joi.boolean(),
+    CLUSTER_MODE_ENABLED: Joi.boolean().default(false),
   })
   .unknown()
 
@@ -85,6 +86,7 @@ module.exports = {
     usePassword: envVar.REDIS_USE_PASSWORD,
     password: envVar.REDIS_PASSWORD,
   },
+  cluster_mode_enabled: envVar.CLUSTER_MODE_ENABLED,
   juspay: {
     url:
       envVar.JUSPAY_ENV === 'production'
