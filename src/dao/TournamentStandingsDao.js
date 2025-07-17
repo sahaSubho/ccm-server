@@ -25,6 +25,15 @@ class TournamentStandingsDao extends SuperDao {
       limit,
       offset,
       order: [['rank', 'asc']],
+      include: {
+        model: Players, // You can specify which user attributes to include
+        attributes: ['cc_userid'],
+      },
+      attributes: {
+        include: [
+          [sequelize.col('ccm_tournament_player.cc_userid'), 'cc_userid'],
+        ],
+      },
       raw: true,
     })
   }
