@@ -1681,8 +1681,8 @@ class TournamentService {
         const allRoundPairingKey = `ccm_all_round_pairings_${tournamentId}`
         const pairings = await this.redisService.getValue(allRoundPairingKey)
 
-        if (pairings.length) {
-          pairing = pairings.map(JSON.parse)
+        if (pairings) {
+          pairing = JSON.stringify(pairings)
         } else {
           pairing = await this.tournamentPairingsDao.findByWhere({
             round: { [Op.lt]: round },
@@ -2673,7 +2673,7 @@ class TournamentService {
         const pairings = await this.redisService.getValue(allRoundPairingKey)
 
         if (pairings.length) {
-          data = pairings.map(JSON.parse)
+          data = JSON.stringify(pairings)
         } else {
           data = await this.tournamentPairingsDao.findByWhere({
             round: { [Op.lte]: round },
@@ -2726,7 +2726,7 @@ class TournamentService {
         output = result.map((player, i) => {
           return { ...player, rank: i + 1 }
         })
-      } else if (!current_round && round === 1) {
+      } else if (Number(scoreUploaded) === 0 && round === 1) {
         // if it is first round, compute from starting rank of players since there is no data in the standings and pairing table
 
         console.log('Fetching Players when Standings not exists')
