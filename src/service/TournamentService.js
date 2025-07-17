@@ -2547,12 +2547,12 @@ class TournamentService {
       }
 
       let keyToCheck = `ccm_standings_ttl_${tournamentId}`
+      let ttlExists = await this.redisService.getValue(keyToCheck)
 
       if (round < current_round) {
         keyToCheck = `ccm_standings_${tournamentId}_${round}`
+        ttlExists = await this.redisService.lLen(keyToCheck)
       }
-
-      const ttlExists = await this.redisService.getValue(keyToCheck)
 
       console.log('ttlExists is ', ttlExists)
       console.log('userId is ', !userId)
