@@ -2525,10 +2525,8 @@ class TournamentService {
         )
       }
 
-      console.log('current_round inside getPlayersRanking is ', current_round)
-
       // reset and adjust the input round value appropriately
-      if (Number(current_round) <= Number(round)) {
+      if (Number(current_round) < Number(round) && round > 1) {
         const scoreUploadKey = `ccm_score_upload_${tournamentId}_${round}`
         const scoreUploaded =
           (await this.redisService.getValue(scoreUploadKey)) || 0
