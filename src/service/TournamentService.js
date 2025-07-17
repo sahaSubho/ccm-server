@@ -1682,7 +1682,7 @@ class TournamentService {
         const pairings = await this.redisService.getValue(allRoundPairingKey)
 
         if (pairings) {
-          pairing = JSON.stringify(pairings)
+          pairing = JSON.parse(pairings)
         } else {
           pairing = await this.tournamentPairingsDao.findByWhere({
             round: { [Op.lt]: round },
@@ -2673,7 +2673,7 @@ class TournamentService {
         const pairings = await this.redisService.getValue(allRoundPairingKey)
 
         if (pairings) {
-          data = JSON.stringify(pairings)
+          data = JSON.parse(pairings)
         } else {
           data = await this.tournamentPairingsDao.findByWhere({
             round: { [Op.lte]: round },
