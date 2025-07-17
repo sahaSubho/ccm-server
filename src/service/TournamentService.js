@@ -2504,22 +2504,27 @@ class TournamentService {
       let tournament
       if (trnRedisResult) {
         tournament = JSON.parse(trnRedisResult)
-        current_round = Number(currRndRedisResult.current_round)
+        current_round = Number(tournament.current_round)
       } else {
         tournament = await this.tournamentDao.findById(tournamentId)
+        current_round = tournament.current_round
+      }
+      if (!currRndRedisResult) {
         await this.redisService.setValueWithExpiry(
           `ccm_tournament_current_round_${tournamentId}`,
           86400,
           tournament.curent_round
         )
-        current_round = tournament.current_round
       }
 
       console.log('current_round inside getPlayersRanking is ', current_round)
 
       // reset and adjust the input round value appropriately
-      if (current_round <= round) {
-        round = current_round
+      if (Number(current_round) <= Number(round)) {
+        const scoreUploadKey = `ccm_score_upload_${tournamentId}_${round}`
+        const scoreUploaded =
+          (await this.redisService.getValue(scoreUploadKey)) || 0
+        round = Number(scoreUploaded) > 0 ? current_round : round - 1
       } else if (round <= 1 || !round) {
         round = 1
       }
@@ -2585,16 +2590,17 @@ class TournamentService {
             const index = Number(userData.rank) - 1
             pageNumber = Math.floor(index / limit) + 1
             start = Math.floor(index / limit) * limit
+            end = start + limit - 1
+            redisResults = redisResults.slice(start, end)
           } else if (search.length) {
             redisResults = redisResults.filter((r) => {
               return r.player_name.includes(search)
             })
             totalPlayers = redisResults.length
             start = offset
+            end = start + limit - 1
+            redisResults = redisResults.slice(start, end)
           }
-
-          end = start + limit - 1
-          redisResults = redisResults.slice(start, end)
 
           console.log(
             `Total players in Redis LIST: ${totalPlayers} results returned count : ${redisResults.length}`
