@@ -2686,7 +2686,7 @@ class TournamentService {
         output = result.map((player, i) => {
           return { ...player, rank: i + 1 }
         })
-      } else if (round <= 1) {
+      } else if (!current_round && round === 1) {
         // if it is first round, compute from starting rank of players since there is no data in the standings and pairing table
 
         console.log('Fetching Players when Standings not exists')
