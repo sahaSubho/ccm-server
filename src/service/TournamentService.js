@@ -2504,7 +2504,7 @@ class TournamentService {
       let tournament
       if (trnRedisResult) {
         tournament = JSON.parse(trnRedisResult)
-        current_round = Number(currRndRedisResult)
+        current_round = Number(currRndRedisResult.current_round)
       } else {
         tournament = await this.tournamentDao.findById(tournamentId)
         await this.redisService.setValueWithExpiry(
@@ -2643,7 +2643,7 @@ class TournamentService {
   ) => {
     try {
       let message = `Fetched players ranking after round ${round} successfully.`
-
+      console.log('current', current_round)
       let result
       let output
 
