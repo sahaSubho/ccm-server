@@ -1827,7 +1827,7 @@ class TournamentService {
         await this.redisService.setAtomicValue(
           `ccm_pairing_queue_${tournamentId}_${round}`,
           moment().toISOString(),
-          600
+          60
         )
         console.log(`Pairing lock acquired in Redis.`)
         const { whitePlayers, blackPlayers, leftTeams, rightTeams } =
@@ -3084,7 +3084,11 @@ class TournamentService {
       if (promises.length > 0) {
         const result = await Promise.allSettled(promises)
         console.log(`All DB updates settled.`)
-        if (!result.length) {
+        if (
+          result.some((r) => {
+            return r.status === 'rejected'
+          })
+        ) {
           message = `Updating scores of Round ${round} is failed! Please try again.`
           console.log(message)
           return responseHandler.returnError(httpStatus.BAD_REQUEST, message)
