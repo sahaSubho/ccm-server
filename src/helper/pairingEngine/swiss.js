@@ -434,11 +434,11 @@ async function javaFoRoundPairing(
           matches[opp.player_id][index - 1] = `${indexes[player.player_id]} b =`
         } else {
           matches[player.player_id][index - 1] = `${indexes[opp.player_id]} w ${
-            player?.player_result?.replace(/0.5/g, '=')[0]
+            player?.player_result?.replace(/0.5/g, '=')[0] || 0
           }`
 
           matches[opp.player_id][index - 1] = `${indexes[player.player_id]} b ${
-            opp?.player_result?.replace(/0.5/g, '=')[2]
+            opp?.player_result?.replace(/0.5/g, '=')[2] || 0
           }`
         }
       }

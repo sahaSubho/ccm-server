@@ -1669,15 +1669,26 @@ class TournamentService {
       let ranking = {}
       let lastRoundPairings = []
 
+      const trnConfig = await this.tournamentConfigurationDao.findOneByWhere({
+        tournament_id: tournamentId,
+      })
+
       if (round > 1) {
         console.log(`Fetching last round pairings and computing ranking.`)
-        let pairing = await this.tournamentPairingsDao.findByWhere({
-          round: { [Op.lt]: round },
-          tournament_id: tournamentId,
-        })
-        const trnConfig = await this.tournamentConfigurationDao.findOneByWhere({
-          tournament_id: tournamentId,
-        })
+
+        let pairing = []
+
+        const allRoundPairingKey = `ccm_all_round_pairings_${tournamentId}`
+        const pairings = await this.redisService.getValue(allRoundPairingKey)
+
+        if (pairings.length) {
+          pairing = pairings.map(JSON.parse)
+        } else {
+          pairing = await this.tournamentPairingsDao.findByWhere({
+            round: { [Op.lt]: round },
+            tournament_id: tournamentId,
+          })
+        }
 
         lastRoundPairings = pairing.filter((p) => {
           return p.round === round - 1
@@ -1782,11 +1793,8 @@ class TournamentService {
         })
       }
 
-      const tnrConfig = await this.tournamentConfigurationDao.findOneByWhere({
-        tournament_id: tournamentId,
-      })
-      console.log(`Tournament config fetched: Sorting=${tnrConfig?.sorting}`)
-      if (tnrConfig.sorting) {
+      console.log(`Tournament config fetched: Sorting=${trnConfig?.sorting}`)
+      if (trnConfig.sorting) {
         const sortedPlayers = sortByInitialRankings(players)
         const startingRanks = sortedPlayers.map((p, i) => {
           return {
@@ -1842,7 +1850,7 @@ class TournamentService {
             white,
             black,
             ranking,
-            tnrConfig,
+            trnConfig,
             teams
           )
 
@@ -2547,7 +2555,8 @@ class TournamentService {
           limit,
           offset,
           search,
-          userId
+          userId,
+          tournament.pairing_type
         )
       }
 
@@ -2626,7 +2635,8 @@ class TournamentService {
         limit,
         offset,
         search,
-        userId
+        userId,
+        tournament.pairing_type
       )
     } catch (e) {
       console.log('get_player_ranking : Exception inside function ', e)
@@ -2645,7 +2655,8 @@ class TournamentService {
     limit = 2000,
     offset = 0,
     search = '',
-    userId = null
+    userId = null,
+    pairing_type = ''
   ) => {
     try {
       let message = `Fetched players ranking after round ${round} successfully.`
@@ -2658,23 +2669,54 @@ class TournamentService {
       // fetch player and standings details from database
       if (Number(scoreUploaded) > 0 && round === current_round) {
         // It's latest round so fetch last round pairing and update with rounds of current round results, calculate tie-break and then store results
-        const data = await this.tournamentPairingsDao.findByWhere({
-          round: { [Op.lte]: round },
-          tournament_id: tournamentId,
-        })
+        let data = []
+
+        const allRoundPairingKey = `ccm_all_round_pairings_${tournamentId}`
+        const pairings = await this.redisService.getValue(allRoundPairingKey)
+
+        if (pairings.length) {
+          data = pairings.map(JSON.parse)
+        } else {
+          data = await this.tournamentPairingsDao.findByWhere({
+            round: { [Op.lte]: round },
+            tournament_id: tournamentId,
+          })
+          await this.redisService.setValueWithExpiry(
+            allRoundPairingKey,
+            86400,
+            JSON.stringify(data)
+          )
+        }
+
         if (!data.length) {
           message = `No players found for Round ${round}! Please try again.`
           return responseHandler.returnError(httpStatus.BAD_REQUEST, message)
         }
 
-        const trnConfig = await this.tournamentConfigurationDao.findOneByWhere({
-          tournament_id: tournamentId,
-        })
+        const tnrConfigKey = `ccm_trn_config_${tournamentId}`
+        const tnrConfigRedisResult = await this.redisService.getValue(
+          tnrConfigKey
+        )
+        let trnConfig = JSON.parse(tnrConfigRedisResult)
 
-        const teamsData = await this.teamPairingsDao.findByWhere({
-          round: { [Op.lte]: round },
-          tournament_id: tournamentId,
-        })
+        if (!trnConfig) {
+          trnConfig = await this.tournamentConfigurationDao.findOneByWhere({
+            tournament_id: tournamentId,
+          })
+          await this.redisService.setValueWithExpiry(
+            tnrConfigKey,
+            86400,
+            JSON.stringify(trnConfig)
+          )
+        }
+
+        let teamsData
+        if (pairing_type === 'Team') {
+          teamsData = await this.teamPairingsDao.findByWhere({
+            round: { [Op.lte]: round },
+            tournament_id: tournamentId,
+          })
+        }
 
         if (teamsData.length) {
           result = getTieBreaks(teamsData, round, trnConfig)
@@ -2749,7 +2791,7 @@ class TournamentService {
           return this.redisService.rPush(listKey, JSON.stringify(player))
         })
 
-        const rPushResults = await Promise.allSettled(rPushPromises)
+        await Promise.allSettled(rPushPromises)
 
         await this.redisService.expire(listKey) // Set expiration if needed
 
@@ -2869,6 +2911,13 @@ class TournamentService {
       round: { [Op.lte]: round },
       tournament_id: tournamentId,
     })
+    const allRoundPairingKey = `ccm_all_round_pairings_${tournamentId}`
+    await this.redisService.setValueWithExpiry(
+      allRoundPairingKey,
+      86400,
+      JSON.stringify(data)
+    )
+
     if (!data.length) {
       console.log(`No players found for Round ${round}! Please try again.`)
       return
@@ -3245,14 +3294,31 @@ class TournamentService {
   getConfiguration = async (id) => {
     try {
       let message = 'Successfully fetched configuration for tournament.'
-      const data = await this.tournamentConfigurationDao.findOneByWhere({
-        tournament_id: id,
-      })
+      const tnrConfigKey = `ccm_trn_config_${id}`
+      const result = await this.redisService.getValue(tnrConfigKey)
+      let data = JSON.parse(result)
+
+      if (data) {
+        return responseHandler.returnSuccess(httpStatus.OK, message, data)
+      }
+      // if Data doesn't exist in redis fetch from db
+      if (!data) {
+        data = await this.tournamentConfigurationDao.findOneByWhere({
+          tournament_id: id,
+        })
+      }
+
+      // Tournament Config not found in both then throw error
       if (!data) {
         message = 'Fetching Tournament configuration failed! Please Try again.'
         return responseHandler.returnError(httpStatus.BAD_REQUEST, message)
       }
 
+      await this.redisService.setValueWithExpiry(
+        tnrConfigKey,
+        86400,
+        JSON.stringify(data)
+      )
       return responseHandler.returnSuccess(httpStatus.OK, message, data)
     } catch (error) {
       logger.error(error)
