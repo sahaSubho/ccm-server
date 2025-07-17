@@ -2672,7 +2672,7 @@ class TournamentService {
         const allRoundPairingKey = `ccm_all_round_pairings_${tournamentId}`
         const pairings = await this.redisService.getValue(allRoundPairingKey)
 
-        if (pairings.length) {
+        if (pairings) {
           data = JSON.stringify(pairings)
         } else {
           data = await this.tournamentPairingsDao.findByWhere({
