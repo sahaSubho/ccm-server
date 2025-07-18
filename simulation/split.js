@@ -130,7 +130,7 @@ async function distributeTournamentGroups(id) {
   const players = await getPlayersByTournamentId(id)
 
   if (!players.length) {
-    console.log(`⚠️ No players found for tournament ID ${id}`)
+    console.log(`No players found for tournament ID ${id}`)
     return
   }
 
@@ -239,17 +239,17 @@ async function distributeTournamentGroups(id) {
 
 
     // await playerDao.bulkCreate(newPlayers)
-    console.log(
-      `✅ Group ${i + 1}: ${
-        newPlayers.length
-      } players saved to tournament ID ${groupTournamentId}`
-    )
+    // console.log(
+    //   `✅ Group ${i + 1}: ${
+    //     newPlayers.length
+    //   } players saved to tournament ID ${groupTournamentId}`
+    // )
     // const fileName = `group_tournament_${id}_${i + 1}.json`
     // fs.writeFileSync(fileName, JSON.stringify(groups[i], null, 2))
   }
 
   console.log(
-    `✅ Distributed ${players.length} players into ${groups.length} groups for tournament ID ${id}.`
+    `Distributed ${players.length} players into ${groups.length} groups for tournament ID ${id}.`
   )
 }
 
