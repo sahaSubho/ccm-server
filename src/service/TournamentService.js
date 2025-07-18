@@ -3210,7 +3210,7 @@ class TournamentService {
               VALUES
                 ${Object.keys(scores)
                   .map((id) => {
-                    return `(${id},${scores[id]},true,${gameId})`
+                    return `(${id},'${scores[id]}',true,'${gameId}')`
                   })
                   .join(',')}
             ) AS v(id, result, is_scored, cc_gameid)
