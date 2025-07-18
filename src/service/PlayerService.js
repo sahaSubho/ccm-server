@@ -747,7 +747,7 @@ class PlayersService {
         SELECT id, name, start_date, time_control
         FROM time_data
         WHERE
-          start_date BETWEEN :newStart AND :newEnd
+          (start_date BETWEEN :newStart AND :newEnd
           OR :newStart BETWEEN start_date AND (
             start_date + (
               CASE
@@ -757,7 +757,8 @@ class PlayersService {
                 ELSE INTERVAL '8 hours'
               END
             )
-          );
+          )) 
+          AND id != :parentId;
       `
 
       const overlappingTournaments = await sequelize.query(query, {
@@ -765,6 +766,7 @@ class PlayersService {
           playerId: data.playerId,
           newStart: newTournamentStart.toDate(),
           newEnd: newTournamentEnd.toDate(),
+          parentId: tournament.parent_id
         },
         type: sequelize.QueryTypes.SELECT,
       })

@@ -157,10 +157,12 @@ async function distributeTournamentGroups(id) {
     if (groupTournamentId) {
       await tournamentDao.updateById(
         {
-          address: `https://learn.circlechess.com/playChess?tournamentId=${groupTournamentId}&tournamentName=${tournamentName?.replace(
+          address: `https://pp-learn.circlechess.com/playChess?tournamentId=${groupTournamentId}&tournamentName=${tournamentName?.replace(
             /\s/g,
             '-'
           )}`,
+          enable_registration: true,
+          is_active: true,
         },
         groupTournamentId
       )
@@ -192,14 +194,51 @@ async function distributeTournamentGroups(id) {
     }
 
     // 2. Bulk insert players into new group tournament
-    const newPlayers = groupPlayers.map((player) => {
-      return {
-        ...player,
-        tournament_id: groupTournamentId,
-      }
-    })
+    // const newPlayers = groupPlayers.map((player) => {
+    //   return {
+    //     ...player,
+    //     tournament_id: groupTournamentId,
+    //   }
+    // })
 
-    await playerDao.bulkCreate(newPlayers)
+    for (const player of groupPlayers) {
+      const joinBody = {
+        requestId: `${player.cc_userid}-${groupTournamentId}-${Date.now()}`,
+        type: 'JOIN_TOURNAMENT_REQUEST',
+        playerId: String(player.cc_userid),
+        tournamentId: String(groupTournamentId),
+      };
+
+      const joinUrl = `${config.gameService.endpoint}/joinTournament`;
+
+      const joinOptions = {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'x-api-key': config.XapiKey,
+        },
+        body: JSON.stringify(joinBody),
+      };
+
+      try {
+        const joinResponse = await fetch(joinUrl, joinOptions);
+        const joinJson = await joinResponse.json();
+
+        console.log(
+          `Joined player ${player.cc_userid} to group ${groupTournamentId}:`,
+          joinJson
+        );
+      } catch (error) {
+        console.error(
+          `Failed to join player ${player.cc_userid} to group ${groupTournamentId}:`,
+          error.message
+        );
+      }
+    }
+
+
+
+    // await playerDao.bulkCreate(newPlayers)
     console.log(
       `✅ Group ${i + 1}: ${
         newPlayers.length
@@ -215,6 +254,20 @@ async function distributeTournamentGroups(id) {
 }
 
 // Kickoff
-;(async () => {
+(async () => {
   await distributeTournamentGroups(tournamentId)
+
+  const stopUrl = `${config.gameService.endpoint}/stopParentTournament`;
+  const stopOptions = {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'x-api-key': config.XapiKey,
+    },
+    body: JSON.stringify({ tournamentId }),
+  };
+
+  const stopResponse = await fetch(stopUrl, stopOptions);
+  const stopJson = await stopResponse.json();
+  console.log('Parent tournament stopped:', stopJson);
 })()
