@@ -34,7 +34,7 @@ const metricsMiddleware = promBundle({
 })
 
 // Get environment from NODE_ENV
-const environment = process.env.NODE_ENV === 'production' ? 'prod' : 'prepod'
+const environment = process.env.ENV === 'production' ? 'prod' : 'prepod'
 
 // Custom metrics
 const apiOpsCounter = new promBundle.promClient.Counter({
