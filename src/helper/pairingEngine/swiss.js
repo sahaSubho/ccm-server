@@ -452,20 +452,20 @@ async function javaFoRoundPairing(
     })
   }
   let result = tournamentDetails
-  if (
-    formatedPlayers.some((p) => {
-      return p?.is_withdrawn
-    })
-  ) {
-    result += `XXZ  ${formatedPlayers
-      .filter((p) => {
-        return p.is_withdrawn
-      })
-      .map((x) => {
-        return x.key
-      })
-      .join(' ')}\n`
-  }
+  // if (
+  //   formatedPlayers.some((p) => {
+  //     return p?.is_withdrawn
+  //   })
+  // ) {
+  //   result += `XXZ  ${formatedPlayers
+  //     .filter((p) => {
+  //       return p.is_withdrawn
+  //     })
+  //     .map((x) => {
+  //       return x.key
+  //     })
+  //     .join(' ')}\n`
+  // }
   const teamPlayers = {}
   for (let i = 0; i < formatedPlayers.length; i += 1) {
     const p = formatedPlayers[i]
