@@ -49,6 +49,7 @@ const envValidation = Joi.object()
     GAME_SERVICE_API_URL: Joi.string(),
     SIMULATION_MODE: Joi.boolean(),
     CLUSTER_MODE_ENABLED: Joi.boolean().default(false),
+    AWS_LAMBDA: Joi.string(),
   })
   .unknown()
 
@@ -110,5 +111,6 @@ module.exports = {
   gameService: {
     endpoint: envVar.GAME_SERVICE_API_URL,
   },
-  simulate: envVar.SIMULATION_MODE
+  simulate: envVar.SIMULATION_MODE,
+  awsLambdaUrl: envVar.AWS_LAMBDA,
 }

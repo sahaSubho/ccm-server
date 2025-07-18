@@ -3,7 +3,7 @@ const fs = require('fs')
 const uploadFileToS3 = require('../uploadFiletoS3')
 const config = require('../../config/config')
 
-const pair = (input, players, teams = [], fileName = '') => {
+const pairOld = (input, players, teams = [], fileName = '') => {
   const javafoJarPath = 'src/helper/pairingEngine/files/javafo.jar' // Path to javafo.jar in your project
   const trfFilePath = `uploads/files/input_${fileName}.trf` // Path to your input TRF file
   const outputFilePath = `uploads/files/output_${fileName}.trf` // Path to the output file
@@ -123,4 +123,30 @@ const pair = (input, players, teams = [], fileName = '') => {
   })
 }
 
+const pair = async (input, players, teams = [], fileName = '') => {
+  const trfFilePath = `uploads/files/input_${fileName}.trf` // Path to your input TRF file
+  fs.writeFileSync(trfFilePath, input)
+
+  const fileBuffer = fs.readFileSync(trfFilePath)
+
+  // Convert to base64 string
+  const base64String = fileBuffer.toString('base64')
+
+  const payload = {
+    trfFile: base64String,
+    players,
+    teams,
+    fileName,
+  }
+
+  const res = await fetch(config.awsLambdaUrl, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify(payload),
+  })
+  const result = await res.json()
+  return result
+}
 module.exports = pair

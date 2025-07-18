@@ -1,5 +1,6 @@
 /* eslint-disable no-param-reassign */
 /* eslint-disable no-plusplus */
+const pair = require('.')
 const runPairing = require('./runPairing')
 
 function cleanName(rawName) {
@@ -513,7 +514,7 @@ async function javaFoRoundPairing(
     result += `XXC ${config.color}1`
   }
   try {
-    const pairings = await runPairing(
+    const pairings = await pair(
       result,
       formatedPlayers,
       teams,
