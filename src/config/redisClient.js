@@ -1,8 +1,10 @@
 const Redis = require('redis')
-const RedisCluster = require("ioredis");
+const RedisCluster = require('ioredis')
 const { redis, cluster_mode_enabled } = require('./config')
+
+let client
 if (cluster_mode_enabled) {
-  const client = new RedisCluster.Cluster([
+  client = new RedisCluster.Cluster([
     {
       port: redis.port,
       host: redis.host,
@@ -15,7 +17,7 @@ if (cluster_mode_enabled) {
     },
   ])
 } else {
-  const client = Redis.createClient({
+  client = Redis.createClient({
     url: `redis://${redis.host}:${redis.port}`,
   })
 
