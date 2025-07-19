@@ -124,6 +124,7 @@ const pairOld = (input, players, teams = [], fileName = '') => {
 }
 
 const pair = async (input, players, teams = [], fileName = '') => {
+  console.log('inside pair')
   const trfFilePath = `uploads/files/input_${fileName}.trf` // Path to your input TRF file
   fs.writeFileSync(trfFilePath, input)
 
@@ -139,6 +140,7 @@ const pair = async (input, players, teams = [], fileName = '') => {
     fileName,
   }
 
+  console.log(config.awsLambdaUrl, JSON.stringify(payload))
   const res = await fetch(config.awsLambdaUrl, {
     method: 'POST',
     headers: {
@@ -146,6 +148,7 @@ const pair = async (input, players, teams = [], fileName = '') => {
     },
     body: JSON.stringify(payload),
   })
+  console.log('result', JSON.stringify(res.status))
   const result = await res.json()
   return result
 }

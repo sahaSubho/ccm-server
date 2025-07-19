@@ -359,6 +359,8 @@ async function javaFoRoundPairing(
     return a.round - b.round
   })
 
+  console.log('config', JSON.stringify(config))
+
   let stats = players
   if (teams.length > 0) {
     stats = teams
