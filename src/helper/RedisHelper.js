@@ -43,7 +43,7 @@ class RedisHelper {
       if (typeof value === 'JSON') {
         value = JSON.stringify(value)
       }
-      return await this.redisClient.set(key, value, 'NX', 'EX', ttl)
+      return await this.redisClient.setEx(key, ttl, value)
     } catch (e) {
       return false
     }
