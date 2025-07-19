@@ -62,14 +62,21 @@ async function processGroup({
     body: JSON.stringify({ tournamentData: groupTournament }),
   })
 
+  const sleep = (ms) => {
+    return new Promise((resolve) => {
+      setTimeout(resolve, ms)
+    })
+  }
+
   // 4. Join all players to the new tournament in parallel
-  const joinPromises = groupPlayers.map((player) => {
+  const joinPromises = groupPlayers.map(async (player) => {
     const joinBody = {
       requestId: `${player.cc_userid}-${groupTournamentId}-${Date.now()}`,
       type: 'JOIN_TOURNAMENT_REQUEST',
       playerId: String(player.cc_userid),
       tournamentId: String(groupTournamentId),
     }
+    await sleep(20)
     return fetch(`${config.gameService.endpoint}/joinTournament`, {
       method: 'POST',
       headers: {
