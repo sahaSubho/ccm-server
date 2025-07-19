@@ -2008,6 +2008,9 @@ class TournamentService {
         86400,
         round - 1
       )
+      await this.redisService.removeKey(
+        `ccm_pairing_queue_${tournamentId}_${round}`
+      )
       const redisKey = `ccm_pairings_${tournamentId}_${round}`
       await this.redisService.removeKey(redisKey)
       const standingsKey = `ccm_standings_${tournamentId}_${round}`

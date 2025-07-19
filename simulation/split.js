@@ -1,11 +1,6 @@
-/* eslint-disable no-restricted-syntax */
-/* eslint-disable no-return-await */
-/* eslint-disable no-await-in-loop */
-// const { Op } = require('sequelize')
-// const { Players } = require('./models') // adjust as needed
+const { Worker } = require('worker_threads')
+const path = require('path')
 const PlayersDao = require('../src/dao/TournamentPlayersDao')
-const TournamentDao = require('../src/dao/TournamentDao')
-const TournamentConfigurationDao = require('../src/dao/TournamentConfigurationDao')
 const config = require('../src/config/config')
 
 const playerDao = new PlayersDao()
@@ -14,16 +9,17 @@ const playerDao = new PlayersDao()
 const tournamentId = process.argv[2]
 const tournamentPrefix = process.argv[3]
 
-if (!tournamentId) {
+if (!tournamentId || !tournamentPrefix) {
   console.error(
-    '❌ Please provide a tournament ID. Example:\n   node split.js 123'
+    '❌ Please provide a tournament ID and a prefix. Example:\n   node split.js 123 "My Awesome Event"'
   )
   process.exit(1)
 }
 
-// ---------------- Fetch Players from DB ----------------
+// ---------------- Fetch Players & Categorize (Functions remain the same) ----------------
 async function getPlayersByTournamentId(id) {
-  return await playerDao.findByWhere({ tournament_id: id }, [
+  // Unchanged...
+  return playerDao.findByWhere({ tournament_id: id }, [
     'name',
     'fide_id',
     'title',
@@ -35,15 +31,14 @@ async function getPlayersByTournamentId(id) {
   ])
 }
 
-// ---------------- Categorize by Rating ----------------
 function categorizePlayers(players) {
+  // Unchanged...
   const groups = {
     '2000+': [],
     '1800-2000': [],
     '1400-1800': [],
     '<1400': [],
   }
-
   for (const player of players) {
     if (player.rating >= 2000) {
       groups['2000+'].push(player)
@@ -55,37 +50,30 @@ function categorizePlayers(players) {
       groups['<1400'].push(player)
     }
   }
-
   return groups
 }
 
-// ---------------- Utility: Shuffle ----------------
 function shuffle(array) {
+  // Unchanged...
   for (let i = array.length - 1; i > 0; i--) {
     const j = Math.floor(Math.random() * (i + 1))
     ;[array[i], array[j]] = [array[j], array[i]]
   }
 }
 
-// ---------------- Random Distribution ----------------
 function generateRandomRatios() {
+  // Unchanged...
   const r1 = Math.floor(Math.random() * 20) + 10
   const r2 = Math.floor(Math.random() * 20) + 20
   const r3 = Math.floor(Math.random() * 30) + 20
-  const total = r1 + r2 + r3
-  const r4 = 100 - total
-  return {
-    '2000+': r1,
-    '1800-2000': r2,
-    '1400-1800': r3,
-    '<1400': r4,
-  }
+  const r4 = 100 - (r1 + r2 + r3)
+  return { '2000+': r1, '1800-2000': r2, '1400-1800': r3, '<1400': r4 }
 }
 
 function allocateGroup(ratingPools, groupSize = 1000) {
+  // Unchanged...
   const ratios = generateRandomRatios()
   const group = []
-
   for (const [key, percentage] of Object.entries(ratios)) {
     const count = Math.min(
       Math.floor((percentage / 100) * groupSize),
@@ -93,7 +81,6 @@ function allocateGroup(ratingPools, groupSize = 1000) {
     )
     group.push(...ratingPools[key].splice(0, count))
   }
-
   while (group.length < groupSize) {
     const available = Object.keys(ratingPools).filter((k) => {
       return ratingPools[k].length > 0
@@ -104,160 +91,94 @@ function allocateGroup(ratingPools, groupSize = 1000) {
     const key = available[Math.floor(Math.random() * available.length)]
     group.push(ratingPools[key].shift())
   }
-
   return group
 }
 
 function splitTournament(players, groupSize = 1000) {
+  // Unchanged...
   const ratingPools = categorizePlayers(players)
   for (const pool of Object.values(ratingPools)) {
     shuffle(pool)
   }
-
   const totalGroups = Math.ceil(players.length / groupSize)
   const groups = []
-
   for (let i = 0; i < totalGroups; i++) {
-    const group = allocateGroup(ratingPools, groupSize)
-    groups.push(group)
+    groups.push(allocateGroup(ratingPools, groupSize))
   }
-
   return groups
 }
 
-// ---------------- Main Execution ----------------
+// ---------------- Main Execution (Rewritten for Multi-threading) ----------------
 async function distributeTournamentGroups(id) {
+  console.log(`🚀 Starting distribution for tournament ID ${id}...`)
   const players = await getPlayersByTournamentId(id)
 
   if (!players.length) {
-    console.log(`No players found for tournament ID ${id}`)
+    console.log(`No players found for tournament ID ${id}.`)
     return
   }
-
+  console.log(`Found ${players.length} players. Splitting into groups...`)
   const groups = splitTournament(players)
+  console.log(`Split into ${groups.length} groups. Starting workers...`)
 
-  const tournamentDao = new TournamentDao()
-  for (let i = 0; i < groups.length; i++) {
-    const groupPlayers = groups[i]
+  const workerPromises = groups.map((groupPlayers, index) => {
+    return new Promise((resolve, reject) => {
+      const worker = new Worker(path.resolve(__dirname, 'split_worker.js'))
 
-    // 1. Create group tournament
-    const tournament = await tournamentDao.findById(id)
-    delete tournament.id
-    const tournamentName = `${tournamentPrefix} - Group ${i + 1}`
-    const groupTournament = await tournamentDao.create({
-      ...tournament,
-      name: `${tournamentPrefix} - Group ${i + 1}`,
-      parent_id: tournamentId, // If you have a parent/child relationship
+      // Listen for messages from the worker
+      worker.on('message', (message) => {
+        if (message.type === 'done') {
+          console.log(
+            `[Worker ${index + 1}] Finished: ${JSON.stringify(message.result)}`
+          )
+          resolve(message.result)
+        } else if (message.type === 'error') {
+          console.error(`[Worker ${index + 1}] Error:`, message.error)
+          reject(message.error)
+        }
+      })
+
+      worker.on('error', reject)
+      worker.on('exit', (code) => {
+        if (code !== 0) {
+          reject(
+            new Error(`Worker ${index + 1} stopped with exit code ${code}`)
+          )
+        }
+      })
+
+      // Send data to the worker to start processing
+      worker.postMessage({
+        groupPlayers,
+        originalTournamentId: id,
+        tournamentPrefix,
+        groupIndex: index,
+      })
     })
+  })
 
-    console.log('groupTournament', JSON.stringify(groupTournament))
-
-    const groupTournamentId = groupTournament.id
-
-    if (groupTournamentId) {
-      await tournamentDao.updateById(
-        {
-          address: `https://pp-learn.circlechess.com/playChess?tournamentId=${groupTournamentId}&tournamentName=${tournamentName?.replace(
-            /\s/g,
-            '-'
-          )}`,
-          enable_registration: true,
-          is_active: true,
-        },
-        groupTournamentId
-      )
-      const defaultConfig = {
-        tournament_id: groupTournamentId,
-        tiebreaks: ['BH-C1', 'BH', 'SB'],
-        tiebreak_settings: {
-          BH: { games: { best: '1', worst: '0' } },
-          SB: { games: { best: '1', worst: '0' } },
-          'BH-C1': { games: { best: '1', worst: '0' } },
-        },
-      }
-
-      const tnrConfig = new TournamentConfigurationDao()
-      await tnrConfig.create(defaultConfig)
-
-      const url = `${config.gameService.endpoint}/createTournament`
-      const options = {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'x-api-key': config.XapiKey, // Include any required API key
-        },
-        body: JSON.stringify({ tournamentData: groupTournament }), // Include the tournament data
-      }
-      const response = await fetch(url, options)
-      const jsonResponse = await response.json()
-      console.log(response, jsonResponse)
-    }
-
-    // 2. Bulk insert players into new group tournament
-    // const newPlayers = groupPlayers.map((player) => {
-    //   return {
-    //     ...player,
-    //     tournament_id: groupTournamentId,
-    //   }
-    // })
-
-    for (const player of groupPlayers) {
-      const joinBody = {
-        requestId: `${player.cc_userid}-${groupTournamentId}-${Date.now()}`,
-        type: 'JOIN_TOURNAMENT_REQUEST',
-        playerId: String(player.cc_userid),
-        tournamentId: String(groupTournamentId),
-      };
-
-      const joinUrl = `${config.gameService.endpoint}/joinTournament`;
-
-      const joinOptions = {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'x-api-key': config.XapiKey,
-        },
-        body: JSON.stringify(joinBody),
-      };
-
-      try {
-        const joinResponse = await fetch(joinUrl, joinOptions);
-        const joinJson = await joinResponse.json();
-
-        console.log(
-          `Joined player ${player.cc_userid} to group ${groupTournamentId}:`,
-          joinJson
-        );
-      } catch (error) {
-        console.error(
-          `Failed to join player ${player.cc_userid} to group ${groupTournamentId}:`,
-          error.message
-        );
-      }
-    }
-
-
-
-    // await playerDao.bulkCreate(newPlayers)
-    // console.log(
-    //   `✅ Group ${i + 1}: ${
-    //     newPlayers.length
-    //   } players saved to tournament ID ${groupTournamentId}`
-    // )
-    // const fileName = `group_tournament_${id}_${i + 1}.json`
-    // fs.writeFileSync(fileName, JSON.stringify(groups[i], null, 2))
+  // Wait for all workers to complete
+  try {
+    await Promise.all(workerPromises)
+    console.log(
+      `\n🎉 All ${groups.length} groups processed successfully for tournament ID ${id}.`
+    )
+  } catch (error) {
+    console.error(
+      '\n❌ An error occurred in one or more workers. Halting process.',
+      error
+    )
+    process.exit(1) // Exit if any worker fails
   }
-
-  console.log(
-    `Distributed ${players.length} players into ${groups.length} groups for tournament ID ${id}.`
-  )
 }
 
-// Kickoff
-(async () => {
+// ---------------- Kickoff ----------------
+;(async () => {
   await distributeTournamentGroups(tournamentId)
 
-  const stopUrl = `${config.gameService.endpoint}/stopParentTournament`;
+  // This runs only after all groups have been successfully created.
+  console.log(`\nStopping parent tournament ${tournamentId}...`)
+  const stopUrl = `${config.gameService.endpoint}/stopParentTournament`
   const stopOptions = {
     method: 'POST',
     headers: {
@@ -265,9 +186,13 @@ async function distributeTournamentGroups(id) {
       'x-api-key': config.XapiKey,
     },
     body: JSON.stringify({ tournamentId }),
-  };
+  }
 
-  const stopResponse = await fetch(stopUrl, stopOptions);
-  const stopJson = await stopResponse.json();
-  console.log('Parent tournament stopped:', stopJson);
+  try {
+    const stopResponse = await fetch(stopUrl, stopOptions)
+    const stopJson = await stopResponse.json()
+    console.log('Parent tournament stopped:', stopJson)
+  } catch (error) {
+    console.error('Failed to stop parent tournament:', error.message)
+  }
 })()

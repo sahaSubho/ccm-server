@@ -37,6 +37,10 @@ const envValidation = Joi.object()
     REDIS_PORT: Joi.number().default(6379),
     REDIS_USE_PASSWORD: Joi.string().default('no'),
     REDIS_PASSWORD: Joi.string(),
+    REDIS_HOST2: Joi.string().default('172.31.43.215'),
+    REDIS_PORT2: Joi.number().default(6379),
+    REDIS_USE_PASSWORD2: Joi.string().default('no'),
+    REDIS_PASSWORD2: Joi.string(),
     JUSPAY_ENV: Joi.string(),
     JUSPAY_API_KEY: Joi.string(),
     JUSPAY_MERCHANT_ID: Joi.string(),
@@ -44,6 +48,8 @@ const envValidation = Joi.object()
     CIRCLECHESS_API_URL: Joi.string().required(),
     GAME_SERVICE_API_URL: Joi.string(),
     SIMULATION_MODE: Joi.boolean(),
+    CLUSTER_MODE_ENABLED: Joi.boolean().default(false),
+    AWS_LAMBDA: Joi.string(),
   })
   .unknown()
 
@@ -84,7 +90,12 @@ module.exports = {
     port: envVar.REDIS_PORT,
     usePassword: envVar.REDIS_USE_PASSWORD,
     password: envVar.REDIS_PASSWORD,
+    host2: envVar.REDIS_HOST2,
+    port2: envVar.REDIS_PORT2,
+    usePassword2: envVar.REDIS_USE_PASSWORD2,
+    password2: envVar.REDIS_PASSWORD2,
   },
+  cluster_mode_enabled: envVar.CLUSTER_MODE_ENABLED,
   juspay: {
     url:
       envVar.JUSPAY_ENV === 'production'
@@ -100,5 +111,6 @@ module.exports = {
   gameService: {
     endpoint: envVar.GAME_SERVICE_API_URL,
   },
-  simulate: envVar.SIMULATION_MODE
+  simulate: envVar.SIMULATION_MODE,
+  awsLambdaUrl: envVar.AWS_LAMBDA,
 }

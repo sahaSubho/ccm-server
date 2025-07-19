@@ -3,7 +3,7 @@ const fs = require('fs')
 const uploadFileToS3 = require('../uploadFiletoS3')
 const config = require('../../config/config')
 
-const pair = (input, players, teams = [], fileName = '') => {
+const pairOld = (input, players, teams = [], fileName = '', type = '') => {
   const javafoJarPath = 'src/helper/pairingEngine/files/javafo.jar' // Path to javafo.jar in your project
   const trfFilePath = `uploads/files/input_${fileName}.trf` // Path to your input TRF file
   const outputFilePath = `uploads/files/output_${fileName}.trf` // Path to the output file
@@ -19,33 +19,33 @@ const pair = (input, players, teams = [], fileName = '') => {
   fs.writeFileSync(outputFilePath, '')
 
   return new Promise((resolve, reject) => {
-    // let javafoCommand
+    let javafoCommand
 
-    // if (players.length > 500) {
-    // The executable
-    const exe = bbpPairingFile
+    if (type === 'Circlechess_Online') {
+      // The executable
+      const exe = bbpPairingFile
 
-    // Arguments as array — no spaces, each arg is separate!
-    const args = ['--dutch', trfFilePath, '-p', outputFilePath]
+      // Arguments as array — no spaces, each arg is separate!
+      const args = ['--dutch', trfFilePath, '-p', outputFilePath]
 
-    const javafoCommand = spawn(exe, args)
-    isBbpPairing = true
-    // } else {
-    //   javafoCommand = spawn('java', [
-    //     '-ea',
-    //     '-Xms4G',
-    //     '-Xmx4G',
-    //     '-XX:+UseG1GC',
-    //     '-XX:+TieredCompilation',
-    //     '-XX:TieredStopAtLevel=1',
-    //     '-noverify',
-    //     '-jar',
-    //     javafoJarPath,
-    //     trfFilePath,
-    //     '-p',
-    //     outputFilePath,
-    //   ])
-    // }
+      javafoCommand = spawn(exe, args)
+      isBbpPairing = true
+    } else {
+      javafoCommand = spawn('java', [
+        '-ea',
+        '-Xms4G',
+        '-Xmx4G',
+        '-XX:+UseG1GC',
+        '-XX:+TieredCompilation',
+        '-XX:TieredStopAtLevel=1',
+        '-noverify',
+        '-jar',
+        javafoJarPath,
+        trfFilePath,
+        '-p',
+        outputFilePath,
+      ])
+    }
 
     javafoCommand.stdout.on('data', (data) => {
       console.error('Pairing Output', data.toString())
@@ -123,4 +123,33 @@ const pair = (input, players, teams = [], fileName = '') => {
   })
 }
 
-module.exports = pair
+const pair = async (input, players, teams = [], fileName = '') => {
+  console.log('inside pair')
+  const trfFilePath = `uploads/files/input_${fileName}.trf` // Path to your input TRF file
+  fs.writeFileSync(trfFilePath, input)
+
+  const fileBuffer = fs.readFileSync(trfFilePath)
+
+  // Convert to base64 string
+  const base64String = fileBuffer.toString('base64')
+
+  const payload = {
+    trfFile: base64String,
+    players,
+    teams,
+    fileName,
+  }
+
+  console.log(config.awsLambdaUrl, JSON.stringify(payload))
+  const res = await fetch(config.awsLambdaUrl, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify(payload),
+  })
+  console.log('result', JSON.stringify(res.status))
+  const result = await res.json()
+  return result
+}
+module.exports = { pair, pairOld }

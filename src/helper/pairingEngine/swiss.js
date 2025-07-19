@@ -1,5 +1,6 @@
 /* eslint-disable no-param-reassign */
 /* eslint-disable no-plusplus */
+const { pair, pairOld } = require('.')
 const runPairing = require('./runPairing')
 
 function cleanName(rawName) {
@@ -358,6 +359,8 @@ async function javaFoRoundPairing(
     return a.round - b.round
   })
 
+  console.log('config', JSON.stringify(config))
+
   let stats = players
   if (teams.length > 0) {
     stats = teams
@@ -452,20 +455,21 @@ async function javaFoRoundPairing(
     })
   }
   let result = tournamentDetails
-  // if (
-  //   formatedPlayers.some((p) => {
-  //     return p?.is_withdrawn
-  //   })
-  // ) {
-  //   result += `XXZ  ${formatedPlayers
-  //     .filter((p) => {
-  //       return p.is_withdrawn
-  //     })
-  //     .map((x) => {
-  //       return x.key
-  //     })
-  //     .join(' ')}\n`
-  // }
+  if (
+    tournament.tournament_type !== 'Circlechess_Online' &&
+    formatedPlayers.some((p) => {
+      return p?.is_withdrawn
+    })
+  ) {
+    result += `XXZ  ${formatedPlayers
+      .filter((p) => {
+        return p.is_withdrawn
+      })
+      .map((x) => {
+        return x.key
+      })
+      .join(' ')}\n`
+  }
   const teamPlayers = {}
   for (let i = 0; i < formatedPlayers.length; i += 1) {
     const p = formatedPlayers[i]
@@ -513,7 +517,17 @@ async function javaFoRoundPairing(
     result += `XXC ${config.color}1`
   }
   try {
-    const pairings = await runPairing(
+    if (tournament.tournament_type !== 'Circlechess_Online') {
+      const pairings = await pairOld(
+        result,
+        formatedPlayers,
+        teams,
+        `tournament_${tournament.id}_${round}`,
+        tournament.tournament_type
+      )
+      return pairings
+    }
+    const pairings = await pair(
       result,
       formatedPlayers,
       teams,
