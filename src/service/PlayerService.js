@@ -690,14 +690,14 @@ class PlayersService {
             existingPlayer.id
           )
 
-          let ids = fide_ids
-          ids.push(existingPlayer.cc_userid)
-          ids = [...new Set(ids)]
+          // let ids = fide_ids
+          // ids.push(existingPlayer.cc_userid)
+          // ids = [...new Set(ids)]
 
-          await this.tournamentDao.updateWhere(
-            { player_fide_ids: ids.join() },
-            { id }
-          )
+          // await this.tournamentDao.updateWhere(
+          //   { player_fide_ids: ids.join() },
+          //   { id }
+          // )
 
           // Update is_withdrawn in tournamentPairingDao if the user rejoins
           await this.tournamentPairingDao.updateWhere(
@@ -798,19 +798,19 @@ class PlayersService {
 
       const player = await this.trnplayersDao.create(playerData)
 
-      let ids = fide_ids
-      ids.push(player.cc_userid)
-      ids = [...new Set(ids)]
+      // let ids = fide_ids
+      // ids.push(player.cc_userid)
+      // ids = [...new Set(ids)]
 
-      const result = await this.tournamentDao.updateWhere(
-        { player_fide_ids: ids.join() },
-        { id }
-      )
+      // const result = await this.tournamentDao.updateWhere(
+      //   { player_fide_ids: ids.join() },
+      //   { id }
+      // )
 
-      if (!result) {
-        message = 'Failed to add player! Please try again.'
-        return responseHandler.returnError(httpStatus.BAD_REQUEST, message)
-      }
+      // if (!result) {
+      //   message = 'Failed to add player! Please try again.'
+      //   return responseHandler.returnError(httpStatus.BAD_REQUEST, message)
+      // }
 
       return responseHandler.returnSuccess(httpStatus.CREATED, message, player)
     } catch (e) {
@@ -1339,21 +1339,21 @@ class PlayersService {
         const tournament = await this.tournamentDao.findById(
           playerBody.tournamentId
         )
-        if (
-          tournament &&
-          tournament.tournament_type === 'Circlechess_Online' &&
-          tournament.player_fide_ids
-        ) {
-          let fide_ids = tournament.player_fide_ids.split(',')
-          fide_ids = fide_ids.filter((id) => {
-            return id !== player.cc_userid.toString()
-          })
+        // if (
+        //   tournament &&
+        //   tournament.tournament_type === 'Circlechess_Online' &&
+        //   tournament.player_fide_ids
+        // ) {
+        //   let fide_ids = tournament.player_fide_ids.split(',')
+        //   fide_ids = fide_ids.filter((id) => {
+        //     return id !== player.cc_userid.toString()
+        //   })
 
-          await this.tournamentDao.updateWhere(
-            { player_fide_ids: fide_ids.join() },
-            { id: playerBody.tournamentId }
-          )
-        }
+        //   await this.tournamentDao.updateWhere(
+        //     { player_fide_ids: fide_ids.join() },
+        //     { id: playerBody.tournamentId }
+        //   )
+        // }
 
         this.redisService.removeKey(`ccm_players_${playerBody.tournamentId}`)
       }

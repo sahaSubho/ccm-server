@@ -11,6 +11,7 @@ async function processGroup({
   tournamentPrefix,
   groupIndex,
 }) {
+  console.log
   const tournamentDao = new TournamentDao()
   const tnrConfig = new TournamentConfigurationDao()
 
@@ -62,32 +63,76 @@ async function processGroup({
     body: JSON.stringify({ tournamentData: groupTournament }),
   })
 
-  // 4. Join all players to the new tournament in parallel
-  const joinPromises = groupPlayers.map((player) => {
-    const joinBody = {
-      requestId: `${player.cc_userid}-${groupTournamentId}-${Date.now()}`,
-      type: 'JOIN_TOURNAMENT_REQUEST',
-      playerId: String(player.cc_userid),
-      tournamentId: String(groupTournamentId),
-    }
-    return fetch(`${config.gameService.endpoint}/joinTournament`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'x-api-key': config.XapiKey,
-      },
-      body: JSON.stringify(joinBody),
-    }).catch((err) => {
-      return {
-        // Prevent one failed request from crashing Promise.all
-        error: true,
-        playerId: player.cc_userid,
-        message: err.message,
-      }
+  const sleep = (ms) => {
+    return new Promise((resolve) => {
+      setTimeout(resolve, ms)
     })
-  })
+  }
 
-  await Promise.all(joinPromises)
+  const responses = []
+
+  await groupPlayers.reduce((promiseChain, player) => {
+    return promiseChain.then(async () => {
+      const joinBody = {
+        requestId: `${player.cc_userid}-${groupTournamentId}-${Date.now()}`,
+        type: 'JOIN_TOURNAMENT_REQUEST',
+        playerId: String(player.cc_userid),
+        tournamentId: String(groupTournamentId),
+      }
+
+      try {
+        const res = await fetch(
+          `${config.gameService.endpoint}/joinTournament`,
+          {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              'x-api-key': config.XapiKey,
+            },
+            body: JSON.stringify(joinBody),
+          }
+        )
+
+        responses.push(res)
+      } catch (err) {
+        responses.push({
+          error: true,
+          playerId: player.cc_userid,
+          message: err.message,
+        })
+      }
+
+      await sleep(20) // Enforces 20ms delay between each request
+    })
+  }, Promise.resolve())
+
+  // 4. Join all players to the new tournament in parallel
+  //   const joinPromises = groupPlayers.map(async (player) => {
+  //     const joinBody = {
+  //       requestId: `${player.cc_userid}-${groupTournamentId}-${Date.now()}`,
+  //       type: 'JOIN_TOURNAMENT_REQUEST',
+  //       playerId: String(player.cc_userid),
+  //       tournamentId: String(groupTournamentId),
+  //     }
+  //     await sleep(20)
+  //     return fetch(`${config.gameService.endpoint}/joinTournament`, {
+  //       method: 'POST',
+  //       headers: {
+  //         'Content-Type': 'application/json',
+  //         'x-api-key': config.XapiKey,
+  //       },
+  //       body: JSON.stringify(joinBody),
+  //     }).catch((err) => {
+  //       return {
+  //         // Prevent one failed request from crashing Promise.all
+  //         error: true,
+  //         playerId: player.cc_userid,
+  //         message: err.message,
+  //       }
+  //     })
+  //   })
+
+  await Promise.allSettled(responses)
 
   return {
     status: '✅ Success',
