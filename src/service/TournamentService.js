@@ -1040,10 +1040,11 @@ class TournamentService {
           .filter((x) => {
             return (
               !x.parent_id ||
-              (x.parent_id &&
-                playerExitsMap.some((p) => {
-                  return p.tournament_id === x.id
-                }))
+              playerExitsMap
+                .map((p) => {
+                  return p.tournament_id
+                })
+                .includes(x.id)
             )
           })
           .forEach(async (tournament) => {

@@ -70,7 +70,7 @@ function generateRandomRatios() {
   return { '2000+': r1, '1800-2000': r2, '1400-1800': r3, '<1400': r4 }
 }
 
-function allocateGroup(ratingPools, groupSize = 500) {
+function allocateGroup(ratingPools, groupSize = 1000) {
   // Unchanged...
   const ratios = generateRandomRatios()
   const group = []
@@ -94,7 +94,7 @@ function allocateGroup(ratingPools, groupSize = 500) {
   return group
 }
 
-function splitTournament(players, groupSize = 500) {
+function splitTournament(players, groupSize = 1000) {
   // Unchanged...
   const ratingPools = categorizePlayers(players)
   for (const pool of Object.values(ratingPools)) {

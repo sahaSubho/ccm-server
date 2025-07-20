@@ -11,7 +11,6 @@ async function processGroup({
   tournamentPrefix,
   groupIndex,
 }) {
-  console.log
   const tournamentDao = new TournamentDao()
   const tnrConfig = new TournamentConfigurationDao()
 
