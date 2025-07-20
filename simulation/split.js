@@ -70,7 +70,7 @@ function generateRandomRatios() {
   return { '2000+': r1, '1800-2000': r2, '1400-1800': r3, '<1400': r4 }
 }
 
-function allocateGroup(ratingPools, groupSize = 1000) {
+function allocateGroup(ratingPools, totalGroups, groupSize = 1000) {
   // Unchanged...
   const ratios = generateRandomRatios()
   const group = []
@@ -94,7 +94,31 @@ function allocateGroup(ratingPools, groupSize = 1000) {
   return group
 }
 
-function splitTournament(players, groupSize = 1000) {
+function allocateGroupOld(ratingPools, totalGroups, groupSize = 1000) {
+  // Unchanged...
+  const ratios = generateRandomRatios()
+  const group = []
+  for (const [key, percentage] of Object.entries(ratios)) {
+    const count = Math.min(
+      Math.floor((percentage / 100) * groupSize),
+      ratingPools[key].length
+    )
+    group.push(...ratingPools[key].splice(0, count))
+  }
+  while (group.length < groupSize) {
+    const available = Object.keys(ratingPools).filter((k) => {
+      return ratingPools[k].length > 0
+    })
+    if (available.length === 0) {
+      break
+    }
+    const key = available[Math.floor(Math.random() * available.length)]
+    group.push(ratingPools[key].shift())
+  }
+  return group
+}
+
+function splitTournamentOld(players, groupSize = 1000) {
   // Unchanged...
   const ratingPools = categorizePlayers(players)
   for (const pool of Object.values(ratingPools)) {
@@ -103,8 +127,22 @@ function splitTournament(players, groupSize = 1000) {
   const totalGroups = Math.ceil(players.length / groupSize)
   const groups = []
   for (let i = 0; i < totalGroups; i++) {
-    groups.push(allocateGroup(ratingPools, groupSize))
+    groups.push(allocateGroup(ratingPools, totalGroups, groupSize))
   }
+  return groups
+}
+
+function splitTournament(players, groupSize = 1000) {
+  players = shuffle(players) // assuming you have a shuffle() function
+  const totalGroups = Math.ceil(players.length / groupSize)
+  const groups = []
+
+  for (let i = 0; i < totalGroups; i++) {
+    const start = i * groupSize
+    const end = start + groupSize
+    groups.push(players.slice(start, end)) // slice does not mutate the array
+  }
+
   return groups
 }
 
