@@ -907,7 +907,6 @@ class TournamentService {
       const data = await this.tournamentDao.findByWhere(
         {
           is_active: true,
-          enable_registration: true,
           tournament_type: 'Circlechess_Online',
         },
         undefined,
@@ -1037,31 +1036,41 @@ class TournamentService {
             })?.count > 0
         })
       } else {
-        data.forEach(async (tournament) => {
-          delete tournament.player_fide_ids
-          tournament.is_registered = false
-          tournament.is_free = true
-          tournament.registration_tid = null
-          tournament.club = null
-          const prizes = trnprizes.filter((p) => {
-            return p.tournament_id === tournament.id
+        data
+          .filter((x) => {
+            return (
+              !x.parent_id ||
+              (x.parent_id &&
+                playerExitsMap.find((p) => {
+                  return p.tournament_id === x.id
+                })?.count > 0)
+            )
           })
-          const cashPrize =
-            prizes?.reduce((acc, curr) => {
-              const total = curr.prizes.reduce((a, b) => {
-                return a + Number(b.amount)
-              }, 0)
-              return acc + Number(total)
-            }, 0) || 0
-          tournament.cash_prize = cashPrize
-          tournament.player_count = playerCountMap.find((p) => {
-            return p.tournament_id === tournament.id
-          })?.count
-          tournament.is_joined =
-            playerExitsMap.find((p) => {
+          .forEach(async (tournament) => {
+            delete tournament.player_fide_ids
+            tournament.is_registered = false
+            tournament.is_free = true
+            tournament.registration_tid = null
+            tournament.club = null
+            const prizes = trnprizes.filter((p) => {
               return p.tournament_id === tournament.id
-            })?.count > 0
-        })
+            })
+            const cashPrize =
+              prizes?.reduce((acc, curr) => {
+                const total = curr.prizes.reduce((a, b) => {
+                  return a + Number(b.amount)
+                }, 0)
+                return acc + Number(total)
+              }, 0) || 0
+            tournament.cash_prize = cashPrize
+            tournament.player_count = playerCountMap.find((p) => {
+              return p.tournament_id === tournament.id
+            })?.count
+            tournament.is_joined =
+              playerExitsMap.find((p) => {
+                return p.tournament_id === tournament.id
+              })?.count > 0
+          })
       }
       return responseHandler.returnSuccess(httpStatus.OK, message, data)
     } catch (e) {
@@ -1164,7 +1173,7 @@ class TournamentService {
       data.setDataValue('players_count', playerCount)
 
       let isJoined = false
-      if (userId) {
+      if (userId && !data.parent_id) {
         isJoined = await this.trnplayersDao.checkExist({
           cc_userid: userId,
           tournament_id: id,
