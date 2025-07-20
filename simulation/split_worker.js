@@ -21,6 +21,7 @@ async function processGroup({
   const groupTournament = await tournamentDao.create({
     ...tournament,
     name: tournamentName,
+    enable_registration: false,
     parent_id: originalTournamentId,
   })
 
