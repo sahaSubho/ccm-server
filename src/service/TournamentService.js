@@ -1041,9 +1041,9 @@ class TournamentService {
             return (
               !x.parent_id ||
               (x.parent_id &&
-                playerExitsMap.find((p) => {
+                playerExitsMap.some((p) => {
                   return p.tournament_id === x.id
-                })?.count > 0)
+                }))
             )
           })
           .forEach(async (tournament) => {
