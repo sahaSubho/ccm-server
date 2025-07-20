@@ -1038,14 +1038,11 @@ class TournamentService {
       } else {
         data
           .filter((x) => {
-            return (
-              !x.parent_id ||
-              playerExitsMap
-                .map((p) => {
-                  return p.tournament_id
-                })
-                .includes(x.id)
-            )
+            return playerExitsMap
+              .map((p) => {
+                return p.tournament_id
+              })
+              .includes(x.id)
           })
           .forEach(async (tournament) => {
             delete tournament.player_fide_ids
