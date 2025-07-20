@@ -1172,7 +1172,7 @@ class TournamentService {
       data.setDataValue('players_count', playerCount)
 
       let isJoined = false
-      if (userId && !data.parent_id) {
+      if (userId) {
         isJoined = await this.trnplayersDao.checkExist({
           cc_userid: userId,
           tournament_id: id,
