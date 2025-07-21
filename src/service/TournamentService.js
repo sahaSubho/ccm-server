@@ -1037,39 +1037,31 @@ class TournamentService {
             })?.count > 0
         })
       } else {
-        data
-          .filter((x) => {
-            return playerExitsMap
-              .map((p) => {
-                return p.tournament_id
-              })
-              .includes(x.id)
+        data.forEach(async (tournament) => {
+          delete tournament.player_fide_ids
+          tournament.is_registered = false
+          tournament.is_free = true
+          tournament.registration_tid = null
+          tournament.club = null
+          const prizes = trnprizes.filter((p) => {
+            return p.tournament_id === tournament.id
           })
-          .forEach(async (tournament) => {
-            delete tournament.player_fide_ids
-            tournament.is_registered = false
-            tournament.is_free = true
-            tournament.registration_tid = null
-            tournament.club = null
-            const prizes = trnprizes.filter((p) => {
+          const cashPrize =
+            prizes?.reduce((acc, curr) => {
+              const total = curr.prizes.reduce((a, b) => {
+                return a + Number(b.amount)
+              }, 0)
+              return acc + Number(total)
+            }, 0) || 0
+          tournament.cash_prize = cashPrize
+          tournament.player_count = playerCountMap.find((p) => {
+            return p.tournament_id === tournament.id
+          })?.count
+          tournament.is_joined =
+            playerExitsMap.find((p) => {
               return p.tournament_id === tournament.id
-            })
-            const cashPrize =
-              prizes?.reduce((acc, curr) => {
-                const total = curr.prizes.reduce((a, b) => {
-                  return a + Number(b.amount)
-                }, 0)
-                return acc + Number(total)
-              }, 0) || 0
-            tournament.cash_prize = cashPrize
-            tournament.player_count = playerCountMap.find((p) => {
-              return p.tournament_id === tournament.id
-            })?.count
-            tournament.is_joined =
-              playerExitsMap.find((p) => {
-                return p.tournament_id === tournament.id
-              })?.count > 0
-          })
+            })?.count > 0
+        })
       }
       return responseHandler.returnSuccess(httpStatus.OK, message, data)
     } catch (e) {
