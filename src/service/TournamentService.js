@@ -1098,7 +1098,22 @@ class TournamentService {
 
       // Fetch tournament details for these tournament IDs
       const tournaments = await this.tournamentDao.findByWhere(
-        { id: tournamentIds } // The 'where' condition to match tournament IDs
+        {
+          [Op.and]: [
+            { id: tournamentIds },
+            {
+              id: {
+                [Op.notIn]: literal(`(
+            SELECT DISTINCT parent_id 
+            FROM cc_tournament_chessmasters 
+            WHERE parent_id IS NOT NULL
+          )`),
+              },
+            },
+          ],
+        },
+        undefined,
+        ['start_date', 'desc']
       )
 
       // Structure the response
