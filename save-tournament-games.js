@@ -100,7 +100,7 @@ async function main() {
             color: isWhite ? "White" : "Black",
             end_time: new Date().toISOString().slice(0, 19).replace("T", " "),
             result: computeResult(winType, isWhite),
-            time_control: "", // TODO: (saumitra) Ask where to get these from
+            time_control: "3+1", // TODO: (saumitra) Ask for correct format
             opponent_username: data[`player:${oppId}:username`] || "",
             rating: +data[`player:${userId}:rating`] || 0,
             rating_change: 0,
