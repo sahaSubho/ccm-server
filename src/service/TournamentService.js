@@ -2292,7 +2292,8 @@ class TournamentService {
         }
         message = `Pairing of Round ${round} is not done yet! Please try again.`
         console.log(message)
-        return responseHandler.returnError(httpStatus.BAD_REQUEST, message)
+        //return responseHandler.returnError(httpStatus.BAD_REQUEST, message)
+        return responseHandler.returnSuccess({ data: [], message })
       }
 
       console.log(`Pairings fetched from DB: Count = ${data.count}`)
