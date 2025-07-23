@@ -98,7 +98,7 @@ async function main() {
       const tasks = [];
 
       for (const { table_id } of mappings) {
-        const data = await redis.hgetall(`redis:table:${table_id}`);
+        const data = await redis.hgetall(`redis:table:{${table_id}}`);
         if (!data.pos_1 || !data.pos_2) {
           console.log(`Skipping table ${table_id} (incomplete data)`);
           continue;
