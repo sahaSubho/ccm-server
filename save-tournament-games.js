@@ -23,6 +23,8 @@ const {
   AUTH_TOKEN,
 } = process.env;
 
+const AUTH_TOKEN= "Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ0b2tlbl90eXBlIjoiYWNjZXNzIiwiZXhwIjoxNzYxMDQ5MjUwLCJpYXQiOjE3NTMyNzMyNTAsImp0aSI6IjYzOThhY2Q4MTE0ZjRiNzI5YmZjMWI4MzdkZTM0MWQxIiwidXNlcl9pZCI6MzMzLCJ1c2VyX2tleSI6IjRlYjdkZGU4LTFmNzMtNDk5Yi04Zjc3LTVjZmFiZDIxZDg5NyJ9.Vdrd_YKWi5aCPEi-F-N48l3l7B1oG81IK12bETcMajo"
+
 const sequelize = new Sequelize(DB_NAME, DB_USER, DB_PASS, {
   host:     DB_HOST,
   port:     parseInt(DB_PORT, 10),
