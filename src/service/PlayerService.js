@@ -766,7 +766,7 @@ class PlayersService {
           playerId: data.playerId,
           newStart: newTournamentStart.toDate(),
           newEnd: newTournamentEnd.toDate(),
-          parentId: tournament.parent_id
+          parentId: tournament.parent_id || 0
         },
         type: sequelize.QueryTypes.SELECT,
       })
