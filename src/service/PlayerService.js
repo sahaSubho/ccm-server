@@ -734,6 +734,7 @@ class PlayersService {
             t.name,
             t.start_date,
             t.time_control,
+            t.rounds,
             COALESCE(NULLIF(regexp_replace(split_part(t.time_control, '+', 1), '[^0-9]', '', 'g'), ''), '0')::int AS base_time,
             COALESCE(NULLIF(regexp_replace(split_part(t.time_control, '+', 2), '[^0-9]', '', 'g'), ''), '0')::int AS increment_time
           FROM cc_tournament_chessmasters t
@@ -744,7 +745,7 @@ class PlayersService {
             AND p.is_withdrawn = false
             AND t.is_active = true
         )
-        SELECT id, name, start_date, time_control
+        SELECT id, name, start_date, time_control, rounds
         FROM time_data
         WHERE
           (start_date BETWEEN :newStart AND :newEnd
@@ -756,7 +757,7 @@ class PlayersService {
                 WHEN (base_time + increment_time) < 30 THEN INTERVAL '5 hours'
                 ELSE INTERVAL '8 hours'
               END
-            )
+            ) * (rounds / 10.0)
           )) 
           AND id != :parentId;
       `
