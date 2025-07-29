@@ -1251,6 +1251,10 @@ class TournamentService {
 
       // ✅ 4️⃣ Link for web
       if (data.feedback_key) {
+        const feedbacks = await this.ccTournamentFeedbackDao.findByWhere({
+          tournament_key: data.feedback_key,
+        })
+        data.setDataValue('feedbacks', feedbacks)
         data.setDataValue('tournamentKey', data.feedback_key)
         data.setDataValue(
           'weblink',
@@ -2292,7 +2296,7 @@ class TournamentService {
         }
         message = `Pairing of Round ${round} is not done yet! Please try again.`
         console.log(message)
-        //return responseHandler.returnError(httpStatus.BAD_REQUEST, message)
+        // return responseHandler.returnError(httpStatus.BAD_REQUEST, message)
         return responseHandler.returnSuccess({ data: [], message })
       }
 
