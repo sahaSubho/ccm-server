@@ -1892,10 +1892,6 @@ class TournamentService {
             teams
           )
 
-        console.log(
-          `Pairing completed: White Players=${whitePlayers.length}, Black Players=${blackPlayers.length}, Teams=${leftTeams.length} vs ${rightTeams.length}`
-        )
-
         if (!whitePlayers) {
           message = 'Failed to pair players! Please try again.'
           console.log(message)
@@ -3179,7 +3175,7 @@ class TournamentService {
       let promises = []
       if (
         tournament.current_round > Number(round) &&
-        tournament.tournament_type === 'Circlechess_Online'
+        tournament.tournament_type !== 'Circlechess_Online'
       ) {
         console.log(
           `Tournament round is ahead of provided round. Will adjust scores for future rounds.`
@@ -3292,7 +3288,6 @@ class TournamentService {
         }
       }
 
-      console.log(round, tournamentId, tournament.rounds)
       // Recalculate standings and prizes after scores update
       this.reCalculateStandingsPrizes(round, tournamentId, tournament.rounds)
       console.log(
@@ -3740,11 +3735,6 @@ class TournamentService {
 
       if (tournamentBody.feedbacks) {
         const feedbacks = JSON.parse(tournamentBody.feedbacks)
-        console.log(
-          'Feedbacks received for tournament',
-          tournament.feedback_key,
-          JSON.stringify(feedbacks, null, 2)
-        )
         const currentFeedbacks = await this.ccTournamentFeedbackDao.findByWhere(
           { tournament_key: tournament.feedback_key },
           ['question_text', 'id']
@@ -3759,10 +3749,6 @@ class TournamentService {
             return this.ccTournamentFeedbackDao.deleteByWhere({ id: cf.id })
           })
 
-        console.log(
-          'currentFeedbacks received for tournament',
-          JSON.stringify(currentFeedbacks)
-        )
         const existing = []
         const newData = []
         const key = uuidv4()
@@ -3796,10 +3782,6 @@ class TournamentService {
             })
           }
         })
-        console.log(
-          'New Data to be inserted in feedbacks',
-          JSON.stringify(newData)
-        )
         if (newData.length) {
           if (!tournament?.feedback_key) {
             tournamentBody.feedback_key = key
