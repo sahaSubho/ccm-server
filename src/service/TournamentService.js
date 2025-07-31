@@ -1170,6 +1170,15 @@ class TournamentService {
         )
       }
 
+      // Add Pairing Engine in response
+      const trnConfig = await this.tournamentConfigurationDao.findOneByWhere(
+        {
+          tournament_id: id,
+        },
+        ['engine']
+      )
+      data.setDataValue('pairingEngine', trnConfig.engine || 'javafo')
+
       // ✅ 2️⃣ Get players count
       const playerCount = await this.trnplayersDao.getCountByWhere({
         tournament_id: id,
