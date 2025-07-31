@@ -4,7 +4,7 @@ const ApiError = require('../helper/ApiError')
 const { userRoles } = require('../config/constant')
 
 class UserValidator {
-  async userCreateValidator(req, res, next) {
+  static async userCreateValidator(req, res, next) {
     // create schema object
     const schema = Joi.object({
       email: Joi.string().email().required(),
@@ -44,7 +44,7 @@ class UserValidator {
     }
   }
 
-  async userLoginValidator(req, res, next) {
+  static async userLoginValidator(req, res, next) {
     // create schema object
     const schema = Joi.object({
       email: Joi.string().email().required(),
@@ -76,7 +76,7 @@ class UserValidator {
     }
   }
 
-  async checkEmailValidator(req, res, next) {
+  static async checkEmailValidator(req, res, next) {
     // create schema object
     const schema = Joi.object({
       email: Joi.string().email().required(),
@@ -107,7 +107,7 @@ class UserValidator {
     }
   }
 
-  async changePasswordValidator(req, res, next) {
+  static async changePasswordValidator(req, res, next) {
     // create schema object
     const schema = Joi.object({
       country_code: Joi.string().required(),

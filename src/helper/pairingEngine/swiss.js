@@ -335,6 +335,10 @@ async function javaFoRoundPairing(
   teams = []
 ) {
   const numberOfPlayers = players.length
+  let engine = config.engine || 'bbpPairing'
+  if (numberOfPlayers > 500) {
+    engine = 'bbpPairing'
+  }
   let tournamentDetails =
     `012  ${tournament.name}\n` +
     `042  ${tournament.start_date}\n` +
@@ -343,17 +347,16 @@ async function javaFoRoundPairing(
     `092  Swiss-System\n`
   tournamentDetails += `XXR  ${tournament.rounds}\n`
 
-  console.log('numberOfPlayers', numberOfPlayers)
-  // if (numberOfPlayers > 500) {
-  console.log('BBP Pairings enabled')
-  tournamentDetails +=
-    'BBW  1.0\n' +
-    'BBD  0.5\n' +
-    'BBL  0.0\n' +
-    'BBZ  0.0\n' +
-    'BBF  1.0\n' +
-    'BBU  1.0\n'
-  // }
+  if (engine === 'bbpPairing') {
+    console.log('BBP Pairings enabled')
+    tournamentDetails +=
+      'BBW  1.0\n' +
+      'BBD  0.5\n' +
+      'BBL  0.0\n' +
+      'BBZ  0.0\n' +
+      'BBF  1.0\n' +
+      'BBU  1.0\n'
+  }
 
   const data = white.concat(black).sort((a, b) => {
     return a.round - b.round
@@ -456,7 +459,7 @@ async function javaFoRoundPairing(
   }
   let result = tournamentDetails
   if (
-    tournament.tournament_type !== 'Circlechess_Online' &&
+    engine === 'javafo' &&
     formatedPlayers.some((p) => {
       return p?.is_withdrawn
     })
@@ -517,21 +520,22 @@ async function javaFoRoundPairing(
     result += `XXC ${config.color}1`
   }
   try {
-    if (tournament.tournament_type !== 'Circlechess_Online') {
-      const pairings = await pairOld(
-        result,
-        formatedPlayers,
-        teams,
-        `tournament_${tournament.id}_${round}`,
-        tournament.tournament_type
-      )
-      return pairings
-    }
+    // if (tournament.tournament_type !== 'Circlechess_Online') {
+    //   const pairings = await pairOld(
+    //     result,
+    //     formatedPlayers,
+    //     teams,
+    //     `tournament_${tournament.id}_${round}`,
+    //     tournament.tournament_type
+    //   )
+    //   return pairings
+    // }
     const pairings = await pair(
       result,
       formatedPlayers,
       teams,
-      `tournament_${tournament.id}_${round}`
+      `tournament_${tournament.id}_${round}`,
+      engine
     )
     return pairings
   } catch (error) {
