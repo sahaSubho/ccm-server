@@ -1177,7 +1177,7 @@ class TournamentService {
         },
         ['engine']
       )
-      data.setDataValue('pairingEngine', trnConfig.engine || 'javafo')
+      data.setDataValue('pairingEngine', trnConfig?.engine || 'javafo')
 
       // ✅ 2️⃣ Get players count
       const playerCount = await this.trnplayersDao.getCountByWhere({
