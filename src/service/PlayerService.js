@@ -767,7 +767,7 @@ class PlayersService {
           playerId: data.playerId,
           newStart: newTournamentStart.toDate(),
           newEnd: newTournamentEnd.toDate(),
-          parentId: tournament.parent_id || 0
+          parentId: tournament.parent_id || 0,
         },
         type: sequelize.QueryTypes.SELECT,
       })
@@ -780,7 +780,7 @@ class PlayersService {
       }
 
       // Populate player data
-      const playerData = {
+      let playerData = {
         name: PlayersService.cleanName(user.username) || '',
         fide_id: Number(user.fide_id) || null,
         rating: Number(user.gameplay_rating) || 0,
@@ -795,6 +795,25 @@ class PlayersService {
         pId: user.pId || 0,
         tournament_id: id,
         cc_userid: data.playerId,
+      }
+
+      if (user?.fide_id) {
+        const fidePlayer = await this.playersDao.findByWhere({
+          fide_id: user.fide_id,
+        })
+
+        if (fidePlayer) {
+          playerData = {
+            ...playerData,
+            rating: PlayersService.getRatingToConsider(
+              tournament.time_format,
+              fidePlayer
+            ),
+            title: fidePlayer.title,
+            age: fidePlayer.age,
+            gender: fidePlayer.gender,
+          }
+        }
       }
 
       const player = await this.trnplayersDao.create(playerData)

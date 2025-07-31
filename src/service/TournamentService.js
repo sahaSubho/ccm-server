@@ -237,7 +237,9 @@ class TournamentService {
             if (data.id) {
               await this.tournamentDao.updateById(
                 {
-                  address: `https://learn.circlechess.com/playChess?tournamentId=${
+                  address: `https://${
+                    process.env.ENV === 'preprod' ? 'pp-' : ''
+                  }learn.circlechess.com/playChess?tournamentId=${
                     data.id
                   }&tournamentName=${data.name?.replace(/\s/g, '-')}`,
                 },
@@ -251,6 +253,8 @@ class TournamentService {
                 SB: { games: { best: '1', worst: '0' } },
                 'BH-C1': { games: { best: '1', worst: '0' } },
               },
+              sorting: true,
+              engine: 'javafo',
             }
             await this.setConfiguration(data.id, defaultConfig)
 
