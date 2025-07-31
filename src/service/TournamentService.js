@@ -1601,6 +1601,23 @@ class TournamentService {
         `Tournament fetched: ID=${tournament?.id}, Type=${tournament?.tournament_type}, Total Rounds=${tournament?.rounds}`
       )
 
+      let players = await this.trnplayersDao.findByWhere({
+        tournament_id: tournamentId,
+      })
+
+      if (!players.length) {
+        message =
+          'The pairing process cannot be initiated as there are no players available for matching. Please upload player information first.'
+        console.log(message)
+        return responseHandler.returnError(httpStatus.BAD_REQUEST, message)
+      }
+
+      if (players.length > 500) {
+        await this.tournamentConfigurationDao.updateByWhere(
+          { engine: 'bbpPairing' },
+          { tournament_id: tournamentId }
+        )
+      }
       const trnConfig = await this.tournamentConfigurationDao.findOneByWhere({
         tournament_id: tournamentId,
       })
@@ -1612,9 +1629,6 @@ class TournamentService {
         })
       }
 
-      let players = await this.trnplayersDao.findByWhere({
-        tournament_id: tournamentId,
-      })
       console.log(`Players fetched: Count = ${players.length}`)
       if (tournament.tournament_type === 'Circlechess_Online') {
         console.log(`Checking for duplicate CC users...`)
@@ -1648,13 +1662,6 @@ class TournamentService {
 
       if (round > tournament.rounds) {
         message = 'Pairing already done for all rounds in the tournament.'
-        console.log(message)
-        return responseHandler.returnError(httpStatus.BAD_REQUEST, message)
-      }
-
-      if (!players.length) {
-        message =
-          'The pairing process cannot be initiated as there are no players available for matching. Please upload player information first.'
         console.log(message)
         return responseHandler.returnError(httpStatus.BAD_REQUEST, message)
       }

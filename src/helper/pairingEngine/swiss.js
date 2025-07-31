@@ -335,10 +335,7 @@ async function javaFoRoundPairing(
   teams = []
 ) {
   const numberOfPlayers = players.length
-  let engine = config.engine || 'bbpPairing'
-  if (numberOfPlayers > 500) {
-    engine = 'bbpPairing'
-  }
+  const { engine } = config
   let tournamentDetails =
     `012  ${tournament.name}\n` +
     `042  ${tournament.start_date}\n` +
@@ -520,16 +517,6 @@ async function javaFoRoundPairing(
     result += `XXC ${config.color}1`
   }
   try {
-    // if (tournament.tournament_type !== 'Circlechess_Online') {
-    //   const pairings = await pairOld(
-    //     result,
-    //     formatedPlayers,
-    //     teams,
-    //     `tournament_${tournament.id}_${round}`,
-    //     tournament.tournament_type
-    //   )
-    //   return pairings
-    // }
     const pairings = await pair(
       result,
       formatedPlayers,
