@@ -129,7 +129,7 @@ async function callLambdaWithRetry(
   payload,
   urls,
   maxRetries = 1,
-  timeoutMs = 180000
+  timeoutMs = 300000
 ) {
   let lastError
 
