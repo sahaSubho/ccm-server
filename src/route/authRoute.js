@@ -6,7 +6,7 @@ const router = express.Router()
 const auth = require('../middlewares/auth')
 
 const authController = new AuthController()
-const userValidator = new UserValidator()
+const userValidator = UserValidator
 
 router.post(
   '/register',

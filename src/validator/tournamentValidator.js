@@ -414,9 +414,9 @@ class TournamentValidator {
     }
   }
 
-  static tournamentConfigValidator(req, res, next) {
-    const schema = Joi.object({})
-  }
+  // static tournamentConfigValidator(req, res, next) {
+  //   const schema = Joi.object({})
+  // }
 }
 
 module.exports = TournamentValidator

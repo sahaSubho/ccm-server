@@ -45,6 +45,11 @@ module.exports = (sequelize, DataTypes) => {
         type: DataTypes.STRING,
         defaultValue: 'white',
       },
+      engine: {
+        type: DataTypes.STRING,
+        enum: ['javafo', 'bbpPairing'],
+        defaultValue: 'javafo',
+      },
     },
     {
       sequelize,

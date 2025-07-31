@@ -1601,7 +1601,11 @@ class TournamentService {
         `Tournament fetched: ID=${tournament?.id}, Type=${tournament?.tournament_type}, Total Rounds=${tournament?.rounds}`
       )
 
-      if (round === 1 && tournament.tournament_type === 'Circlechess_Online') {
+      const trnConfig = await this.tournamentConfigurationDao.findOneByWhere({
+        tournament_id: tournamentId,
+      })
+
+      if (round === 1 && trnConfig.engine === 'bbpPairing') {
         await this.trnplayersDao.deleteByWhere({
           tournament_id: tournamentId,
           is_withdrawn: true,
@@ -1687,10 +1691,6 @@ class TournamentService {
       let black = []
       let ranking = {}
       let lastRoundPairings = []
-
-      const trnConfig = await this.tournamentConfigurationDao.findOneByWhere({
-        tournament_id: tournamentId,
-      })
 
       if (round > 1) {
         console.log(`Fetching last round pairings and computing ranking.`)

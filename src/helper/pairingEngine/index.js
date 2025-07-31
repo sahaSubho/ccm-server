@@ -1,3 +1,5 @@
+/* eslint-disable no-restricted-syntax */
+/* eslint-disable no-await-in-loop */
 const { spawn } = require('child_process')
 const fs = require('fs')
 const uploadFileToS3 = require('../uploadFiletoS3')
@@ -123,12 +125,73 @@ const pairOld = (input, players, teams = [], fileName = '', type = '') => {
   })
 }
 
-const pair = async (input, players, teams = [], fileName = '') => {
+async function callLambdaWithRetry(
+  payload,
+  urls,
+  maxRetries = 1,
+  timeoutMs = 300000
+) {
+  let lastError
+
+  for (const url of urls) {
+    for (let attempt = 0; attempt <= maxRetries; attempt += 1) {
+      const controller = new AbortController()
+      const timeout = setTimeout(() => {
+        return controller.abort()
+      }, timeoutMs)
+
+      try {
+        console.log(`Attempt ${attempt + 1} to call ${url}`)
+        const res = await fetch(url, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify(payload),
+          signal: controller.signal,
+        })
+
+        clearTimeout(timeout)
+        if (!res.ok) {
+          throw new Error(`HTTP error! Status: ${res.status}`)
+        }
+
+        return await res.json() // or res.text(), etc.
+      } catch (err) {
+        lastError = err
+        clearTimeout(timeout)
+        // If last retry attempt on this URL, break and try next URL
+        if (attempt === maxRetries) {
+          break
+        }
+      }
+    }
+  }
+
+  // All URLs and retries failed
+  throw lastError
+}
+
+const pair = async (
+  input,
+  players,
+  teams = [],
+  fileName = '',
+  engine = 'javafo'
+) => {
   console.log('inside pair')
   const trfFilePath = `uploads/files/input_${fileName}.trf` // Path to your input TRF file
   fs.writeFileSync(trfFilePath, input)
 
   const fileBuffer = fs.readFileSync(trfFilePath)
+
+  if (!config.simulate && config.env === 'production') {
+    uploadFileToS3(
+      trfFilePath,
+      process.env.AWS_S3_BUCKET_NAME,
+      `pairings/input_${fileName}.trf`
+    )
+  }
 
   // Convert to base64 string
   const base64String = fileBuffer.toString('base64')
@@ -140,16 +203,24 @@ const pair = async (input, players, teams = [], fileName = '') => {
     fileName,
   }
 
-  console.log(config.awsLambdaUrl, JSON.stringify(payload))
-  const res = await fetch(config.awsLambdaUrl, {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-    },
-    body: JSON.stringify(payload),
-  })
-  console.log('result', JSON.stringify(res.status))
-  const result = await res.json()
-  return result
+  const urls = [
+    config.awsLambdaJavafo, // primary
+    config.awsLambdaBbpPairing, // fallback
+  ]
+
+  if (engine === 'bbpPairing') {
+    urls.reverse() // Reverse the order for bbpPairing to try fallback first
+  }
+
+  try {
+    const result = await callLambdaWithRetry(payload, urls)
+    console.log('Lambda response:', JSON.stringify(result))
+    if (result?.body) {
+      return JSON.parse(result.body)
+    }
+    return result
+  } catch (error) {
+    console.error('Lambda failed after all retries and fallback:', error)
+  }
 }
 module.exports = { pair, pairOld }
