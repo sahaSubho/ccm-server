@@ -1622,7 +1622,7 @@ class TournamentService {
       }
 
       if (players.length > 500) {
-        await this.tournamentConfigurationDao.updateByWhere(
+        await this.tournamentConfigurationDao.updateWhere(
           { engine: 'bbpPairing' },
           { tournament_id: tournamentId }
         )
