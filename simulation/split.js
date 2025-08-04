@@ -1,3 +1,4 @@
+/* eslint-disable no-restricted-syntax */
 const { Worker } = require('worker_threads')
 const path = require('path')
 const PlayersDao = require('../src/dao/TournamentPlayersDao')
@@ -11,9 +12,11 @@ const tournamentPrefix = process.argv[3]
 
 if (!tournamentId || !tournamentPrefix) {
   console.error(
-    '❌ Please provide a tournament ID and a prefix. Example:\n   node split.js 123 "My Awesome Event"'
+    'Please provide a tournament ID and a prefix. Example:\n   node split.js 123 "My Awesome Event"'
   )
-  process.exit(1)
+  throw new Error(
+    'Please provide a tournament ID and a prefix. Example:\n   node split.js 123 "My Awesome Event"'
+  )
 }
 
 // ---------------- Fetch Players & Categorize (Functions remain the same) ----------------
@@ -110,7 +113,7 @@ function splitTournament(players, groupSize = 1000) {
 
   const groups = []
 
-  for (let i = 0; i < numGroups; i++) {
+  for (let i = 0; i < numGroups; i += 1) {
     const extra = minExtra + (i < extraGroups ? 1 : 0)
     const size = groupSize + extra
     groups.push(allocateGroup(ratingPools, size))
@@ -178,7 +181,7 @@ async function distributeTournamentGroups(id) {
       '\n❌ An error occurred in one or more workers. Halting process.',
       error
     )
-    process.exit(1) // Exit if any worker fails
+    throw new Error('Halting process due to worker failure.') // Throw error if any worker fails
   }
 }
 

@@ -237,7 +237,9 @@ class TournamentService {
             if (data.id) {
               await this.tournamentDao.updateById(
                 {
-                  address: `https://learn.circlechess.com/playChess?tournamentId=${
+                  address: `https://${
+                    process.env.ENV === 'preprod' ? 'pp-' : ''
+                  }learn.circlechess.com/playChess?tournamentId=${
                     data.id
                   }&tournamentName=${data.name?.replace(/\s/g, '-')}`,
                 },
@@ -251,6 +253,8 @@ class TournamentService {
                 SB: { games: { best: '1', worst: '0' } },
                 'BH-C1': { games: { best: '1', worst: '0' } },
               },
+              sorting: true,
+              engine: 'javafo',
             }
             await this.setConfiguration(data.id, defaultConfig)
 
@@ -2965,11 +2969,18 @@ class TournamentService {
   }
 
   reCalculateStandingsPrizes = async (round, tournamentId, rounds) => {
+    console.log(
+      `--- [reCalculateStandingsPrizes] START | Tournament ID: ${tournamentId}, Round: ${round}, Total Rounds: ${rounds} ---`
+    )
+    console.log(
+      `Recalculating standings and prizes for tournament: ${tournamentId}, round: ${round}`
+    )
     const pendingScoreToUpload = await this.tournamentPairingsDao.checkExist({
       round,
       tournament_id: tournamentId,
       is_scored: false,
     })
+    console.log(`Pending scores to upload: ${pendingScoreToUpload}`)
     if (!pendingScoreToUpload) {
       console.log(`All scores submitted. Recalculating standings.`)
       const scoreUploadKey = `ccm_score_upload_${tournamentId}_${round}`
@@ -3277,6 +3288,7 @@ class TournamentService {
         }
       }
 
+      // Recalculate standings and prizes after scores update
       this.reCalculateStandingsPrizes(round, tournamentId, tournament.rounds)
       console.log(
         `--- [updateScoring] END | Round ${round} updated successfully ---`
@@ -3736,6 +3748,7 @@ class TournamentService {
           .map((cf) => {
             return this.ccTournamentFeedbackDao.deleteByWhere({ id: cf.id })
           })
+
         const existing = []
         const newData = []
         const key = uuidv4()
