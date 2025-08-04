@@ -2313,7 +2313,7 @@ class TournamentService {
         message = `Pairing of Round ${round} is not done yet! Please try again.`
         console.log(message)
         // return responseHandler.returnError(httpStatus.BAD_REQUEST, message)
-        return responseHandler.returnSuccess({ data: [], message })
+        return responseHandler.returnSuccess(httpStatus.OK, message, [])
       }
 
       console.log(`Pairings fetched from DB: Count = ${data.count}`)
@@ -2699,6 +2699,12 @@ class TournamentService {
       let result
       let output
 
+      const pendingScoreToUpload = await this.tournamentPairingsDao.checkExist({
+        round,
+        tournament_id: tournamentId,
+        is_scored: false,
+      })
+
       const scoreUploadKey = `ccm_score_upload_${tournamentId}_${round}`
       const scoreUploaded = await this.redisService.getValue(scoreUploadKey)
       // fetch player and standings details from database
@@ -2789,7 +2795,11 @@ class TournamentService {
         output = result.map((player, i) => {
           return { ...player, rank: i + 1 }
         })
-      } else if (Number(scoreUploaded) === 0 && round === 1) {
+      } else if (
+        pendingScoreToUpload &&
+        Number(scoreUploaded) === 0 &&
+        round === 1
+      ) {
         // if it is first round, compute from starting rank of players since there is no data in the standings and pairing table
 
         console.log('Fetching Players when Standings not exists')
@@ -2995,29 +3005,22 @@ class TournamentService {
         tournament_id: tournamentId,
       })
       console.log(`Standings already exist?`, standingExists)
+      const payload = players.map((p, i) => {
+        delete p.id
+        return {
+          ...p,
+          rank: i + 1,
+        }
+      })
       if (!standingExists) {
-        await this.tournamentStandingsDao.bulkCreate(
-          players.map((p, i) => {
-            return {
-              ...p,
-              rank: i + 1,
-            }
-          })
-        )
+        await this.tournamentStandingsDao.bulkCreate(payload)
         console.log(`Standings created.`)
       } else {
         await this.tournamentStandingsDao.deleteByWhere({
           round,
           tournament_id: tournamentId,
         })
-        await this.tournamentStandingsDao.bulkCreate(
-          players.map((p, i) => {
-            return {
-              ...p,
-              rank: i + 1,
-            }
-          })
-        )
+        await this.tournamentStandingsDao.bulkCreate(payload)
         console.log(`Standings replaced.`)
       }
 
