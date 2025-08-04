@@ -1181,7 +1181,7 @@ class TournamentService {
         },
         ['engine']
       )
-      data.setDataValue('pairingEngine', trnConfig.engine || 'javafo')
+      data.setDataValue('pairingEngine', trnConfig?.engine || 'javafo')
 
       // ✅ 2️⃣ Get players count
       const playerCount = await this.trnplayersDao.getCountByWhere({
@@ -1626,7 +1626,7 @@ class TournamentService {
       }
 
       if (players.length > 500) {
-        await this.tournamentConfigurationDao.updateByWhere(
+        await this.tournamentConfigurationDao.updateWhere(
           { engine: 'bbpPairing' },
           { tournament_id: tournamentId }
         )

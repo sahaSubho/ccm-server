@@ -72,10 +72,11 @@ class PlayersService {
   }
 
   static CSOCTournamentClassNameMapping = {
-    advance: '-P%-AD',
-    intermediate: '-P%-IN',
-    foundation: '-P%-F',
-    beginner: '-P%-B',
+    advance: 'IND-P%-AD',
+    intermediate: 'IND-P%-IN',
+    foundation: 'IND-P%-F',
+    beginner: 'IND-P%-B',
+    usa: 'US%',
   }
 
   static areNamesSimilar = (_name1, _name2, threshold = 0.1) => {
@@ -632,7 +633,23 @@ class PlayersService {
 
       const user = await this.CCUserDao.findOne({ user_id: data.playerId })
 
-      if (PlayersService.CSOCTournamentMapping[tournament.csoc_batch]) {
+      if (tournament.csoc_batch === 'usa') {
+        const res1 = await sequelize.query(
+          `select id from cc_csoc_registration where status in (1,3) and mobile_number='${
+            user.mobile_number
+          }' and class_name like '%${
+            PlayersService.CSOCTournamentClassNameMapping[tournament.csoc_batch]
+          }%'`,
+          {
+            type: sequelize.QueryTypes.SELECT,
+          }
+        )
+        if (!res1.length) {
+          message =
+            "Failed to add player! Since Player doesn't belongs to USA CSOC batch."
+          return responseHandler.returnError(httpStatus.BAD_REQUEST, message)
+        }
+      } else if (PlayersService.CSOCTournamentMapping[tournament.csoc_batch]) {
         const res = await sequelize.query(
           `select id from cc_csoc_registration where status in (1,3) and mobile_number='${
             user.mobile_number
