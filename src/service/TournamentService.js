@@ -2796,7 +2796,7 @@ class TournamentService {
           return { ...player, rank: i + 1 }
         })
       } else if (
-        pendingScoreToUpload &&
+        (pendingScoreToUpload || !current_round) &&
         Number(scoreUploaded) === 0 &&
         round === 1
       ) {
