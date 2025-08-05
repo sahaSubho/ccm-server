@@ -41,6 +41,7 @@ class PlayersService {
       classical: ['rating'],
       rapid: ['rapid_rating', 'rating'],
       blitz: ['blitz_rating', 'rating'],
+      bullet: ['blitz_rating', 'rating'],
     }
 
     const order = fallbackOrder[tournamentType.toLowerCase()]
