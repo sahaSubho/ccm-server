@@ -103,6 +103,15 @@ class RedisService {
   }
 
   /**
+   * Lock Key
+   * @param {Object} key
+   * @returns {boolean}
+   */
+  lock = async (key, value, config_data) => {
+    return await this.redisHelper.lock(key, value, config_data)
+  }
+
+  /**
    * Set Value for Atomic
    * @param {Object} key
    * @returns {boolean}

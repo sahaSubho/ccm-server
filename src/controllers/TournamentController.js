@@ -236,7 +236,23 @@ class TournamentController {
       const { round, tournamentId } = req.query
       const pairings = await this.tournamentService.createTournamentPairing(
         round,
-        tournamentId
+        tournamentId,
+	req.body
+      )
+      res.status(pairings.statusCode).send(pairings.response)
+    } catch (e) {
+      logger.error(e)
+      res.status(httpStatus.BAD_GATEWAY).send(e)
+    }
+  }
+
+  storeRoundResults = async (req, res) => {
+    try {
+      const { round, tournamentId } = req.query
+      const pairings = await this.tournamentService.storeRoundResults(
+        round,
+        tournamentId,
+	req.body
       )
       res.status(pairings.statusCode).send(pairings.response)
     } catch (e) {

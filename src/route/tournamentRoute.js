@@ -51,11 +51,17 @@ router.get(
   tournamentValidator.pairingValidator,
   tournamentController.createTournamentPairing
 )
-router.get(
+router.post(
   '/gs-generate-pairing',
   gsApiCheck,
   tournamentValidator.pairingValidator,
   tournamentController.createTournamentPairing
+)
+router.post(
+  '/gs-bulk-score-upload',
+  gsApiCheck,
+  tournamentValidator.pairingValidator,
+  tournamentController.storeRoundResults
 )
 router.get(
   '/revert-pairing',
