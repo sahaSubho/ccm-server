@@ -128,6 +128,7 @@ const pairOld = (input, players, teams = [], fileName = '', type = '') => {
 async function callLambdaWithRetry(
   payload,
   urls,
+  fileName = '',
   maxRetries = 1,
   timeoutMs = 300000
 ) {
@@ -141,7 +142,7 @@ async function callLambdaWithRetry(
       }, timeoutMs)
 
       try {
-        console.log(`Attempt ${attempt + 1} to call ${url}`)
+        console.log(`Attempt ${attempt + 1} to ${fileName} call ${url}`)
         const res = await fetch(url, {
           method: 'POST',
           headers: {
@@ -158,6 +159,7 @@ async function callLambdaWithRetry(
 
         return await res.json() // or res.text(), etc.
       } catch (err) {
+        console.log(`Exception inside attempt ${attempt + 1} to ${fileName} call ${url}`)
         lastError = err
         clearTimeout(timeout)
         // If last retry attempt on this URL, break and try next URL
@@ -179,7 +181,7 @@ const pair = async (
   fileName = '',
   engine = 'javafo'
 ) => {
-  console.log('inside pair')
+  console.log(`inside pair with ${fileName} and ${engine}`)
   const trfFilePath = `uploads/files/input_${fileName}.trf` // Path to your input TRF file
   fs.writeFileSync(trfFilePath, input)
 
@@ -213,7 +215,7 @@ const pair = async (
   }
 
   try {
-    const result = await callLambdaWithRetry(payload, urls)
+    const result = await callLambdaWithRetry(payload, urls, fileName)
     console.log('Lambda response:', JSON.stringify(result))
     if (result?.body) {
       return JSON.parse(result.body)

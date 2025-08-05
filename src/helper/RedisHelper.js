@@ -20,6 +20,24 @@ class RedisHelper {
     }
   }
 
+/**
+   * Set Value
+   * @param {String} key
+   * @param {String/JSON} value
+   * @returns {String/Boolean}
+   */
+  lock = async (key, value , config_dict) => {
+    try {
+      if (typeof value === 'JSON') {
+        value = JSON.stringify(value)
+      }
+      return await this.redisClient.set(key, value, config_dict)
+    } catch (e) {
+      return false
+    }
+  }
+
+
   /**
    * Set Value with Expiry
    * @param {String} key

@@ -41,8 +41,9 @@ if (!fs.existsSync(dest)) {
 app.use(express.static(`${process.env.PWD}/public`))
 app.use('/uploads', express.static(`${process.env.PWD}/uploads`))
 
-app.use(express.urlencoded({ extended: true }))
-app.use(express.json())
+app.use(express.urlencoded({ limit: '5mb', extended: true }));
+app.use(express.json({ limit: '5mb' }));
+
 
 // jwt authentication
 app.use(passport.initialize())
@@ -62,6 +63,13 @@ app.get('/', async (req, res) => {
 app.get('/metrics', MonitoringHelper.getMetrics)
 
 app.use('/api', check, routes)
+
+app.use((err, req, res, next) => {
+  if (err.type === 'entity.too.large') {
+    return res.status(413).json({ error: 'Payload too large' });
+  }
+  next(err);
+});
 
 // send back a 404 error for any unknown api request
 app.use((req, res, next) => {
