@@ -226,7 +226,7 @@ class TournamentService {
 	    AND (
 	      ctp.result IS DISTINCT FROM v.result
 		      OR ctp.is_scored IS DISTINCT FROM true
-		      OR ctp.table_id IS DISTINCT FROM v.table_id
+		      OR ctp.table_id IS DISTINCT FROM v.table_id::INTEGER
 	    );
 	`;
 
