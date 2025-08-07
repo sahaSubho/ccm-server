@@ -144,6 +144,27 @@ router.post(
   gsApiCheck,
   tournamentController.updatePairingTableId
 )
+
+router.post(
+  '/trigger-round-start',
+  auth(),
+  tournamentValidator.roundStartValidator,
+  tournamentController.triggerRoundTimer
+)
+
+router.post(
+  '/trigger-round-cleanup',
+  auth(),
+  tournamentValidator.roundCleanupValidator,
+  tournamentController.triggerRoundCleanup
+)
+
+router.post(
+  '/trigger-tournament-end',
+  auth(),
+  tournamentValidator.roundCleanupValidator,
+  tournamentController.triggerTournamentEndTimer
+)
 router.patch(
   '/:id',
   auth(),

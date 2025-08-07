@@ -219,7 +219,7 @@ class TournamentController {
   createTournamentPairingTest = async (req, res) => {
     try {
       const { round, tournamentId } = req.query
-	    console.log(round , tournamentId)
+      console.log(round, tournamentId)
       const pairings = await this.tournamentService.createTournamentPairingTest(
         round,
         tournamentId
@@ -237,7 +237,7 @@ class TournamentController {
       const pairings = await this.tournamentService.createTournamentPairing(
         round,
         tournamentId,
-	req.body
+        req.body
       )
       res.status(pairings.statusCode).send(pairings.response)
     } catch (e) {
@@ -252,7 +252,7 @@ class TournamentController {
       const pairings = await this.tournamentService.storeRoundResults(
         round,
         tournamentId,
-	req.body
+        req.body
       )
       res.status(pairings.statusCode).send(pairings.response)
     } catch (e) {
@@ -472,6 +472,52 @@ class TournamentController {
       const resp = await this.tournamentService.getConfiguration(id)
       const { status, message, data } = resp.response
       res.status(resp.statusCode).send({ status, message, data })
+    } catch (e) {
+      logger.error(e)
+      res.status(httpStatus.BAD_GATEWAY).send(e)
+    }
+  }
+
+  triggerRoundTimer = async (req, res) => {
+    try {
+      const { tournamentId, round, time_control } = req.body
+      const data = await this.tournamentService.triggerRoundTimer(
+        tournamentId,
+        round,
+        time_control
+      )
+      const { status, message } = data.response
+      res.status(data.statusCode).send({ status, message })
+    } catch (e) {
+      logger.error(e)
+      res.status(httpStatus.BAD_GATEWAY).send(e)
+    }
+  }
+
+  triggerRoundCleanup = async (req, res) => {
+    try {
+      const { tournamentId, round } = req.body
+      const data = await this.tournamentService.triggerRoundCleanup(
+        tournamentId,
+        round
+      )
+      const { status, message } = data.response
+      res.status(data.statusCode).send({ status, message })
+    } catch (e) {
+      logger.error(e)
+      res.status(httpStatus.BAD_GATEWAY).send(e)
+    }
+  }
+
+  triggerTournamentEndTimer = async (req, res) => {
+    try {
+      const { tournamentId, round } = req.body
+      const data = await this.tournamentService.triggerTournamentEndTimer(
+        tournamentId,
+        round
+      )
+      const { status, message } = data.response
+      res.status(data.statusCode).send({ status, message })
     } catch (e) {
       logger.error(e)
       res.status(httpStatus.BAD_GATEWAY).send(e)
