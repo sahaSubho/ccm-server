@@ -222,7 +222,12 @@ class TournamentService {
 	  WHERE ctp.id = v.id::INTEGER
 	    AND ctp.tournament_id = v.tournament_id::INTEGER
 	    AND ctp.round = v.round::INTEGER 
-	    AND v.result IN ('1-0', '0-1', '0.5-0.5');
+	    AND v.result IN ('1-0', '0-1', '0.5-0.5')
+	    AND (
+	      ctp.result IS DISTINCT FROM v.result
+		      OR ctp.is_scored IS DISTINCT FROM true
+		      OR ctp.table_id IS DISTINCT FROM v.table_id
+	    );
 	`;
 
         console.log('level  3 : ', updateGameResultQuery)
@@ -3457,7 +3462,11 @@ class TournamentService {
                   })
                   .join(',')}
             ) AS v(id, result, is_scored, cc_gameid)
-            WHERE t.id = v.id;
+            WHERE t.id = v.id AND (
+	      t.result IS DISTINCT FROM v.result
+		      OR t.is_scored IS DISTINCT FROM true
+		      OR t.cc_gameid IS DISTINCT FROM v.cc_gameid
+	    );
           `)
 
           if (!result.length) {
@@ -3482,7 +3491,7 @@ class TournamentService {
       }
 
       // Recalculate standings and prizes after scores update
-      this.reCalculateStandingsPrizes(round, tournamentId, tournament.rounds)
+      //this.reCalculateStandingsPrizes(round, tournamentId, tournament.rounds)
       console.log(
         `--- [updateScoring] END | Round ${round} updated successfully ---`
       )
