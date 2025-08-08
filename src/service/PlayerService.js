@@ -67,7 +67,7 @@ class PlayersService {
 
   static CSOCTournamentMapping = {
     advance: 16599,
-    intermediate: '19538,29210',
+    intermediate: '19538,29210,38380,37470,38389,38807',
     foundation: '24797,23696,28545',
     beginner: 19526,
   }
