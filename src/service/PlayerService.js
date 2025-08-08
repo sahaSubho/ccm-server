@@ -1444,28 +1444,41 @@ class PlayersService {
         type: sequelize.QueryTypes.SELECT,
       })
 
+      const opponents = data.filter((t) => {
+        return !(
+          t.result ===
+            tournaments.find((p) => {
+              return p.parent_id === t.id || t.parent_id === p.id
+            })?.result && t.result === ''
+        )
+      })
+      const pairings = tournaments.filter((t) => {
+        return !(
+          t.result ===
+            data.find((p) => {
+              return p.parent_id === t.id || t.parent_id === p.id
+            })?.result && t.result === ''
+        )
+      })
+
+      if (pairings.length > opponents.length) {
+        const byePairings = pairings.find((p) => {
+          return p.parent_id === null
+        })
+        byePairings.player_name = 'Bye'
+        byePairings.result = '0-1'
+        byePairings.player_fide_id = null
+        opponents.push(byePairings)
+      }
+
       delete player.mobile
       const result = {
         tournamentName,
         details: {
           ...player,
-          tournaments: tournaments.filter((t) => {
-            return !(
-              t.result ===
-                data.find((p) => {
-                  return p.parent_id === t.id || t.parent_id === p.id
-                })?.result && t.result === ''
-            )
-          }),
+          tournaments: pairings,
         },
-        opponents: data.filter((t) => {
-          return !(
-            t.result ===
-              tournaments.find((p) => {
-                return p.parent_id === t.id || t.parent_id === p.id
-              })?.result && t.result === ''
-          )
-        }),
+        opponents,
       }
       return responseHandler.returnSuccess(httpStatus.OK, message, result)
     } catch (error) {

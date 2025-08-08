@@ -143,74 +143,85 @@ class TournamentService {
     return 'Classical'
   }
 
+  toIntegerOrZero = (value) => {
+    const num = Number(value)
+    return Number.isInteger(num) ? num : 0
+  }
 
-    toIntegerOrZero = (value) => {
-	  const num = Number(value);
-	  return Number.isInteger(num) ? num : 0;
-    }
+  fetchResultsDict = (raw) => {
+    const tableMap = {}
+    for (const [key, value] of Object.entries(raw)) {
+      if (key.startsWith('pairing:')) {
+        try {
+          const parsed = JSON.parse(value)
 
-    fetchResultsDict = (raw) => {
-	    const tableMap = {};
-		for (const [key, value] of Object.entries(raw)) {
-		  if (key.startsWith('pairing:')) {
-		    try {
-		      const parsed = JSON.parse(value);
+          let tid = 0
+          let wid = 0
+          let bid = 0
+          if (parsed.tableId) {
+            tid = this.toIntegerOrZero(parsed.tableId)
+          }
+          if (parsed.whiteId) {
+            wid = this.toIntegerOrZero(parsed.whiteId)
+          }
+          if (parsed.blackId) {
+            bid = this.toIntegerOrZero(parsed.blackId)
+          }
 
-			let tid=0;
-			let wid=0;
-			let bid=0;
-			if(parsed.tableId)
-			    tid = this.toIntegerOrZero(parsed.tableId)
-			if(parsed.whiteId)
-			    wid = this.toIntegerOrZero(parsed.whiteId)
-			if(parsed.blackId)
-			    bid = this.toIntegerOrZero(parsed.blackId)
+          console.log('tid, wid, bid : ', tid, wid, bid)
 
-                        console.log("tid, wid, bid : ", tid, wid, bid)
-
-			tableMap[wid] = {
-				data: [tid, parsed.result]
-			};
-			tableMap[bid] = {
-				data: [tid, parsed.result]
-			};
-                        /*
+          tableMap[wid] = {
+            data: [tid, parsed.result],
+          }
+          tableMap[bid] = {
+            data: [tid, parsed.result],
+          }
+          /*
 			tableMap[tid] = {
 				white: [wid, parsed.result],
 				black: [bid, parsed.result]
-			};*/
+			}; */
+        } catch (e) {
+          console.error(`Error parsing ${key}:`, e.message)
+        }
+      }
+    }
+    return tableMap
+  }
 
-		    } catch (e) {
-		      console.error(`Error parsing ${key}:`, e.message);
-		    }
-		  }
-		}
-	    return tableMap;
-	}
+  updatePreviousRoundScoresAndResults = async (
+    pairingData,
+    tournamentId,
+    round
+  ) => {
+    console.log('inside updatePreviousRoundScoresAndResults')
 
-    updatePreviousRoundScoresAndResults = async (pairingData, tournamentId, round) =>
-    {
-        console.log("inside updatePreviousRoundScoresAndResults");
+    const values = []
 
-	const values = [];
+    for (const [row_id, row_data] of Object.entries(pairingData)) {
+      const id = row_id
+      const tid = row_data.data[0]
+      const result = row_data.data[1]
 
-	for (const [row_id, row_data] of Object.entries(pairingData)) {
-	  const id       = row_id;
-	  const tid      = row_data.data[0];
-	  const result   = row_data.data[1];
+      values.push([
+        parseInt(id),
+        parseInt(tid),
+        parseInt(tournamentId),
+        parseInt(round),
+        String(result),
+      ])
+    }
 
-	  values.push([parseInt(id), parseInt(tid), parseInt(tournamentId), parseInt(round), String(result)]);
+    const placeholders = values
+      .map((_, i) => {
+        const base = i * 5
+        return `($${base + 1}, $${base + 2}, $${base + 3}, $${base + 4}, $${
+          base + 5
+        })`
+      })
+      .join(',\n      ')
 
-	}
-
-	const placeholders = values
-	  .map((_, i) => {
-	    const base = i * 5;
-	    return `($${base + 1}, $${base + 2}, $${base + 3}, $${base + 4}, $${base + 5})`;
-	  })
-	  .join(',\n      ');
-
-        const flatValues = values.flat();
+    const flatValues = values.flat()
 
 	const updateGameResultQuery = `
 		UPDATE ccm_tournament_pairings AS ctp
@@ -244,14 +255,15 @@ class TournamentService {
 		  );
 	`;
 
-        console.log('level  3 : ', updateGameResultQuery)
-	await sequelize.query(updateGameResultQuery, {
-	  bind: flatValues,
-	  type: sequelize.QueryTypes.UPDATE
-	});
-        console.log('level  4 : completed ')
 
-        /*
+    console.log('level  3 : ', updateGameResultQuery)
+    await sequelize.query(updateGameResultQuery, {
+      bind: flatValues,
+      type: sequelize.QueryTypes.UPDATE,
+    })
+    console.log('level  4 : completed ')
+
+    /*
 
         console.log('level  4')
 	const updatePlayerScoreQuery = `
@@ -301,8 +313,7 @@ class TournamentService {
 	});
         console.log('level  6')
         */
-}
-
+  }
 
   removePairingsFromRedis = async (tournamentId, round, pairingId) => {
     const hashKey = `ccm_pairings_${tournamentId}_${round}`
@@ -1351,16 +1362,26 @@ class TournamentService {
       })
 
       data.setDataValue('players_count', playerCount)
-
+      data.setDataValue('is_free', data.entry_fee === 0)
       let isJoined = false
+      let isRegistered = false
       if (userId) {
         isJoined = await this.trnplayersDao.checkExist({
           cc_userid: userId,
           tournament_id: id,
           is_withdrawn: false,
         })
+        const res = await sequelize.query(`SELECT EXISTS (
+          SELECT 1
+          FROM cc_registration_orders
+          WHERE tournament_id = ${data.cct_id} and customer_id = ${userId}
+        );`)
+        if (res?.[0]?.[0]?.exists) {
+          isRegistered = true
+        }
       }
       data.setDataValue('is_joined', isJoined)
+      data.setDataValue('is_registered', isRegistered)
 
       // ✅ 3️⃣ Use a single aggregate for pairings
       const pairings = await this.tournamentPairingsDao.findByGroup(
@@ -1641,7 +1662,6 @@ class TournamentService {
     await this.redisService.expire(listKey)
 
     console.log(`Pairings stored in Redis.`)
-
   }
 
   storeRoundResults = async (round, tournamentId, results) => {
@@ -2094,15 +2114,19 @@ class TournamentService {
             teams
           )
 
-        const pairingCompleted = await this.redisService.getValue( `ccm_pairing_completed__${tournamentId}_${round}`)
+        const pairingCompleted = await this.redisService.getValue(
+          `ccm_pairing_completed__${tournamentId}_${round}`
+        )
         if (pairingCompleted) {
-          const msg = `Pairing already completed for Round ${round} in Tournament ID: ${tournamentId}`;
-	  console.log(msg);
+          const msg = `Pairing already completed for Round ${round} in Tournament ID: ${tournamentId}`
+          console.log(msg)
 
-	  try{
-              return await this.getPairings(round, tournamentId)
-          } catch(error) {
-              await this.redisService.removeKey( `ccm_pairing_completed__${tournamentId}_${round}`)
+          try {
+            return await this.getPairings(round, tournamentId)
+          } catch (error) {
+            await this.redisService.removeKey(
+              `ccm_pairing_completed__${tournamentId}_${round}`
+            )
           }
         }
 
@@ -2161,7 +2185,11 @@ class TournamentService {
           }
         }
 
-        await this.redisService.setValueWithExpiry( `ccm_pairing_completed__${tournamentId}_${round}`, 86400, "1")
+        await this.redisService.setValueWithExpiry(
+          `ccm_pairing_completed__${tournamentId}_${round}`,
+          86400,
+          '1'
+        )
 
         data = res.map((w, i) => {
           return {
@@ -2191,7 +2219,8 @@ class TournamentService {
         // )
         return responseHandler.returnSuccess(httpStatus.OK, message, data)
       } catch (error) {
-        await this.redisService.removeKey( `ccm_pairing_queue_${tournamentId}_${round}`
+        await this.redisService.removeKey(
+          `ccm_pairing_queue_${tournamentId}_${round}`
         )
         console.error(`[createTournamentPairing] ERROR in try block:`, error)
         return responseHandler.returnError(
@@ -2693,7 +2722,7 @@ class TournamentService {
     }
   }
 
-  filterStandings = async (
+  static filterStandings = async (
     output,
     round,
     tournamentId,
@@ -2706,7 +2735,7 @@ class TournamentService {
 
     if (search.length > 0) {
       output = output.filter((r) => {
-        return r.player_name.includes(search)
+        return r?.player_name?.toLowerCase()?.includes(search?.toLowerCase())
       })
     }
 
@@ -2858,7 +2887,7 @@ class TournamentService {
             redisResults = redisResults.slice(start, end)
           } else if (search.length) {
             redisResults = redisResults.filter((r) => {
-              return r.player_name.includes(search)
+              return r?.player_name?.toLowerCase()?.includes(search?.toLowerCase())
             })
             totalPlayers = redisResults.length
             start = offset
@@ -3093,7 +3122,7 @@ class TournamentService {
         }
       }
 
-      return await this.filterStandings(
+      return await TournamentService.filterStandings(
         output,
         round,
         tournamentId,
@@ -3645,6 +3674,9 @@ class TournamentService {
         return responseHandler.returnError(httpStatus.BAD_REQUEST, message)
       }
 
+      const tnrConfigKey = `ccm_trn_config_${id}`
+      await this.redisService.removeKey(tnrConfigKey) // Clear old config
+
       return responseHandler.returnSuccess(httpStatus.CREATED, message, data)
     } catch (error) {
       logger.error(error)
@@ -4187,6 +4219,134 @@ class TournamentService {
       return responseHandler.returnError(
         httpStatus.BAD_REQUEST,
         'Something went wrong!'
+      )
+    }
+  }
+
+  triggerRoundTimer = async (tournamentId, round, time_control) => {
+    try {
+      const tournament = await this.tournamentDao.checkExist({
+        id: tournamentId,
+      })
+      console.log('Round Timer', tournamentId, round, time_control)
+      if (!tournament) {
+        throw new Error('Tournament not found')
+      }
+      // Call the game service to trigger the round start timer
+      const url = `${config.gameService.endpoint}/triggerNextRoundStartTimer`
+      const options = {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'x-api-key': config.XapiKey, // Include any required API key
+        },
+        body: JSON.stringify({
+          tournamentId,
+          round,
+          time_control,
+        }), // Include the tournament data
+      }
+
+      const response = await fetch(url, options)
+      if (!response.ok) {
+        return responseHandler.returnError(
+          httpStatus.BAD_REQUEST,
+          `Failed to set next round timer: ${response.statusText}`
+        )
+      }
+      const jsonResponse = await response.json()
+      return responseHandler.returnSuccess(
+        httpStatus.OK,
+        jsonResponse.message || 'Next round timer set successfully',
+        jsonResponse
+      )
+    } catch (error) {
+      logger.error(`Error setting next round timer: ${error.message}`)
+      return responseHandler.returnError(httpStatus.BAD_REQUEST, error.message)
+    }
+  }
+
+  triggerRoundCleanup = async (tournamentId, round) => {
+    try {
+      const tournament = await this.tournamentDao.checkExist({
+        id: tournamentId,
+      })
+      if (!tournament) {
+        throw new Error('Tournament not found')
+      }
+      // Call the game service to trigger the round cleanup
+      const url = `${config.gameService.endpoint}/cancelRoundCleanup`
+      const options = {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'x-api-key': config.XapiKey,
+        },
+        body: JSON.stringify({
+          tournamentId,
+          round,
+        }),
+      }
+
+      const response = await fetch(url, options)
+      if (!response.ok) {
+        return responseHandler.returnError(
+          httpStatus.BAD_REQUEST,
+          `Failed to do round cleanup: ${response.statusText}`
+        )
+      }
+      const jsonResponse = await response.json()
+      return responseHandler.returnSuccess(
+        httpStatus.OK,
+        jsonResponse.message || 'Round Cleanup done successfully',
+        jsonResponse
+      )
+    } catch (error) {
+      logger.error(`Error setting next round timer: ${error.message}`)
+      return responseHandler.returnError(httpStatus.BAD_REQUEST, error.message)
+    }
+  }
+
+  triggerTournamentEndTimer = async (tournamentId, round) => {
+    try {
+      const tournament = await this.tournamentDao.checkExist({
+        id: tournamentId,
+      })
+      if (!tournament) {
+        throw new Error('Tournament not found')
+      }
+      // Call the game service to trigger the tournament end timer
+      const url = `${config.gameService.endpoint}/triggerTournamentEndTimer`
+      const options = {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'x-api-key': config.XapiKey,
+        },
+        body: JSON.stringify({
+          tournamentId,
+          round,
+        }),
+      }
+
+      const response = await fetch(url, options)
+      if (!response.ok) {
+        return responseHandler.returnError(
+          httpStatus.BAD_REQUEST,
+          `Failed to end tournament: ${response.statusText}`
+        )
+      }
+      const jsonResponse = await response.json()
+      return responseHandler.returnSuccess(
+        httpStatus.OK,
+        jsonResponse.message || 'Tournament end timer set successfully',
+        jsonResponse
+      )
+    } catch (error) {
+      logger.error(`Error setting tournament end timer: ${error.message}`)
+      return responseHandler.returnError(
+        httpStatus.BAD_REQUEST,
+        'Tournament end timer set failed'
       )
     }
   }
