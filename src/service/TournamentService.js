@@ -213,21 +213,35 @@ class TournamentService {
         const flatValues = values.flat();
 
 	const updateGameResultQuery = `
-	  UPDATE ccm_tournament_pairings AS ctp
-	  SET result = v.result, is_scored = true, table_id = v.table_id::INTEGER  
-	  FROM (
-	    VALUES
-	      ${placeholders}
-	  ) AS v(id, table_id, tournament_id, round, result)
-	  WHERE ctp.id = v.id::INTEGER
-	    AND ctp.tournament_id = v.tournament_id::INTEGER
-	    AND ctp.round = v.round::INTEGER 
-	    AND v.result IN ('1-0', '0-1', '0.5-0.5')
-	    AND (
-	      ctp.result IS DISTINCT FROM v.result
-		      OR ctp.is_scored IS DISTINCT FROM true
-		      OR ctp.table_id IS DISTINCT FROM v.table_id::INTEGER
-	    );
+		UPDATE ccm_tournament_pairings AS ctp
+		SET 
+		    result = CASE 
+				WHEN ctp.result IS NULL OR ctp.result = '' 
+				THEN v.result 
+				ELSE ctp.result 
+			     END,
+		    table_id = CASE 
+				  WHEN ctp.table_id IS NULL OR ctp.table_id = 0
+				  THEN v.table_id::INTEGER 
+				  ELSE ctp.table_id 
+			       END,
+		    is_scored = CASE 
+				   WHEN ctp.is_scored IS DISTINCT FROM true THEN true 
+				   ELSE ctp.is_scored 
+				END
+		FROM (
+		    VALUES
+		      ${placeholders}
+		) AS v(id, table_id, tournament_id, round, result)
+		WHERE ctp.id = v.id::INTEGER
+		  AND ctp.tournament_id = v.tournament_id::INTEGER
+		  AND ctp.round = v.round::INTEGER
+		  AND v.result IN ('1-0', '0-1', '0.5-0.5')
+		  AND (
+		    ((ctp.result IS NULL OR ctp.result = '') AND v.result IS NOT NULL)
+		    OR (ctp.is_scored IS DISTINCT FROM true)
+		    OR ((ctp.table_id IS NULL OR ctp.table_id = 0) AND v.table_id IS NOT NULL)
+		  );
 	`;
 
         console.log('level  3 : ', updateGameResultQuery)
@@ -1637,11 +1651,17 @@ class TournamentService {
       try
       {
           console.log( `--- [storeRoundResults] START | Round: ${round}, Tournament ID: ${tournamentId} --- ${JSON.stringify(results)}`)
-          const pairingData = this.fetchResultsDict(JSON.parse(JSON.stringify(results)));
-          const retVal = await this.updatePreviousRoundScoresAndResults(pairingData, tournamentId, round)
-          await this.reCalculateStandingsPrizes(round, tournamentId, 100)
+          const tournament = await this.tournamentDao.findById(tournamentId)
+         
+          if (tournament.current_round == Number(round))
+          {
+                  console.log( `--- [storeRoundResults] Updating START | Round: ${round}, Tournament ID: ${tournamentId} --- ${JSON.stringify(results)}`)
+		  const pairingData = this.fetchResultsDict(JSON.parse(JSON.stringify(results)));
+		  const retVal = await this.updatePreviousRoundScoresAndResults(pairingData, tournamentId, round)
+		  await this.reCalculateStandingsPrizes(round, tournamentId, 100)
+          }
       } catch (error) {
-          console.log( `--- Exception in storeRoundResults : ${round}, Tournament ID: ${tournamentId}`)
+          console.log( `--- Exception in storeRoundResults : ${round}, Tournament ID: ${tournamentId} : ${error}`)
       }
       return responseHandler.returnSuccess(httpStatus.OK, message, {})
   }
@@ -1796,9 +1816,7 @@ class TournamentService {
       {
         // ignore the score update for the 1st round pairing since there are no results. All rounds 2nd round onwards, update the result inside ccm_pairings table
         if(round > 1){
-              console.log( `--- [createTournamentPairing] START | Round: ${round}, Tournament ID: ${tournamentId} --- ${JSON.stringify(results)}`)
-              const pairingData = this.fetchResultsDict(JSON.parse(JSON.stringify(results)));
-              const retVal = await this.updatePreviousRoundScoresAndResults(pairingData, tournamentId, round-1)
+              await this.storeRoundResults(round-1, tournamentId, results);
         }
       } catch (error) {
           console.log( `--- Exception in updatePreviousRoundScoresAndResults : ${round}, Tournament ID: ${tournamentId}`)
@@ -3371,10 +3389,7 @@ class TournamentService {
         tournament?.current_round
       )
       let promises = []
-      if (
-        tournament.current_round > Number(round) &&
-        tournament.tournament_type !== 'Circlechess_Online'
-      ) {
+      if ( tournament.current_round > Number(round) && tournament.tournament_type !== 'Circlechess_Online') {
         console.log(
           `Tournament round is ahead of provided round. Will adjust scores for future rounds.`
         )
@@ -3451,22 +3466,35 @@ class TournamentService {
           const result = await sequelize.query(`
             UPDATE ccm_tournament_pairings AS t
             SET
-              result = v.result,
-              is_scored = v.is_scored,
-              cc_gameid = v.cc_gameid
-            FROM (
-              VALUES
-                ${Object.keys(scores)
-                  .map((id) => {
-                    return `(${id},'${scores[id]}',true,'${gameId}')`
-                  })
-                  .join(',')}
-            ) AS v(id, result, is_scored, cc_gameid)
-            WHERE t.id = v.id AND (
-	      t.result IS DISTINCT FROM v.result
-		      OR t.is_scored IS DISTINCT FROM true
-		      OR t.cc_gameid IS DISTINCT FROM v.cc_gameid
-	    );
+		  result = CASE 
+		     WHEN t.result IS NULL OR t.result = '' 
+		     THEN v.result 
+		     ELSE t.result 
+		  END,
+		  is_scored = CASE 
+			WHEN t.is_scored IS DISTINCT FROM true 
+			THEN v.is_scored 
+			ELSE t.is_scored 
+		  END,
+		  cc_gameid = CASE 
+			WHEN t.cc_gameid IS NULL OR t.cc_gameid = '' 
+			THEN v.cc_gameid 
+			ELSE t.cc_gameid 
+		  END
+			FROM (
+			  VALUES
+			    ${Object.keys(scores)
+			      .map((id) => {
+				return `(${id},'${scores[id]}',true,'${gameId}')`
+			      })
+			      .join(',')}
+			) AS v(id, result, is_scored, cc_gameid)
+			WHERE t.id = v.id
+			  AND (
+			    ((t.result IS NULL OR t.result = '') AND v.result IS NOT NULL AND v.result <> '')
+			    OR (t.is_scored IS DISTINCT FROM true)
+			    OR ((t.cc_gameid IS NULL OR t.cc_gameid = '') AND v.cc_gameid IS NOT NULL AND v.cc_gameid <> '')
+			  );
           `)
 
           if (!result.length) {
