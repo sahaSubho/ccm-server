@@ -1342,16 +1342,26 @@ class TournamentService {
       })
 
       data.setDataValue('players_count', playerCount)
-
+      data.setDataValue('is_free', data.entry_fee === 0)
       let isJoined = false
+      let isRegistered = false
       if (userId) {
         isJoined = await this.trnplayersDao.checkExist({
           cc_userid: userId,
           tournament_id: id,
           is_withdrawn: false,
         })
+        const res = await sequelize.query(`SELECT EXISTS (
+          SELECT 1
+          FROM cc_registration_orders
+          WHERE tournament_id = ${data.cct_id} and customer_id = ${userId}
+        );`)
+        if (res?.[0]?.[0]?.exists) {
+          isRegistered = true
+        }
       }
       data.setDataValue('is_joined', isJoined)
+      data.setDataValue('is_registered', isRegistered)
 
       // ✅ 3️⃣ Use a single aggregate for pairings
       const pairings = await this.tournamentPairingsDao.findByGroup(
