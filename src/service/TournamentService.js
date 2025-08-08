@@ -2887,7 +2887,9 @@ class TournamentService {
             redisResults = redisResults.slice(start, end)
           } else if (search.length) {
             redisResults = redisResults.filter((r) => {
-              return r?.player_name?.toLowerCase()?.includes(search?.toLowerCase())
+              return r?.player_name
+                ?.toLowerCase()
+                ?.includes(search?.toLowerCase())
             })
             totalPlayers = redisResults.length
             start = offset
@@ -4143,6 +4145,27 @@ class TournamentService {
       }
 
       const data = await this.tournamentDao.updateById(body, id)
+
+      if (tournament.tournament_type === 'Circlechess_Online') {
+        // Call the game service to update the tournament
+        const url = `${config.gameService.endpoint}/updateTournament`
+        const options = {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'x-api-key': config.XapiKey,
+          },
+          body: JSON.stringify({ tournamentId: id, tournamentData: body }),
+        }
+
+        const response = await fetch(url, options)
+        if (!response.ok) {
+          return responseHandler.returnError(
+            httpStatus.BAD_REQUEST,
+            `Failed to update Tournament in Game Service`
+          )
+        }
+      }
 
       if (tournamentBody.enable_registration || tournament.cct_id) {
         if (tournamentBody.enable_registration) {
