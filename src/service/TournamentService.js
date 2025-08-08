@@ -2721,7 +2721,7 @@ class TournamentService {
     }
   }
 
-  filterStandings = async (
+  static filterStandings = async (
     output,
     round,
     tournamentId,
@@ -2734,7 +2734,7 @@ class TournamentService {
 
     if (search.length > 0) {
       output = output.filter((r) => {
-        return r.player_name.includes(search)
+        return r?.player_name?.toLowerCase()?.includes(search?.toLowerCase())
       })
     }
 
@@ -2886,7 +2886,7 @@ class TournamentService {
             redisResults = redisResults.slice(start, end)
           } else if (search.length) {
             redisResults = redisResults.filter((r) => {
-              return r.player_name.includes(search)
+              return r?.player_name?.toLowerCase()?.includes(search?.toLowerCase())
             })
             totalPlayers = redisResults.length
             start = offset
@@ -3124,7 +3124,7 @@ class TournamentService {
         }
       }
 
-      return await this.filterStandings(
+      return await TournamentService.filterStandings(
         output,
         round,
         tournamentId,
