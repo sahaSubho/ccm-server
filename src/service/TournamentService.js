@@ -143,76 +143,87 @@ class TournamentService {
     return 'Classical'
   }
 
+  toIntegerOrZero = (value) => {
+    const num = Number(value)
+    return Number.isInteger(num) ? num : 0
+  }
 
-    toIntegerOrZero = (value) => {
-	  const num = Number(value);
-	  return Number.isInteger(num) ? num : 0;
-    }
+  fetchResultsDict = (raw) => {
+    const tableMap = {}
+    for (const [key, value] of Object.entries(raw)) {
+      if (key.startsWith('pairing:')) {
+        try {
+          const parsed = JSON.parse(value)
 
-    fetchResultsDict = (raw) => {
-	    const tableMap = {};
-		for (const [key, value] of Object.entries(raw)) {
-		  if (key.startsWith('pairing:')) {
-		    try {
-		      const parsed = JSON.parse(value);
+          let tid = 0
+          let wid = 0
+          let bid = 0
+          if (parsed.tableId) {
+            tid = this.toIntegerOrZero(parsed.tableId)
+          }
+          if (parsed.whiteId) {
+            wid = this.toIntegerOrZero(parsed.whiteId)
+          }
+          if (parsed.blackId) {
+            bid = this.toIntegerOrZero(parsed.blackId)
+          }
 
-			let tid=0;
-			let wid=0;
-			let bid=0;
-			if(parsed.tableId)
-			    tid = this.toIntegerOrZero(parsed.tableId)
-			if(parsed.whiteId)
-			    wid = this.toIntegerOrZero(parsed.whiteId)
-			if(parsed.blackId)
-			    bid = this.toIntegerOrZero(parsed.blackId)
+          console.log('tid, wid, bid : ', tid, wid, bid)
 
-                        console.log("tid, wid, bid : ", tid, wid, bid)
-
-			tableMap[wid] = {
-				data: [tid, parsed.result]
-			};
-			tableMap[bid] = {
-				data: [tid, parsed.result]
-			};
-                        /*
+          tableMap[wid] = {
+            data: [tid, parsed.result],
+          }
+          tableMap[bid] = {
+            data: [tid, parsed.result],
+          }
+          /*
 			tableMap[tid] = {
 				white: [wid, parsed.result],
 				black: [bid, parsed.result]
-			};*/
+			}; */
+        } catch (e) {
+          console.error(`Error parsing ${key}:`, e.message)
+        }
+      }
+    }
+    return tableMap
+  }
 
-		    } catch (e) {
-		      console.error(`Error parsing ${key}:`, e.message);
-		    }
-		  }
-		}
-	    return tableMap;
-	}
+  updatePreviousRoundScoresAndResults = async (
+    pairingData,
+    tournamentId,
+    round
+  ) => {
+    console.log('inside updatePreviousRoundScoresAndResults')
 
-    updatePreviousRoundScoresAndResults = async (pairingData, tournamentId, round) =>
-    {
-        console.log("inside updatePreviousRoundScoresAndResults");
+    const values = []
 
-	const values = [];
+    for (const [row_id, row_data] of Object.entries(pairingData)) {
+      const id = row_id
+      const tid = row_data.data[0]
+      const result = row_data.data[1]
 
-	for (const [row_id, row_data] of Object.entries(pairingData)) {
-	  const id       = row_id;
-	  const tid      = row_data.data[0];
-	  const result   = row_data.data[1];
+      values.push([
+        parseInt(id),
+        parseInt(tid),
+        parseInt(tournamentId),
+        parseInt(round),
+        String(result),
+      ])
+    }
 
-	  values.push([parseInt(id), parseInt(tid), parseInt(tournamentId), parseInt(round), String(result)]);
+    const placeholders = values
+      .map((_, i) => {
+        const base = i * 5
+        return `($${base + 1}, $${base + 2}, $${base + 3}, $${base + 4}, $${
+          base + 5
+        })`
+      })
+      .join(',\n      ')
 
-	}
+    const flatValues = values.flat()
 
-	const placeholders = values
-	  .map((_, i) => {
-	    const base = i * 5;
-	    return `($${base + 1}, $${base + 2}, $${base + 3}, $${base + 4}, $${base + 5})`;
-	  })
-	  .join(',\n      ');
-
-        const flatValues = values.flat();
-
-	const updateGameResultQuery = `
+    const updateGameResultQuery = `
 	  UPDATE ccm_tournament_pairings AS ctp
 	  SET result = v.result, is_scored = true, table_id = v.table_id::INTEGER  
 	  FROM (
@@ -223,16 +234,16 @@ class TournamentService {
 	    AND ctp.tournament_id = v.tournament_id::INTEGER
 	    AND ctp.round = v.round::INTEGER 
 	    AND v.result IN ('1-0', '0-1', '0.5-0.5');
-	`;
+	`
 
-        console.log('level  3 : ', updateGameResultQuery)
-	await sequelize.query(updateGameResultQuery, {
-	  bind: flatValues,
-	  type: sequelize.QueryTypes.UPDATE
-	});
-        console.log('level  4 : completed ')
+    console.log('level  3 : ', updateGameResultQuery)
+    await sequelize.query(updateGameResultQuery, {
+      bind: flatValues,
+      type: sequelize.QueryTypes.UPDATE,
+    })
+    console.log('level  4 : completed ')
 
-        /*
+    /*
 
         console.log('level  4')
 	const updatePlayerScoreQuery = `
@@ -282,8 +293,7 @@ class TournamentService {
 	});
         console.log('level  6')
         */
-}
-
+  }
 
   removePairingsFromRedis = async (tournamentId, round, pairingId) => {
     const hashKey = `ccm_pairings_${tournamentId}_${round}`
@@ -1332,16 +1342,26 @@ class TournamentService {
       })
 
       data.setDataValue('players_count', playerCount)
-
+      data.setDataValue('is_free', data.entry_fee === 0)
       let isJoined = false
+      let isRegistered = false
       if (userId) {
         isJoined = await this.trnplayersDao.checkExist({
           cc_userid: userId,
           tournament_id: id,
           is_withdrawn: false,
         })
+        const res = await sequelize.query(`SELECT EXISTS (
+          SELECT 1
+          FROM cc_registration_orders
+          WHERE tournament_id = ${data.cct_id} and customer_id = ${userId}
+        );`)
+        if (res?.[0]?.[0]?.exists) {
+          isRegistered = true
+        }
       }
       data.setDataValue('is_joined', isJoined)
+      data.setDataValue('is_registered', isRegistered)
 
       // ✅ 3️⃣ Use a single aggregate for pairings
       const pairings = await this.tournamentPairingsDao.findByGroup(
@@ -1622,23 +1642,32 @@ class TournamentService {
     await this.redisService.expire(listKey)
 
     console.log(`Pairings stored in Redis.`)
-
   }
 
   storeRoundResults = async (round, tournamentId, results) => {
+    const message = `Results stored successfully for ${tournamentId} : ${round} round of the tournament.`
 
-      let message = `Results stored successfully for ${tournamentId} : ${round} round of the tournament.`
-
-      try
-      {
-          console.log( `--- [storeRoundResults] START | Round: ${round}, Tournament ID: ${tournamentId} --- ${JSON.stringify(results)}`)
-          const pairingData = this.fetchResultsDict(JSON.parse(JSON.stringify(results)));
-          const retVal = await this.updatePreviousRoundScoresAndResults(pairingData, tournamentId, round)
-          await this.reCalculateStandingsPrizes(round, tournamentId, 100)
-      } catch (error) {
-          console.log( `--- Exception in storeRoundResults : ${round}, Tournament ID: ${tournamentId}`)
-      }
-      return responseHandler.returnSuccess(httpStatus.OK, message, {})
+    try {
+      console.log(
+        `--- [storeRoundResults] START | Round: ${round}, Tournament ID: ${tournamentId} --- ${JSON.stringify(
+          results
+        )}`
+      )
+      const pairingData = this.fetchResultsDict(
+        JSON.parse(JSON.stringify(results))
+      )
+      const retVal = await this.updatePreviousRoundScoresAndResults(
+        pairingData,
+        tournamentId,
+        round
+      )
+      await this.reCalculateStandingsPrizes(round, tournamentId, 100)
+    } catch (error) {
+      console.log(
+        `--- Exception in storeRoundResults : ${round}, Tournament ID: ${tournamentId}`
+      )
+    }
+    return responseHandler.returnSuccess(httpStatus.OK, message, {})
   }
 
   createTournamentPairingTest = async (round, tournamentId) => {
@@ -1760,43 +1789,66 @@ class TournamentService {
    */
   createTournamentPairing = async (round, tournamentId, results) => {
     try {
-      console.log( `--- [createTournamentPairing] START | Round: ${round}, Tournament ID: ${tournamentId}`)
+      console.log(
+        `--- [createTournamentPairing] START | Round: ${round}, Tournament ID: ${tournamentId}`
+      )
 
-        const pairingAlreadyDone = await this.redisService.getValue( `ccm_pairing_completed__${tournamentId}_${round}`)
-        if (pairingAlreadyDone) {
-          const msg = `Pairing already completed for Round ${round} in Tournament ID: ${tournamentId}`;
-	  console.log(msg);
+      const pairingAlreadyDone = await this.redisService.getValue(
+        `ccm_pairing_completed__${tournamentId}_${round}`
+      )
+      if (pairingAlreadyDone) {
+        const msg = `Pairing already completed for Round ${round} in Tournament ID: ${tournamentId}`
+        console.log(msg)
 
-	  try{
-              return await this.getPairings(round, tournamentId)
-          } catch(error) {
-              await this.redisService.removeKey( `ccm_pairing_completed__${tournamentId}_${round}`)
-              // do nothing, continue with generating pairing since the pairing does not exist
-              //return responseHandler.returnSuccess(httpStatus.OK, msg)
-          }
+        try {
+          return await this.getPairings(round, tournamentId)
+        } catch (error) {
+          await this.redisService.removeKey(
+            `ccm_pairing_completed__${tournamentId}_${round}`
+          )
+          // do nothing, continue with generating pairing since the pairing does not exist
+          // return responseHandler.returnSuccess(httpStatus.OK, msg)
         }
+      }
 
-        // lock the redis key for pairing a specific round of the tournament. We do not want more than one concurrent calls to pairing so block all the other calls for the next 60 seconds
-        const pairingLockKey = `ccm_pairing_queue_${tournamentId}_${round}`;
-        const lockAcquired = await this.redisService.lock(pairingLockKey, moment().toISOString(), { NX: true, EX: 240 });
-        if (!lockAcquired) {
-          const msg = `Pairing already in progress : ${round}, Tournament ID: ${tournamentId}`;
-          console.log(msg);
-          return responseHandler.returnSuccess(httpStatus.OK, msg)
-        }
+      // lock the redis key for pairing a specific round of the tournament. We do not want more than one concurrent calls to pairing so block all the other calls for the next 60 seconds
+      const pairingLockKey = `ccm_pairing_queue_${tournamentId}_${round}`
+      const lockAcquired = await this.redisService.lock(
+        pairingLockKey,
+        moment().toISOString(),
+        { NX: true, EX: 240 }
+      )
+      if (!lockAcquired) {
+        const msg = `Pairing already in progress : ${round}, Tournament ID: ${tournamentId}`
+        console.log(msg)
+        return responseHandler.returnSuccess(httpStatus.OK, msg)
+      }
 
-      console.log(`Pairing lock acquired in Redis. Round: ${round}, Tournament ID: ${tournamentId}`);
+      console.log(
+        `Pairing lock acquired in Redis. Round: ${round}, Tournament ID: ${tournamentId}`
+      )
 
-      try
-      {
+      try {
         // ignore the score update for the 1st round pairing since there are no results. All rounds 2nd round onwards, update the result inside ccm_pairings table
-        if(round > 1){
-              console.log( `--- [createTournamentPairing] START | Round: ${round}, Tournament ID: ${tournamentId} --- ${JSON.stringify(results)}`)
-              const pairingData = this.fetchResultsDict(JSON.parse(JSON.stringify(results)));
-              const retVal = await this.updatePreviousRoundScoresAndResults(pairingData, tournamentId, round-1)
+        if (round > 1) {
+          console.log(
+            `--- [createTournamentPairing] START | Round: ${round}, Tournament ID: ${tournamentId} --- ${JSON.stringify(
+              results
+            )}`
+          )
+          const pairingData = this.fetchResultsDict(
+            JSON.parse(JSON.stringify(results))
+          )
+          const retVal = await this.updatePreviousRoundScoresAndResults(
+            pairingData,
+            tournamentId,
+            round - 1
+          )
         }
       } catch (error) {
-          console.log( `--- Exception in updatePreviousRoundScoresAndResults : ${round}, Tournament ID: ${tournamentId}`)
+        console.log(
+          `--- Exception in updatePreviousRoundScoresAndResults : ${round}, Tournament ID: ${tournamentId}`
+        )
       }
 
       let message = `Paired successfully for the ${TournamentService.getNumberWithOrdinal(
@@ -2071,15 +2123,19 @@ class TournamentService {
             teams
           )
 
-        const pairingCompleted = await this.redisService.getValue( `ccm_pairing_completed__${tournamentId}_${round}`)
+        const pairingCompleted = await this.redisService.getValue(
+          `ccm_pairing_completed__${tournamentId}_${round}`
+        )
         if (pairingCompleted) {
-          const msg = `Pairing already completed for Round ${round} in Tournament ID: ${tournamentId}`;
-	  console.log(msg);
+          const msg = `Pairing already completed for Round ${round} in Tournament ID: ${tournamentId}`
+          console.log(msg)
 
-	  try{
-              return await this.getPairings(round, tournamentId)
-          } catch(error) {
-              await this.redisService.removeKey( `ccm_pairing_completed__${tournamentId}_${round}`)
+          try {
+            return await this.getPairings(round, tournamentId)
+          } catch (error) {
+            await this.redisService.removeKey(
+              `ccm_pairing_completed__${tournamentId}_${round}`
+            )
           }
         }
 
@@ -2138,7 +2194,11 @@ class TournamentService {
           }
         }
 
-        await this.redisService.setValueWithExpiry( `ccm_pairing_completed__${tournamentId}_${round}`, 86400, "1")
+        await this.redisService.setValueWithExpiry(
+          `ccm_pairing_completed__${tournamentId}_${round}`,
+          86400,
+          '1'
+        )
 
         data = res.map((w, i) => {
           return {
@@ -2168,7 +2228,8 @@ class TournamentService {
         // )
         return responseHandler.returnSuccess(httpStatus.OK, message, data)
       } catch (error) {
-        await this.redisService.removeKey( `ccm_pairing_queue_${tournamentId}_${round}`
+        await this.redisService.removeKey(
+          `ccm_pairing_queue_${tournamentId}_${round}`
         )
         console.error(`[createTournamentPairing] ERROR in try block:`, error)
         return responseHandler.returnError(
@@ -3046,9 +3107,12 @@ class TournamentService {
 
       // whatever be the results computed, save that in the cache.
       const lockKey = `ccm_standings_write_lock_${tournamentId}_${round}`
-      const lockAcquired = await this.redisService.lock(lockKey, moment().toISOString(), { NX: true, EX: 5 });
+      const lockAcquired = await this.redisService.lock(
+        lockKey,
+        moment().toISOString(),
+        { NX: true, EX: 5 }
+      )
       if (lockAcquired) {
-
         const listKey = `ccm_standings_${tournamentId}_${round}`
         await this.redisService.removeKey(listKey)
 
