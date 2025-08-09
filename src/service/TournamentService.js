@@ -3273,7 +3273,6 @@ class TournamentService {
       })
       console.log(`Standings already exist?`, standingExists)
       const payload = players.map((p, i) => {
-        delete p.id
         return {
           ...p,
           rank: i + 1,
@@ -3983,10 +3982,6 @@ class TournamentService {
         return responseHandler.returnError(httpStatus.BAD_REQUEST, message)
       }
 
-      if (tournamentBody.entry_fee) {
-        tournamentBody.entry_fee = JSON.parse(tournamentBody.entry_fee)
-      }
-
       if (tournamentBody.is_brochure) {
         tournamentBody = JSON.parse(JSON.stringify(tournamentBody))
 
@@ -3996,7 +3991,7 @@ class TournamentService {
       }
 
       if (tournamentBody.feedbacks) {
-        const feedbacks = JSON.parse(tournamentBody.feedbacks)
+        const { feedbacks } = tournamentBody
         const currentFeedbacks = await this.ccTournamentFeedbackDao.findByWhere(
           { tournament_key: tournament.feedback_key },
           ['question_text', 'id']
@@ -4118,9 +4113,6 @@ class TournamentService {
       }
 
       let body = tournamentBody
-      if (tournamentBody.enable_registration) {
-        body.enable_registration = body.enable_registration === 'true'
-      }
       if (tournamentBody.is_brochure) {
         const templateId = tournamentBody.template
         const brochure = tournamentBody?.brochure
@@ -4162,8 +4154,19 @@ class TournamentService {
         }
       }
 
-      if (tournamentBody.enable_registration || tournament.cct_id) {
-        if (tournamentBody.enable_registration) {
+      if (
+        Object.prototype.hasOwnProperty.call(
+          tournamentBody,
+          'enable_registration'
+        ) ||
+        tournament.cct_id
+      ) {
+        if (
+          Object.prototype.hasOwnProperty.call(
+            tournamentBody,
+            'enable_registration'
+          )
+        ) {
           if (body.enable_registration) {
             message = 'Tournament registration has been enabled successfully.'
           } else {
@@ -4218,7 +4221,12 @@ class TournamentService {
           }
         } catch (error) {
           logger.error(error)
-          if (tournamentBody.enable_registration) {
+          if (
+            Object.prototype.hasOwnProperty.call(
+              tournamentBody,
+              'enable_registration'
+            )
+          ) {
             await this.tournamentDao.updateById(
               { enable_registration: !body.enable_registration },
               id

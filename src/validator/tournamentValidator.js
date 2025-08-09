@@ -318,6 +318,15 @@ class TournamentValidator {
   }
 
   static updateTournamentValidator(req, res, next) {
+    const categoryFeeSchema = Joi.object({
+      category: Joi.string().required(),
+      fee: Joi.alternatives(Joi.number(), Joi.string()).required(),
+    })
+
+    const categoryFeeMapSchema = Joi.object().pattern(
+      Joi.string(), // category name
+      Joi.alternatives(Joi.number(), Joi.string()) // fee
+    )
     const updateTournamentSchema = Joi.object({
       name: Joi.string(),
       organizer: Joi.string(),
@@ -332,7 +341,11 @@ class TournamentValidator {
       meeting_time: Joi.string(), // TIME is stored as string
       rating: Joi.number(),
       rounds: Joi.number(),
-      entry_fee: Joi.object(), // JSONB
+      entry_fee: Joi.alternatives().try(
+        Joi.array().items(categoryFeeSchema), // array of {category, fee}
+        Joi.number(), // just a number
+        categoryFeeMapSchema // { "Open": 200 }
+      ),
       address: Joi.string(),
       city: Joi.string(),
       state: Joi.string(),
@@ -353,6 +366,7 @@ class TournamentValidator {
       enable_registration: Joi.boolean(),
       stakeholders_mobile_number: Joi.string(),
       feedback_key: Joi.string().uuid(),
+      feedbacks: Joi.array(),
       pairing_type: Joi.string(),
       time_format: Joi.string(),
       is_club_membership: Joi.number().valid(0, 1).default(0),
@@ -383,20 +397,26 @@ class TournamentValidator {
         }
       ),
       mandatory_club_membership_name: Joi.string().allow(''),
-      prize: Joi.string(),
+      prize: Joi.string().allow(''),
       is_private: Joi.boolean(),
-      csoc_batch: Joi.string(),
-      password: Joi.string(),
+      csoc_batch: Joi.string().allow(''),
+      password: Joi.string().allow(''),
       new_player_added: Joi.boolean(),
       parent_id: Joi.number(),
-      whatsapp_group_link: Joi.string(),
+      whatsapp_group_link: Joi.string().allow(''),
       max_participants: Joi.number().min(0).default(0),
       multiple_registration: Joi.number().default(0),
       custom_message: Joi.string().allow(''),
-      default_category: Joi.string(),
+      default_category: Joi.string().allow(''),
       description: Joi.string().allow(''),
     })
     // validate request body against schema
+    if (req.body.entry_fee) {
+      req.body.entry_fee = JSON.parse(req.body.entry_fee)
+    }
+    if (req.body.feedbacks) {
+      req.body.feedbacks = JSON.parse(req.body.feedbacks)
+    }
     const { error, value } = updateTournamentSchema.validate(req.body, options)
 
     if (error) {
@@ -409,7 +429,11 @@ class TournamentValidator {
       next(new ApiError(httpStatus.BAD_REQUEST, errorMessage))
     } else {
       // on success replace req.body with validated value and trigger next middleware function
-      req.body = value
+      req.body = Object.fromEntries(
+        Object.entries(value).filter(([_, v]) => {
+          return v !== null && v !== 'null'
+        })
+      )
       return next()
     }
   }
