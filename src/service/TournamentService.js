@@ -2748,6 +2748,8 @@ class TournamentService {
       })
     }
 
+    const total = output.length
+    const result = output.slice(offset, offset + limit)
     let pageNumber
     if (userId) {
       console.log(`Standings Old for UserId: ${userId}`)
@@ -2756,19 +2758,18 @@ class TournamentService {
       })
       // Find index in JS
       if (userData) {
-        const index = Number(userData.rank) - 1
-        offset = Math.floor(index / limit) * limit
-        pageNumber = Math.floor(index / limit) + 1
+        // const index = Number(userData.rank) - 1
+        // offset = Math.floor(index / limit) * limit
+        // pageNumber = Math.floor(index / limit) + 1
         console.log(`Page Number Found for User:${userId} Page:${pageNumber}`)
+        result.unshift(userData)
       }
     }
-
-    const total = output.length
 
     return responseHandler.returnSuccess(
       httpStatus.OK,
       message,
-      output.slice(offset, offset + limit),
+      result,
       total,
       pageNumber
     )
@@ -2889,11 +2890,15 @@ class TournamentService {
             const userData = redisResults.find((o) => {
               return o.cc_userid === Number(userId)
             })
-            const index = Number(userData.rank) - 1
-            pageNumber = Math.floor(index / limit) + 1
-            start = Math.floor(index / limit) * limit
+            // const index = Number(userData.rank) - 1
+            // pageNumber = Math.floor(index / limit) + 1
+            start = offset
+            // start = Math.floor(index / limit) * limit
             end = start + limit
             redisResults = redisResults.slice(start, end)
+            if (userData) {
+              redisResults.unshift(userData)
+            }
           } else if (search.length) {
             redisResults = redisResults.filter((r) => {
               return r?.player_name
@@ -3121,7 +3126,7 @@ class TournamentService {
         const values = output.map((player, i) => {
           return JSON.stringify({ ...player, rank: i + 1 })
         })
-        await this.redisService.rPush(listKey, ...values)
+        await this.redisService.rPush(listKey, values)
 
         await this.redisService.expire(listKey) // Set expiration if needed
 
@@ -3301,7 +3306,7 @@ class TournamentService {
         listKey
       )
       await this.redisService.removeKey(listKey) // Clear old list
-      await this.redisService.rPush(listKey, ...payload)
+      await this.redisService.rPush(listKey, payload)
       await this.redisService.expire(listKey) // Set expiration if needed
 
       // Removes pairings from Redis cache
