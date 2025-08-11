@@ -325,7 +325,7 @@ class TournamentValidator {
 
     const categoryFeeMapSchema = Joi.object().pattern(
       Joi.string(), // category name
-      Joi.alternatives(Joi.number(), Joi.string()) // fee
+      Joi.any() // fee
     )
     const updateTournamentSchema = Joi.object({
       name: Joi.string(),
