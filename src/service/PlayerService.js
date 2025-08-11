@@ -1462,10 +1462,19 @@ class PlayersService {
       })
 
       if (pairings.length > opponents.length) {
-        const byePairings = pairings.find((p) => {
-          return p.parent_id === null
+        const obj = pairings.find((p) => {
+          return (
+            p.parent_id === null &&
+            !opponents.some((o) => {
+              return o.parent_id === p.id
+            })
+          )
         })
+        const byePairings = { ...obj }
         byePairings.player_name = 'Bye'
+        byePairings.player_id = null
+        byePairings.player_rating = 0
+        byePairings.player_score = 0
         byePairings.result = '0-1'
         byePairings.player_fide_id = null
         opponents.push(byePairings)
