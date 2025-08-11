@@ -823,10 +823,11 @@ class PlayersService {
         if (fidePlayer) {
           playerData = {
             ...playerData,
-            rating: PlayersService.getRatingToConsider(
-              tournament.time_format,
-              fidePlayer
-            ),
+            rating:
+              PlayersService.getRatingToConsider(
+                tournament.time_format,
+                fidePlayer
+              ) || playerData.rating,
             title: fidePlayer.title,
             age: fidePlayer.age,
             gender: fidePlayer.gender,
