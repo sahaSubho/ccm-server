@@ -3118,11 +3118,10 @@ class TournamentService {
         const listKey = `ccm_standings_${tournamentId}_${round}`
         await this.redisService.removeKey(listKey)
 
-        const rPushPromises = output.map((player, i) => {
-          return this.redisService.rPush(listKey, JSON.stringify(player))
+        const values = output.map((player, i) => {
+          return JSON.stringify({ ...player, rank: i + 1 })
         })
-
-        await Promise.allSettled(rPushPromises)
+        await this.redisService.rPush(listKey, ...values)
 
         await this.redisService.expire(listKey) // Set expiration if needed
 
@@ -3302,14 +3301,7 @@ class TournamentService {
         listKey
       )
       await this.redisService.removeKey(listKey) // Clear old list
-      const rPushPromises = players.map((player, i) => {
-        // Push only player ID or JSON if you want
-        return this.redisService.rPush(
-          listKey,
-          JSON.stringify({ ...player, rank: i + 1 })
-        )
-      })
-      await Promise.all(rPushPromises)
+      await this.redisService.rPush(listKey, ...payload)
       await this.redisService.expire(listKey) // Set expiration if needed
 
       // Removes pairings from Redis cache
