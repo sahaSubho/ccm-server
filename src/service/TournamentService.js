@@ -2441,7 +2441,15 @@ class TournamentService {
         `--- [getPairings] START | Tournament ID: ${tournamentId}, Round: ${round}, Limit: ${limit}, Offset: ${offset} Ongoing: ${ongoing}  SearchKeyword: ${search} ---`
       )
 
+      const pairingCompleted = await this.redisService.getValue(
+        `ccm_pairing_completed__${tournamentId}_${round}`
+      )
       let message = 'Fetched tournament player pairings successfully.'
+      if (!pairingCompleted) {
+        message = `Pairing of Round ${round} is not done yet! Please try again.`
+        return responseHandler.returnSuccess(httpStatus.OK, message, [])
+      }
+
       if (msg) {
         message = msg
         console.log(`Custom message supplied: ${msg}`)
@@ -2570,7 +2578,7 @@ class TournamentService {
         message = `Pairing of Round ${round} is not done yet! Please try again.`
         console.log(message)
         // return responseHandler.returnError(httpStatus.BAD_REQUEST, message)
-        return responseHandler.returnSuccess({ data: [], message })
+        return responseHandler.returnSuccess(httpStatus.OK, message, [])
       }
 
       console.log(`Pairings fetched from DB: Count = ${data.count}`)
