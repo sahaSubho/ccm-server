@@ -1664,7 +1664,7 @@ class TournamentService {
     console.log(`Pairings stored in Redis.`)
   }
 
-  storeRoundResults = async (round, tournamentId, results) => {
+  storeRoundResults = async (round, tournamentId, results, mandatory=false) => {
 
       let message = `Results stored successfully for ${tournamentId} : ${round} round of the tournament.`
 
@@ -1673,12 +1673,12 @@ class TournamentService {
           console.log( `--- [storeRoundResults] START | Round: ${round}, Tournament ID: ${tournamentId} --- ${JSON.stringify(results)}`)
           const tournament = await this.tournamentDao.findById(tournamentId)
          
-          if (tournament.current_round == Number(round))
+          if (tournament.current_round == Number(round) || mandatory === true)
           {
                   console.log( `--- [storeRoundResults] Updating START | Round: ${round}, Tournament ID: ${tournamentId} --- ${JSON.stringify(results)}`)
 		  const pairingData = this.fetchResultsDict(JSON.parse(JSON.stringify(results)));
 		  const retVal = await this.updatePreviousRoundScoresAndResults(pairingData, tournamentId, round)
-		  await this.reCalculateStandingsPrizes(round, tournamentId, 100)
+		  await this.reCalculateStandingsPrizes(round, tournamentId, tournament.rounds)
           }
       } catch (error) {
           console.log( `--- Exception in storeRoundResults : ${round}, Tournament ID: ${tournamentId} : ${error}`)
@@ -1836,7 +1836,7 @@ class TournamentService {
       {
         // ignore the score update for the 1st round pairing since there are no results. All rounds 2nd round onwards, update the result inside ccm_pairings table
         if(round > 1){
-              await this.storeRoundResults(round-1, tournamentId, results);
+              await this.storeRoundResults(round-1, tournamentId, results, true);
         }
       } catch (error) {
           console.log( `--- Exception in updatePreviousRoundScoresAndResults : ${round}, Tournament ID: ${tournamentId}`)
@@ -3424,10 +3424,7 @@ class TournamentService {
         tournament?.current_round
       )
       let promises = []
-      if (
-        tournament.current_round > Number(round) &&
-        tournament.tournament_type !== 'Circlechess_Online'
-      ) {
+      if ( tournament.current_round > Number(round) && tournament.tournament_type !== 'Circlechess_Online') {
         console.log(
           `Tournament round is ahead of provided round. Will adjust scores for future rounds.`
         )
