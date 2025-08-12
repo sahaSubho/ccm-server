@@ -2441,11 +2441,11 @@ class TournamentService {
         `--- [getPairings] START | Tournament ID: ${tournamentId}, Round: ${round}, Limit: ${limit}, Offset: ${offset} Ongoing: ${ongoing}  SearchKeyword: ${search} ---`
       )
 
-      const pairingCompleted = await this.redisService.getValue(
-        `ccm_pairing_completed__${tournamentId}_${round}`
+      const currentRound = await this.redisService.getValue(
+        `ccm_tournament_current_round_${tournamentId}`
       )
       let message = 'Fetched tournament player pairings successfully.'
-      if (!pairingCompleted) {
+      if (currentRound && currentRound < round) {
         message = `Pairing of Round ${round} is not done yet! Please try again.`
         return responseHandler.returnSuccess(httpStatus.OK, message, [])
       }
