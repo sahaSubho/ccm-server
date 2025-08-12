@@ -169,6 +169,7 @@ router.patch(
   '/:id',
   auth(),
   upload.array('files', 10),
+  tournamentValidator.updateTournamentValidator,
   tournamentController.updateTournamentById
 )
 

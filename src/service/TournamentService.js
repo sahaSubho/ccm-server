@@ -2432,7 +2432,15 @@ class TournamentService {
         `--- [getPairings] START | Tournament ID: ${tournamentId}, Round: ${round}, Limit: ${limit}, Offset: ${offset} Ongoing: ${ongoing}  SearchKeyword: ${search} ---`
       )
 
+      const pairingCompleted = await this.redisService.getValue(
+        `ccm_pairing_completed__${tournamentId}_${round}`
+      )
       let message = 'Fetched tournament player pairings successfully.'
+      if (!pairingCompleted) {
+        message = `Pairing of Round ${round} is not done yet! Please try again.`
+        return responseHandler.returnSuccess(httpStatus.OK, message, [])
+      }
+
       if (msg) {
         message = msg
         console.log(`Custom message supplied: ${msg}`)
@@ -2561,7 +2569,7 @@ class TournamentService {
         message = `Pairing of Round ${round} is not done yet! Please try again.`
         console.log(message)
         // return responseHandler.returnError(httpStatus.BAD_REQUEST, message)
-        return responseHandler.returnSuccess({ data: [], message })
+        return responseHandler.returnSuccess(httpStatus.OK, message, [])
       }
 
       console.log(`Pairings fetched from DB: Count = ${data.count}`)
@@ -2739,6 +2747,8 @@ class TournamentService {
       })
     }
 
+    const total = output.length
+    const result = output.slice(offset, offset + limit)
     let pageNumber
     if (userId) {
       console.log(`Standings Old for UserId: ${userId}`)
@@ -2747,19 +2757,18 @@ class TournamentService {
       })
       // Find index in JS
       if (userData) {
-        const index = Number(userData.rank) - 1
-        offset = Math.floor(index / limit) * limit
-        pageNumber = Math.floor(index / limit) + 1
+        // const index = Number(userData.rank) - 1
+        // offset = Math.floor(index / limit) * limit
+        // pageNumber = Math.floor(index / limit) + 1
         console.log(`Page Number Found for User:${userId} Page:${pageNumber}`)
+        result.unshift(userData)
       }
     }
-
-    const total = output.length
 
     return responseHandler.returnSuccess(
       httpStatus.OK,
       message,
-      output.slice(offset, offset + limit),
+      result,
       total,
       pageNumber
     )
@@ -2880,14 +2889,20 @@ class TournamentService {
             const userData = redisResults.find((o) => {
               return o.cc_userid === Number(userId)
             })
-            const index = Number(userData.rank) - 1
-            pageNumber = Math.floor(index / limit) + 1
-            start = Math.floor(index / limit) * limit
+            // const index = Number(userData.rank) - 1
+            // pageNumber = Math.floor(index / limit) + 1
+            start = offset
+            // start = Math.floor(index / limit) * limit
             end = start + limit
             redisResults = redisResults.slice(start, end)
+            if (userData) {
+              redisResults.unshift(userData)
+            }
           } else if (search.length) {
             redisResults = redisResults.filter((r) => {
-              return r?.player_name?.toLowerCase()?.includes(search?.toLowerCase())
+              return r?.player_name
+                ?.toLowerCase()
+                ?.includes(search?.toLowerCase())
             })
             totalPlayers = redisResults.length
             start = offset
@@ -3104,11 +3119,10 @@ class TournamentService {
         const listKey = `ccm_standings_${tournamentId}_${round}`
         await this.redisService.removeKey(listKey)
 
-        const rPushPromises = output.map((player, i) => {
-          return this.redisService.rPush(listKey, JSON.stringify(player))
+        const values = output.map((player, i) => {
+          return JSON.stringify({ ...player, rank: i + 1 })
         })
-
-        await Promise.allSettled(rPushPromises)
+        await this.redisService.rPush(listKey, values)
 
         await this.redisService.expire(listKey) // Set expiration if needed
 
@@ -3259,7 +3273,6 @@ class TournamentService {
       })
       console.log(`Standings already exist?`, standingExists)
       const payload = players.map((p, i) => {
-        delete p.id
         return {
           ...p,
           rank: i + 1,
@@ -3289,14 +3302,7 @@ class TournamentService {
         listKey
       )
       await this.redisService.removeKey(listKey) // Clear old list
-      const rPushPromises = players.map((player, i) => {
-        // Push only player ID or JSON if you want
-        return this.redisService.rPush(
-          listKey,
-          JSON.stringify({ ...player, rank: i + 1 })
-        )
-      })
-      await Promise.all(rPushPromises)
+      await this.redisService.rPush(listKey, payload)
       await this.redisService.expire(listKey) // Set expiration if needed
 
       // Removes pairings from Redis cache
@@ -3983,10 +3989,6 @@ class TournamentService {
         return responseHandler.returnError(httpStatus.BAD_REQUEST, message)
       }
 
-      if (tournamentBody.entry_fee) {
-        tournamentBody.entry_fee = JSON.parse(tournamentBody.entry_fee)
-      }
-
       if (tournamentBody.is_brochure) {
         tournamentBody = JSON.parse(JSON.stringify(tournamentBody))
 
@@ -3996,7 +3998,7 @@ class TournamentService {
       }
 
       if (tournamentBody.feedbacks) {
-        const feedbacks = JSON.parse(tournamentBody.feedbacks)
+        const { feedbacks } = tournamentBody
         const currentFeedbacks = await this.ccTournamentFeedbackDao.findByWhere(
           { tournament_key: tournament.feedback_key },
           ['question_text', 'id']
@@ -4118,9 +4120,6 @@ class TournamentService {
       }
 
       let body = tournamentBody
-      if (tournamentBody.enable_registration) {
-        body.enable_registration = body.enable_registration === 'true'
-      }
       if (tournamentBody.is_brochure) {
         const templateId = tournamentBody.template
         const brochure = tournamentBody?.brochure
@@ -4141,8 +4140,40 @@ class TournamentService {
 
       const data = await this.tournamentDao.updateById(body, id)
 
-      if (tournamentBody.enable_registration || tournament.cct_id) {
-        if (tournamentBody.enable_registration) {
+      if (tournament.tournament_type === 'Circlechess_Online') {
+        // Call the game service to update the tournament
+        const url = `${config.gameService.endpoint}/updateTournament`
+        const options = {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'x-api-key': config.XapiKey,
+          },
+          body: JSON.stringify({ tournamentId: id, tournamentData: body }),
+        }
+
+        const response = await fetch(url, options)
+        if (!response.ok) {
+          return responseHandler.returnError(
+            httpStatus.BAD_REQUEST,
+            `Failed to update Tournament in Game Service`
+          )
+        }
+      }
+
+      if (
+        Object.prototype.hasOwnProperty.call(
+          tournamentBody,
+          'enable_registration'
+        ) ||
+        tournament.cct_id
+      ) {
+        if (
+          Object.prototype.hasOwnProperty.call(
+            tournamentBody,
+            'enable_registration'
+          )
+        ) {
           if (body.enable_registration) {
             message = 'Tournament registration has been enabled successfully.'
           } else {
@@ -4197,7 +4228,12 @@ class TournamentService {
           }
         } catch (error) {
           logger.error(error)
-          if (tournamentBody.enable_registration) {
+          if (
+            Object.prototype.hasOwnProperty.call(
+              tournamentBody,
+              'enable_registration'
+            )
+          ) {
             await this.tournamentDao.updateById(
               { enable_registration: !body.enable_registration },
               id
