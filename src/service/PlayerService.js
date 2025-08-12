@@ -67,7 +67,7 @@ class PlayersService {
 
   static CSOCTournamentMapping = {
     advance: 16599,
-    intermediate: '19538,29210',
+    intermediate: '19538,29210,38380,37470,38389,38807',
     foundation: '24797,23696,28545',
     beginner: 19526,
   }
@@ -823,10 +823,11 @@ class PlayersService {
         if (fidePlayer) {
           playerData = {
             ...playerData,
-            rating: PlayersService.getRatingToConsider(
-              tournament.time_format,
-              fidePlayer
-            ),
+            rating:
+              PlayersService.getRatingToConsider(
+                tournament.time_format,
+                fidePlayer
+              ) || playerData.rating,
             title: fidePlayer.title,
             age: fidePlayer.age,
             gender: fidePlayer.gender,
@@ -1462,10 +1463,19 @@ class PlayersService {
       })
 
       if (pairings.length > opponents.length) {
-        const byePairings = pairings.find((p) => {
-          return p.parent_id === null
+        const obj = pairings.find((p) => {
+          return (
+            p.parent_id === null &&
+            !opponents.some((o) => {
+              return o.parent_id === p.id
+            })
+          )
         })
+        const byePairings = { ...obj }
         byePairings.player_name = 'Bye'
+        byePairings.player_id = null
+        byePairings.player_rating = 0
+        byePairings.player_score = 0
         byePairings.result = '0-1'
         byePairings.player_fide_id = null
         opponents.push(byePairings)

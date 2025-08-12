@@ -157,7 +157,12 @@ function getTieBreaks(data, round, trnConfig) {
         return acc
       }, {})
       return {
-        ...e,
+        round,
+        tournament_id: e.tournament_id,
+        player_id: e.player_id,
+        player_name: e.player_name,
+        player_rating: e.player_rating,
+        cc_userid: e.cc_userid,
         ...tie_breaks,
         tieSum: Object.values(tieBreakerResult[e.player_id]).reduce((a, b) => {
           return a + b
