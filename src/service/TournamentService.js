@@ -1685,14 +1685,18 @@ class TournamentService {
             results
           )}`
         )
-        const pairingData = this.fetchResultsDict(
-          JSON.parse(JSON.stringify(results))
-        )
-        const retVal = await this.updatePreviousRoundScoresAndResults(
-          pairingData,
-          tournamentId,
-          round
-        )
+
+        if (Object.keys(results).length) {
+          const pairingData = this.fetchResultsDict(
+            JSON.parse(JSON.stringify(results))
+          )
+
+          const retVal = await this.updatePreviousRoundScoresAndResults(
+            pairingData,
+            tournamentId,
+            round
+          )
+        }
         await this.reCalculateStandingsPrizes(
           round,
           tournamentId,
@@ -2319,7 +2323,7 @@ class TournamentService {
       }
 
       // Removes pairings & standings from Redis cache
-      const round = tournament.current_round
+      const round = tournament.current_round || 1
       const redisResult = await this.redisService.setValueWithExpiry(
         `ccm_tournament_current_round_${tournament.id}`,
         86400,
@@ -2330,6 +2334,10 @@ class TournamentService {
       )
       const redisKey = `ccm_pairings_${tournamentId}_${round}`
       await this.redisService.removeKey(redisKey)
+      const redisOrderKey = `ccm_pairings_order_${tournamentId}_${round}`
+      await this.redisService.removeKey(redisOrderKey)
+      const redisCompletedKey = `ccm_pairing_completed__${tournamentId}_${round}`
+      await this.redisService.removeKey(redisCompletedKey)
       const standingsKey = `ccm_standings_${tournamentId}_${round}`
       await this.redisService.removeKey(standingsKey)
       const trnKey = `ccm_tournament_details_${tournamentId}`
@@ -3182,7 +3190,7 @@ class TournamentService {
           const ttlKey = `ccm_standings_ttl_${tournamentId}`
           await this.redisService.setValueWithExpiry(
             ttlKey,
-            60,
+            15, // changing to 15 sec from 60 sec
             'recalculate_standing'
           )
         }
@@ -3618,7 +3626,7 @@ class TournamentService {
       }
 
       // Recalculate standings and prizes after scores update
-      // this.reCalculateStandingsPrizes(round, tournamentId, tournament.rounds)
+      this.reCalculateStandingsPrizes(round, tournamentId, tournament.rounds)
       console.log(
         `--- [updateScoring] END | Round ${round} updated successfully ---`
       )
