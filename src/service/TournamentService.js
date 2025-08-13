@@ -1632,7 +1632,7 @@ class TournamentService {
         }
       })
     }
-    console.log(`Saving Pairing in redis`)
+    console.log(`Saving Pairing in redis`, JSON.stringify(data))
     // === Save in Redis ===
     const hashKey = `ccm_pairings_${tournamentId}_${round}`
     const listKey = `ccm_pairings_order_${tournamentId}_${round}`
@@ -1645,18 +1645,18 @@ class TournamentService {
     await this.redisService.removeKey(hashKey)
     await this.redisService.removeKey(listKey)
 
-    const hashFields = []
+    // const hashFields = []
     for (const player of players) {
-      const field = player.pairing_id
-      hashFields.push(field, JSON.stringify(player))
-      await this.redisService.rPush(listKey, String(field))
+      const field = String(player.pairing_id)
+      // hashFields.push(field, JSON.stringify(player))
+      await this.redisService.hSet(hashKey, field, JSON.stringify(player))
+      await this.redisService.rPush(listKey, field)
       // Storing in ongoingKey only after pairing creation
       if (data.length > 0) {
         await this.redisService.rPush(ongoingKey, String(field))
       }
     }
 
-    await this.redisService.hSet(hashKey, hashFields)
     await this.redisService.expire(hashKey)
     await this.redisService.expire(listKey)
 
