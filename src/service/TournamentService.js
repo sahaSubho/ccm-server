@@ -223,7 +223,7 @@ class TournamentService {
 
     const flatValues = values.flat()
 
-	const updateGameResultQuery = `
+    const updateGameResultQuery = `
 		UPDATE ccm_tournament_pairings AS ctp
 		SET 
 		    result = CASE 
@@ -253,8 +253,7 @@ class TournamentService {
 		    OR (ctp.is_scored IS DISTINCT FROM true)
 		    OR ((ctp.table_id IS NULL OR ctp.table_id = 0) AND v.table_id IS NOT NULL)
 		  );
-	`;
-
+	`
 
     console.log('level  3 : ', updateGameResultQuery)
     await sequelize.query(updateGameResultQuery, {
@@ -1664,26 +1663,48 @@ class TournamentService {
     console.log(`Pairings stored in Redis.`)
   }
 
-  storeRoundResults = async (round, tournamentId, results, mandatory=false) => {
+  storeRoundResults = async (
+    round,
+    tournamentId,
+    results,
+    mandatory = false
+  ) => {
+    const message = `Results stored successfully for ${tournamentId} : ${round} round of the tournament.`
 
-      let message = `Results stored successfully for ${tournamentId} : ${round} round of the tournament.`
+    try {
+      console.log(
+        `--- [storeRoundResults] START | Round: ${round}, Tournament ID: ${tournamentId} --- ${JSON.stringify(
+          results
+        )}`
+      )
+      const tournament = await this.tournamentDao.findById(tournamentId)
 
-      try
-      {
-          console.log( `--- [storeRoundResults] START | Round: ${round}, Tournament ID: ${tournamentId} --- ${JSON.stringify(results)}`)
-          const tournament = await this.tournamentDao.findById(tournamentId)
-         
-          if (tournament.current_round == Number(round) || mandatory === true)
-          {
-                  console.log( `--- [storeRoundResults] Updating START | Round: ${round}, Tournament ID: ${tournamentId} --- ${JSON.stringify(results)}`)
-		  const pairingData = this.fetchResultsDict(JSON.parse(JSON.stringify(results)));
-		  const retVal = await this.updatePreviousRoundScoresAndResults(pairingData, tournamentId, round)
-		  await this.reCalculateStandingsPrizes(round, tournamentId, tournament.rounds)
-          }
-      } catch (error) {
-          console.log( `--- Exception in storeRoundResults : ${round}, Tournament ID: ${tournamentId} : ${error}`)
+      if (tournament.current_round == Number(round) || mandatory === true) {
+        console.log(
+          `--- [storeRoundResults] Updating START | Round: ${round}, Tournament ID: ${tournamentId} --- ${JSON.stringify(
+            results
+          )}`
+        )
+        const pairingData = this.fetchResultsDict(
+          JSON.parse(JSON.stringify(results))
+        )
+        const retVal = await this.updatePreviousRoundScoresAndResults(
+          pairingData,
+          tournamentId,
+          round
+        )
+        await this.reCalculateStandingsPrizes(
+          round,
+          tournamentId,
+          tournament.rounds
+        )
       }
-      return responseHandler.returnSuccess(httpStatus.OK, message, {})
+    } catch (error) {
+      console.log(
+        `--- Exception in storeRoundResults : ${round}, Tournament ID: ${tournamentId} : ${error}`
+      )
+    }
+    return responseHandler.returnSuccess(httpStatus.OK, message, {})
   }
 
   createTournamentPairingTest = async (round, tournamentId) => {
@@ -1805,41 +1826,54 @@ class TournamentService {
    */
   createTournamentPairing = async (round, tournamentId, results) => {
     try {
-      console.log( `--- [createTournamentPairing] START | Round: ${round}, Tournament ID: ${tournamentId}`)
+      console.log(
+        `--- [createTournamentPairing] START | Round: ${round}, Tournament ID: ${tournamentId}`
+      )
 
-        const pairingAlreadyDone = await this.redisService.getValue( `ccm_pairing_completed__${tournamentId}_${round}`)
-        if (pairingAlreadyDone) {
-          const msg = `Pairing already completed for Round ${round} in Tournament ID: ${tournamentId}`;
-	  console.log(msg);
+      const pairingAlreadyDone = await this.redisService.getValue(
+        `ccm_pairing_completed__${tournamentId}_${round}`
+      )
+      if (pairingAlreadyDone) {
+        const msg = `Pairing already completed for Round ${round} in Tournament ID: ${tournamentId}`
+        console.log(msg)
 
-	  try{
-              return await this.getPairings(round, tournamentId)
-          } catch(error) {
-              await this.redisService.removeKey( `ccm_pairing_completed__${tournamentId}_${round}`)
-              // do nothing, continue with generating pairing since the pairing does not exist
-              //return responseHandler.returnSuccess(httpStatus.OK, msg)
-          }
+        try {
+          return await this.getPairings(round, tournamentId)
+        } catch (error) {
+          await this.redisService.removeKey(
+            `ccm_pairing_completed__${tournamentId}_${round}`
+          )
+          // do nothing, continue with generating pairing since the pairing does not exist
+          // return responseHandler.returnSuccess(httpStatus.OK, msg)
         }
+      }
 
-        // lock the redis key for pairing a specific round of the tournament. We do not want more than one concurrent calls to pairing so block all the other calls for the next 60 seconds
-        const pairingLockKey = `ccm_pairing_queue_${tournamentId}_${round}`;
-        const lockAcquired = await this.redisService.lock(pairingLockKey, moment().toISOString(), { NX: true, EX: 240 });
-        if (!lockAcquired) {
-          const msg = `Pairing already in progress : ${round}, Tournament ID: ${tournamentId}`;
-          console.log(msg);
-          return responseHandler.returnSuccess(httpStatus.OK, msg)
-        }
+      // lock the redis key for pairing a specific round of the tournament. We do not want more than one concurrent calls to pairing so block all the other calls for the next 60 seconds
+      const pairingLockKey = `ccm_pairing_queue_${tournamentId}_${round}`
+      const lockAcquired = await this.redisService.lock(
+        pairingLockKey,
+        moment().toISOString(),
+        { NX: true, EX: 240 }
+      )
+      if (!lockAcquired) {
+        const msg = `Pairing already in progress : ${round}, Tournament ID: ${tournamentId}`
+        console.log(msg)
+        return responseHandler.returnSuccess(httpStatus.OK, msg)
+      }
 
-      console.log(`Pairing lock acquired in Redis. Round: ${round}, Tournament ID: ${tournamentId}`);
+      console.log(
+        `Pairing lock acquired in Redis. Round: ${round}, Tournament ID: ${tournamentId}`
+      )
 
-      try
-      {
+      try {
         // ignore the score update for the 1st round pairing since there are no results. All rounds 2nd round onwards, update the result inside ccm_pairings table
-        if(round > 1){
-              await this.storeRoundResults(round-1, tournamentId, results, true);
+        if (round > 1) {
+          await this.storeRoundResults(round - 1, tournamentId, results, true)
         }
       } catch (error) {
-          console.log( `--- Exception in updatePreviousRoundScoresAndResults : ${round}, Tournament ID: ${tournamentId}`)
+        console.log(
+          `--- Exception in updatePreviousRoundScoresAndResults : ${round}, Tournament ID: ${tournamentId}`
+        )
       }
 
       let message = `Paired successfully for the ${TournamentService.getNumberWithOrdinal(
@@ -2825,6 +2859,10 @@ class TournamentService {
         const scoreUploadKey = `ccm_score_upload_${tournamentId}_${round}`
         const scoreUploaded =
           (await this.redisService.getValue(scoreUploadKey)) || 0
+        if (round > tournament.rounds) {
+          round = tournament.rounds
+          console.log('round', round)
+        }
         round = Number(scoreUploaded) > 0 ? current_round : round - 1
       } else if (round <= 1 || !round) {
         round = 1
@@ -3091,18 +3129,29 @@ class TournamentService {
         result = startingRanks
       } // fetch from standings table since it's already stored in the database for previous rounds.
       else {
-        const results = await this.tournamentStandingsDao.findAndCountAll(
+        console.log('inside db fetch')
+        let results = await this.tournamentStandingsDao.findAndCountAll(
           round,
           tournamentId,
           10000,
           0,
-          ''
+          '',
+          1
         )
 
         if (!results.count) {
-          message = `No players standings found for Round ${round}! Please try again.`
-          console.log(message)
-          return responseHandler.returnError(httpStatus.BAD_REQUEST, message)
+          results = await this.tournamentStandingsDao.findAndCountAll(
+            round,
+            tournamentId,
+            10000,
+            0,
+            '',
+            0
+          )
+          if (!results.count) {
+            message = `No players standings found for Round ${round}! Please try again.`
+            return responseHandler.returnError(httpStatus.BAD_REQUEST, message)
+          }
         }
 
         console.log(`Total player standings in DB: ${results.count}`)
@@ -3113,9 +3162,12 @@ class TournamentService {
 
       // whatever be the results computed, save that in the cache.
       const lockKey = `ccm_standings_write_lock_${tournamentId}_${round}`
-      const lockAcquired = await this.redisService.lock(lockKey, moment().toISOString(), { NX: true, EX: 5 });
+      const lockAcquired = await this.redisService.lock(
+        lockKey,
+        moment().toISOString(),
+        { NX: true, EX: 5 }
+      )
       if (lockAcquired) {
-
         const listKey = `ccm_standings_${tournamentId}_${round}`
         await this.redisService.removeKey(listKey)
 
@@ -3270,12 +3322,14 @@ class TournamentService {
       const standingExists = await this.tournamentStandingsDao.checkExist({
         round,
         tournament_id: tournamentId,
+        version: 1,
       })
       console.log(`Standings already exist?`, standingExists)
       const payload = players.map((p, i) => {
         return {
           ...p,
           rank: i + 1,
+          version: 1,
         }
       })
       if (!standingExists) {
@@ -3285,7 +3339,14 @@ class TournamentService {
         await this.tournamentStandingsDao.deleteByWhere({
           round,
           tournament_id: tournamentId,
+          version: 0,
         })
+        await this.tournamentStandingsDao.updateWhere(
+          {
+            version: 0,
+          },
+          { round, tournament_id: tournamentId, version: 1 }
+        )
         await this.tournamentStandingsDao.bulkCreate(payload)
         console.log(`Standings replaced.`)
       }
@@ -3424,7 +3485,10 @@ class TournamentService {
         tournament?.current_round
       )
       let promises = []
-      if ( tournament.current_round > Number(round) && tournament.tournament_type !== 'Circlechess_Online') {
+      if (
+        tournament.current_round > Number(round) &&
+        tournament.tournament_type !== 'Circlechess_Online'
+      ) {
         console.log(
           `Tournament round is ahead of provided round. Will adjust scores for future rounds.`
         )
@@ -3519,10 +3583,10 @@ class TournamentService {
 			FROM (
 			  VALUES
 			    ${Object.keys(scores)
-			      .map((id) => {
-				return `(${id},'${scores[id]}',true,'${gameId}')`
-			      })
-			      .join(',')}
+            .map((id) => {
+              return `(${id},'${scores[id]}',true,'${gameId}')`
+            })
+            .join(',')}
 			) AS v(id, result, is_scored, cc_gameid)
 			WHERE t.id = v.id
 			  AND (
@@ -3554,7 +3618,7 @@ class TournamentService {
       }
 
       // Recalculate standings and prizes after scores update
-      //this.reCalculateStandingsPrizes(round, tournamentId, tournament.rounds)
+      // this.reCalculateStandingsPrizes(round, tournamentId, tournament.rounds)
       console.log(
         `--- [updateScoring] END | Round ${round} updated successfully ---`
       )
