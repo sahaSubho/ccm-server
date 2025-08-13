@@ -9,6 +9,7 @@ const TournamentPlayersDao = require('../dao/TournamentPlayersDao')
 const PlayersPrizePayoutDao = require('../dao/PlayersPrizePayoutDao')
 const PayoutTransactionsDao = require('../dao/PayoutTransactionsDao')
 const TournamentDao = require('../dao/TournamentDao')
+const TournamentConfigurationDao = require('../dao/TournamentConfigurationDao')
 const TournamentPairingDao = require('../dao/TournamentPairingDao')
 const PrizeCategoryDao = require('../dao/PrizeCategoryDao')
 const responseHandler = require('../helper/responseHandler')
@@ -34,6 +35,7 @@ class PlayersService {
     this.payoutTransactionsDao = new PayoutTransactionsDao()
     this.CCUserDao = new CCUserDao()
     this.prizeCategoryDao = new PrizeCategoryDao()
+    this.tournamentConfigurationDao = new TournamentConfigurationDao()
   }
 
   static getRatingToConsider = (tournamentType, ratings) => {
@@ -1321,6 +1323,14 @@ class PlayersService {
   withDrawPlayer = async (playerBody) => {
     try {
       let message = 'Successfully withdrawn player from this tournament.'
+
+      const trnConfig = await this.tournamentConfigurationDao.findOneByWhere({
+        tournament_id: playerBody.tournamentId,
+      })
+
+      if (trnConfig.engine === 'bbpPairing') {
+        return responseHandler.returnSuccess(httpStatus.OK, message)
+      }
 
       // const tournament = await this.tournamentDao.findById(
       //   playerBody.tournamentId
