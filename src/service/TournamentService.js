@@ -266,41 +266,43 @@ class TournamentService {
 
     console.log('level  4')
     const updatePlayerScoreQuery = `
-	  WITH previous_scores AS (
-	    SELECT
-	      p1.id AS pairing_id,
-	      p1.cc_userid,
-	      p1.parent_id,
-	      p1.result,
-	      p1.tournament_id,
-	      p1.round,
-	      CASE
-		WHEN p1.round <= 1 THEN 0
-		ELSE COALESCE(p2.player_score, 0)
-	      END AS prev_score
-	    FROM ccm_tournament_pairings p1
-	    LEFT JOIN ccm_tournament_pairings p2
-	      ON p1.cc_userid = p2.cc_userid
-	     AND p1.tournament_id = p2.tournament_id
-	     AND p2.round = p1.round - 1
-	    WHERE p1.tournament_id = :tournament_id AND p1.round = :round_id
-	  )
-	  UPDATE ccm_tournament_pairings AS ctp
-	  SET player_score = ps.prev_score + 
-	    CASE
-	      WHEN ps.result = '1-0' AND ps.parent_id IS NULL THEN 1
-	      WHEN ps.result = '1-0' AND ps.parent_id IS NOT NULL THEN 0
-	      WHEN ps.result = '0-1' AND ps.parent_id IS NULL THEN 0
-	      WHEN ps.result = '0-1' AND ps.parent_id IS NOT NULL THEN 1
-	      WHEN ps.result = '+-' AND ps.parent_id IS NULL THEN 1
-	      WHEN ps.result = '+-' AND ps.parent_id IS NOT NULL THEN 0
-	      WHEN ps.result = '-+' AND ps.parent_id IS NULL THEN 0
-	      WHEN ps.result = '-+' AND ps.parent_id IS NOT NULL THEN 1
-	      WHEN ps.result = '0.5-0.5' THEN 0.5
-	      ELSE 0
-	    END
-	  FROM previous_scores ps
-	  WHERE ctp.id = ps.pairing_id; `
+	  WITH base_scores AS (
+            SELECT
+              p_cur.id AS pairing_id,
+              p_prev1.result AS prev_result,
+              p_prev1.parent_id AS prev_parent_id,
+              CASE
+                WHEN p_cur.round - 2 <= 1 THEN 0
+                ELSE COALESCE(p_prev2.player_score, 0)
+              END AS score_r_minus_2
+            FROM ccm_tournament_pairings p_cur
+            LEFT JOIN ccm_tournament_pairings p_prev1
+              ON p_cur.cc_userid = p_prev1.cc_userid
+             AND p_cur.tournament_id = p_prev1.tournament_id
+             AND p_prev1.round = p_cur.round - 1
+            LEFT JOIN ccm_tournament_pairings p_prev2
+              ON p_cur.cc_userid = p_prev2.cc_userid
+             AND p_cur.tournament_id = p_prev2.tournament_id 
+             AND p_prev2.round = p_cur.round - 2 
+            WHERE p_cur.tournament_id = :tournament_id
+              AND p_cur.round = :round_id
+        )
+        UPDATE ccm_tournament_pairings AS ctp
+        SET player_score = bs.score_r_minus_2 +
+          CASE
+            WHEN bs.prev_result = '1-0' AND bs.prev_parent_id IS NULL THEN 1
+            WHEN bs.prev_result = '1-0' AND bs.prev_parent_id IS NOT NULL THEN 0
+            WHEN bs.prev_result = '0-1' AND bs.prev_parent_id IS NULL THEN 0
+            WHEN bs.prev_result = '0-1' AND bs.prev_parent_id IS NOT NULL THEN 1
+            WHEN bs.prev_result = '+-'   AND bs.prev_parent_id IS NULL THEN 1
+            WHEN bs.prev_result = '+-'   AND bs.prev_parent_id IS NOT NULL THEN 0
+            WHEN bs.prev_result = '-+'   AND bs.prev_parent_id IS NULL THEN 0
+            WHEN bs.prev_result = '-+'   AND bs.prev_parent_id IS NOT NULL THEN 1
+            WHEN bs.prev_result = '0.5-0.5' THEN 0.5
+            ELSE 0
+          END
+        FROM base_scores bs
+        WHERE ctp.id = bs.pairing_id;`
 
     console.log('level  5')
     await sequelize.query(updatePlayerScoreQuery, {
