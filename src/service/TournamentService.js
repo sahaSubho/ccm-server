@@ -1923,7 +1923,9 @@ class TournamentService {
           )
           const disconnectedUsers = players
             .filter((p) => {
-              return !results.connectedUsers.includes(p.cc_userid)
+              return !results?.connectedUsers?.includes(
+                String(p.cc_userid) || p.cc_userid
+              )
             })
             .map((p) => {
               return p.id
@@ -3219,7 +3221,12 @@ class TournamentService {
           )
           if (!results.count) {
             message = `No players standings found for Round ${round}! Please try again.`
-            return this.getPairings(round - 1, tournamentId, limit, offset)
+            return this.getPlayersRanking(
+              round - 1,
+              tournamentId,
+              limit,
+              offset
+            )
             // return responseHandler.returnError(httpStatus.BAD_REQUEST, message)
           }
         }
