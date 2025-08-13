@@ -1363,7 +1363,17 @@ class TournamentService {
       data.setDataValue('is_free', data.entry_fee === 0)
       let isJoined = false
       let isRegistered = false
+      let isQualified = false
       if (userId) {
+        if (
+          data.player_fide_ids.length &&
+          data.player_fide_ids
+            .replace(/\s/g, '')
+            .split(',')
+            .includes(String(userId))
+        ) {
+          isQualified = true
+        }
         isJoined = await this.trnplayersDao.checkExist({
           cc_userid: userId,
           tournament_id: id,
@@ -1380,6 +1390,7 @@ class TournamentService {
       }
       data.setDataValue('is_joined', isJoined)
       data.setDataValue('is_registered', isRegistered)
+      data.setDataValue('is_qualified', isQualified)
 
       // ✅ 3️⃣ Use a single aggregate for pairings
       const pairings = await this.tournamentPairingsDao.findByGroup(
@@ -1939,6 +1950,9 @@ class TournamentService {
             await this.trnplayersDao.deleteByWhere({
               id: disconnectedUsers,
               tournament_id: tournamentId,
+            })
+            players = players.filter((p) => {
+              return !disconnectedUsers.includes(p.id)
             })
             console.log(
               `Marked players as withdrawn: Count = ${disconnectedUsers.length}`
