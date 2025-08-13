@@ -3,6 +3,13 @@
 /* eslint-disable no-param-reassign */
 
 const getPlayerOpponentMapping = (data) => {
+
+	const parentRoundIndex = {};
+	for (const row of data) {
+		  const key = `${row.parent_id}-${row.round}`;
+		  if (!parentRoundIndex[key]) parentRoundIndex[key] = [];
+		  parentRoundIndex[key].push(row);
+	}
 	const scoresByPlayer = {};
 	for (const row of data) {
 		if (!scoresByPlayer[row.player_id]) scoresByPlayer[row.player_id] = [];
@@ -31,9 +38,10 @@ const getPlayerOpponentMapping = (data) => {
 		if (row.parent_id) {
 			playerRow = byId[row.parent_id];
 		} else {
-			playerRow = Object.values(byId).find(
-				d => d.parent_id === row.id && d.round === row.round
-			);
+
+			playerRow = parentRoundIndex[`${row.id}-${row.round}`]?.[0] || null;
+
+
 		}
 
 		if (playerRow) {
