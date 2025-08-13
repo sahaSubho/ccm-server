@@ -51,6 +51,7 @@ const envValidation = Joi.object()
     CLUSTER_MODE_ENABLED: Joi.boolean().default(false),
     AWS_LAMBDA_BBP: Joi.string(),
     AWS_LAMBDA_JAVAFO: Joi.string(),
+    DEBUG: Joi.boolean().default(false),
   })
   .unknown()
 
@@ -115,4 +116,5 @@ module.exports = {
   simulate: envVar.SIMULATION_MODE,
   awsLambdaBbpPairing: envVar.AWS_LAMBDA_BBP,
   awsLambdaJavafo: envVar.AWS_LAMBDA_JAVAFO,
+  debug: envVar.DEBUG,
 }
