@@ -1357,7 +1357,6 @@ class TournamentService {
       // ✅ 2️⃣ Get players count
       const playerCount = await this.trnplayersDao.getCountByWhere({
         tournament_id: id,
-        is_withdrawn: false,
       })
 
       data.setDataValue('players_count', playerCount)
