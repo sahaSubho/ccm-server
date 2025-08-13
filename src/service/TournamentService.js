@@ -2929,6 +2929,22 @@ class TournamentService {
 
       try {
         if (ttlExists) {
+
+          if(keyToCheck === `ccm_standings_ttl_${tournamentId}`)
+          {
+               let ttl_left_in_secs = await this.redisService.ttl(keyToCheck)
+               if(Number(ttl_left_in_secs) <= 3)
+               {
+                      const reCalculateStandingsLock = `ccm_recalculate_standings_${tournamentId}_${round}`
+		      const lockAcquired = await this.redisService.lock( reCalculateStandingsLock, moment().toISOString(), { NX: true, EX: 5 })
+		      if (lockAcquired) {
+			const msg = `Standing Calculation in progress : ${round}, Tournament ID: ${tournamentId}`
+			console.log(msg)
+                        this.reCalculateStandingsPrizes(round, tournamentId, current_round)
+		      }
+               }
+          }
+
           const redisKey = `ccm_standings_${tournamentId}_${round}`
           let totalPlayers = await this.redisService.lLen(redisKey)
           console.log(`Checking Redis key: ${redisKey}`)
@@ -3526,10 +3542,7 @@ class TournamentService {
         tournament?.current_round
       )
       let promises = []
-      if (
-        tournament.current_round > Number(round) &&
-        tournament.tournament_type !== 'Circlechess_Online'
-      ) {
+      if ( tournament.current_round > Number(round) && tournament.tournament_type !== 'Circlechess_Online') {
         console.log(
           `Tournament round is ahead of provided round. Will adjust scores for future rounds.`
         )
@@ -3659,7 +3672,12 @@ class TournamentService {
       }
 
       // Recalculate standings and prizes after scores update
-      this.reCalculateStandingsPrizes(round, tournamentId, tournament.rounds)
+
+
+      if(round == tournament.rounds)
+      {
+          this.reCalculateStandingsPrizes(round, tournamentId, tournament.rounds)
+      }
       console.log(
         `--- [updateScoring] END | Round ${round} updated successfully ---`
       )

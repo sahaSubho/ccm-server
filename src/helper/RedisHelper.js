@@ -20,6 +20,15 @@ class RedisHelper {
     }
   }
 
+
+  ttl = async (key) => {
+	  try {
+	    const ttlValue = await this.redisClient.ttl(key); // returns TTL in seconds
+	    return ttlValue; // can be positive, -1, or -2
+	  } catch (e) {
+	    return false;
+	  }
+  }
 /**
    * Set Value
    * @param {String} key
