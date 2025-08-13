@@ -1918,6 +1918,32 @@ class TournamentService {
           tournament_id: tournamentId,
           is_withdrawn: true,
         })
+        if (results?.connectedUsers?.length > 0) {
+          console.log(
+            `Connected users fetched: Count = ${results.connectedUsers.length}`
+          )
+          const disconnectedUsers = players
+            .filter((p) => {
+              return !results.connectedUsers.includes(p.cc_userid)
+            })
+            .map((p) => {
+              return p.id
+            })
+          if (disconnectedUsers.length > 0) {
+            console.log(
+              `Disconnection detected for players: ${disconnectedUsers.join(
+                ', '
+              )}`
+            )
+            await this.trnplayersDao.deleteByWhere({
+              id: disconnectedUsers,
+              tournament_id: tournamentId,
+            })
+            console.log(
+              `Marked players as withdrawn: Count = ${disconnectedUsers.length}`
+            )
+          }
+        }
       }
 
       console.log(`Players fetched: Count = ${players.length}`)
