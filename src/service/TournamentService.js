@@ -2491,7 +2491,7 @@ class TournamentService {
         `ccm_tournament_current_round_${tournamentId}`
       )
       let message = 'Fetched tournament player pairings successfully.'
-      if (currentRound && currentRound < round) {
+      if (Number(currentRound) && Number(currentRound) < round) {
         message = `Pairing of Round ${round} is not done yet! Please try again.`
         return responseHandler.returnSuccess(httpStatus.OK, message, [])
       }
