@@ -272,9 +272,9 @@ class TournamentService {
               p_prev1.result AS prev_result,
               p_prev1.parent_id AS prev_parent_id,
               CASE
-                WHEN p_cur.round - 2 <= 1 THEN 0
-                ELSE COALESCE(p_prev2.player_score, 0)
-              END AS score_r_minus_2
+                WHEN p_cur.round - 1 <= 1 THEN 0
+                ELSE COALESCE(p_prev1.player_score, 0)
+              END AS score_r_minus_1
             FROM ccm_tournament_pairings p_cur
             LEFT JOIN ccm_tournament_pairings p_prev1
               ON p_cur.cc_userid = p_prev1.cc_userid
@@ -282,13 +282,13 @@ class TournamentService {
              AND p_prev1.round = p_cur.round - 1
             LEFT JOIN ccm_tournament_pairings p_prev2
               ON p_cur.cc_userid = p_prev2.cc_userid
-             AND p_cur.tournament_id = p_prev2.tournament_id 
-             AND p_prev2.round = p_cur.round - 2 
-            WHERE p_cur.tournament_id = :tournament_id
-              AND p_cur.round = :round_id
+             AND p_cur.tournament_id = p_prev2.tournament_id
+             AND p_prev2.round = p_cur.round - 2
+            WHERE p_cur.tournament_id = 2548
+              AND p_cur.round = 3
         )
         UPDATE ccm_tournament_pairings AS ctp
-        SET player_score = bs.score_r_minus_2 +
+        SET player_score = bs.score_r_minus_1 +
           CASE
             WHEN bs.prev_result = '1-0' AND bs.prev_parent_id IS NULL THEN 1
             WHEN bs.prev_result = '1-0' AND bs.prev_parent_id IS NOT NULL THEN 0
