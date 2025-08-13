@@ -1366,10 +1366,10 @@ class TournamentService {
       let isQualified = false
       if (userId) {
         if (
-          data.player_fide_ids.length &&
-          data.player_fide_ids
-            .replace(/\s/g, '')
-            .split(',')
+          data?.player_fide_ids?.length &&
+          data?.player_fide_ids
+            ?.replace(/\s/g, '')
+            ?.split(',')
             .includes(String(userId))
         ) {
           isQualified = true
