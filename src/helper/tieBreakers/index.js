@@ -12,8 +12,82 @@ const calculateGE = require('./GE')
 const calculateWIN = require('./WIN')
 // const calculatePTP = require('./PTP')
 
-
 function calculateTB1TB2TB3(players) {
+  const tiebreaks = {};
+
+  // Precompute direct player lookup for scores
+  const playerScores = {};
+  for (const [id, opponents] of Object.entries(players)) {
+    const oppScores = opponents?.[0]?.scores; // All have same player_id’s scores array
+    if (oppScores) {
+      playerScores[id] = oppScores;
+    }
+  }
+
+  // Main loop — O(total number of opponents)
+  for (const [id, opponents] of Object.entries(players)) {
+    let totalOppScore = 0;
+    let minOppScore = Infinity;
+    let tb3Score = 0;
+
+    const playerScoresArr = playerScores[id] || [];
+    const n = opponents.length;
+
+    for (let i = 0; i < n; i++) {
+      const opp = opponents[i];
+      let score = 0;
+      let isDraw = false;
+
+      if (!opp) {
+        // No opponent in this round — apply special calc
+        const current = playerScoresArr[i];
+        if (current) {
+          score =
+            Number(current.score) +
+            (1 - Number(current.result)) +
+            0.5 * (n - (i + 1));
+        }
+      } else {
+        // Sum opponent's results
+        let s = 0;
+        const oppScoresArr = opp.scores;
+        for (let j = 0; j < oppScoresArr.length; j++) {
+          s += Number(oppScoresArr[j].result);
+        }
+        score = s;
+
+        // Draw check
+        if (
+          playerScoresArr[i] &&
+          oppScoresArr[i] &&
+          playerScoresArr[i].result === oppScoresArr[i].result &&
+          Number(playerScoresArr[i].result) === 0.5
+        ) {
+          isDraw = true;
+        }
+      }
+
+      // TB2 sum
+      totalOppScore += score;
+
+      // TB1 min
+      if (score < minOppScore) minOppScore = score;
+
+      // TB3 score
+      tb3Score += isDraw ? 0.5 * score : score;
+    }
+
+    const tb2 = totalOppScore;
+    const tb1 = tb2 - (minOppScore === Infinity ? 0 : minOppScore);
+
+    tiebreaks[id] = { 'BH-C1': tb1, BH: tb2, SB: tb3Score };
+  }
+
+  return tiebreaks;
+}
+
+
+function ccalculateTB1TB2TB3(players) {
 	const tiebreaks = {};
 
 	const playerInfo = {};
@@ -71,90 +145,6 @@ function calculateTB1TB2TB3(players) {
 	  }
 
   return tiebreaks;
-}
-
-
-
-
-		function calculateTB1TB2TB3(players) {
-  // Initialize tiebreaks object to store TB1, TB2, and TB3 for each player
-  const tiebreaks = {}
-
-  // Calculate opponent scores for each player
-  Object.keys(players).forEach((id) => {
-    const oppScores = players[id].reduce((p, c, i) => {
-      let score = 0
-      let isDraw = false
-      const player = Object.values(players)
-        .flat()
-        .find((pa) => {
-          return pa.player_id === id
-        })
-      if (!c) {
-        if (player.scores) {
-          const n = players[id].length
-          const r = i + 1
-          const current = player.scores[i]
-          score =
-            Number(current.score) + (1 - Number(current.result)) + 0.5 * (n - r)
-        }
-      } else {
-        score = c.scores.reduce((a, b) => {
-          return a + Number(b.result)
-        }, 0)
-        if (
-          player?.scores[i]?.result === c?.scores[i]?.result &&
-          Number(player?.scores[i]?.result) === 0.5
-        ) {
-          isDraw = true
-        }
-      }
-      p.push({ score, isDraw })
-      return p
-    }, [])
-
-    const modifiedOppScores = oppScores.map((p) => {
-      return p.score
-    })
-    // Sort in descending order to easily calculate TB2.
-    modifiedOppScores.sort((a, b) => {
-      return b - a
-    })
-    // Calculate TB2 - Sum of Opponent Scores
-    const tb2 = modifiedOppScores.reduce((acc, score) => {
-      return acc + score
-    }, 0)
-    tiebreaks[id] = { 'BH-C1': 0, BH: tb2, SB: 0 }
-
-    // Calculate TB1 - Sum of Opponent Scores excluding the lowest opponent score
-    const tb1 =
-      tb2 -
-      (modifiedOppScores.length > 0
-        ? modifiedOppScores[modifiedOppScores.length - 1]
-        : 0)
-    tiebreaks[id]['BH-C1'] = tb1
-
-    // Step 4: Calculate TB3 - Sonneborn-Berger score
-    const tb3 =
-      oppScores
-        .filter((p) => {
-          return !p.isDraw
-        })
-        .reduce((acc, p) => {
-          return acc + p.score
-        }, 0) +
-      0.5 *
-        oppScores
-          .filter((p) => {
-            return p.isDraw
-          })
-          .reduce((acc, p) => {
-            return acc + p.score
-          }, 0)
-    tiebreaks[id].SB = tb3
-  })
-
-  return tiebreaks
 }
 
 const getTieBreakByCode = (code, data, setting = {}) => {
@@ -269,3 +259,6 @@ function getTieBreaks(data, round, trnConfig) {
 }
 
 module.exports = getTieBreaks
+
+
+
