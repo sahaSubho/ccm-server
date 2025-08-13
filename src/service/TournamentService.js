@@ -14,6 +14,7 @@ const CCTournamentFeedbackDao = require('../dao/CcTournamentFeedback')
 const PlayersDao = require('../dao/PlayersDao')
 const TournamentPlayersDao = require('../dao/TournamentPlayersDao')
 const TournamentPairingsDao = require('../dao/TournamentPairingDao')
+const TempTournamentPairingsDao = require('../dao/TempTournamentPairingDao')
 const PlayerStartingRankDao = require('../dao/PlayerStartingRankDao')
 const TournamentStandingsDao = require('../dao/TournamentStandingsDao')
 const responseHandler = require('../helper/responseHandler')
@@ -53,6 +54,7 @@ class TournamentService {
     this.playersDao = new PlayersDao()
     this.trnplayersDao = new TournamentPlayersDao()
     this.tournamentPairingsDao = new TournamentPairingsDao()
+    this.tempTournamentPairingsDao = new TempTournamentPairingsDao()
     this.ccTournamentFeedbackDao = new CCTournamentFeedbackDao()
     this.playersPrizePayoutDao = new PlayersPrizePayoutDao()
     this.userService = new UserService() // This is specifically to for querying the lichess token information from DB
@@ -262,10 +264,8 @@ class TournamentService {
     })
     console.log('level  4 : completed ')
 
-    /*
-
-        console.log('level  4')
-	const updatePlayerScoreQuery = `
+    console.log('level  4')
+    const updatePlayerScoreQuery = `
 	  WITH previous_scores AS (
 	    SELECT
 	      p1.id AS pairing_id,
@@ -300,18 +300,16 @@ class TournamentService {
 	      ELSE 0
 	    END
 	  FROM previous_scores ps
-	  WHERE ctp.id = ps.pairing_id; `;
+	  WHERE ctp.id = ps.pairing_id; `
 
-
-        console.log('level  5')
-	await sequelize.query(updatePlayerScoreQuery, {
-	  replacements: {
-	    tournament_id : tournamentId,
-	    round_id : round
-	  },
-	});
-        console.log('level  6')
-        */
+    console.log('level  5')
+    await sequelize.query(updatePlayerScoreQuery, {
+      replacements: {
+        tournament_id: tournamentId,
+        round_id: round,
+      },
+    })
+    console.log('level  6')
   }
 
   removePairingsFromRedis = async (tournamentId, round, pairingId) => {
@@ -1677,6 +1675,9 @@ class TournamentService {
           results
         )}`
       )
+      if (!mandatory) {
+        return responseHandler.returnSuccess(httpStatus.OK, message)
+      }
       const tournament = await this.tournamentDao.findById(tournamentId)
 
       if (tournament.current_round == Number(round) || mandatory === true) {
@@ -1992,15 +1993,27 @@ class TournamentService {
 
         let pairing = []
 
-        const allRoundPairingKey = `ccm_all_round_pairings_${tournamentId}`
-        const pairings = await this.redisService.getValue(allRoundPairingKey)
-        pairing = JSON.parse(pairings)
+        // const allRoundPairingKey = `ccm_all_round_pairings_${tournamentId}`
+        // const pairings = await this.redisService.getValue(allRoundPairingKey)
+        // pairing = JSON.parse(pairings)
 
-        if (!pairing?.length) {
-          pairing = await this.tournamentPairingsDao.findByWhere({
-            round: { [Op.lt]: round },
-            tournament_id: tournamentId,
+        // if (!pairing?.length) {
+        pairing = await this.tournamentPairingsDao.findByWhere({
+          round: { [Op.lt]: round },
+          tournament_id: tournamentId,
+        })
+        // }
+
+        if (config.debug) {
+          const newData = pairing.map(({ id, ...rest }) => {
+            return rest
           })
+
+          console.log(
+            `Dumping data for Round ${round} | Tournament: ${tournamentId}`
+          )
+          // Bulk insert into temp pairing table
+          await this.tempTournamentPairingsDao.bulkCreate(newData)
         }
 
         lastRoundPairings = pairing.filter((p) => {
