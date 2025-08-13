@@ -46,6 +46,11 @@ module.exports = (sequelize, DataTypes) => {
         defaultValue: '0.0',
       },
       tie_breaks: DataTypes.JSONB,
+      version: {
+        type: DataTypes.INTEGER,
+        enum: [0, 1],
+        defaultValue: 1,
+      },
     },
     {
       sequelize,
