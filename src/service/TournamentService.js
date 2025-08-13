@@ -2929,20 +2929,25 @@ class TournamentService {
 
       try {
         if (ttlExists) {
-
-          if(keyToCheck === `ccm_standings_ttl_${tournamentId}`)
-          {
-               let ttl_left_in_secs = await this.redisService.ttl(keyToCheck)
-               if(Number(ttl_left_in_secs) <= 3)
-               {
-                      const reCalculateStandingsLock = `ccm_recalculate_standings_${tournamentId}_${round}`
-		      const lockAcquired = await this.redisService.lock( reCalculateStandingsLock, moment().toISOString(), { NX: true, EX: 5 })
-		      if (lockAcquired) {
-			const msg = `Standing Calculation in progress : ${round}, Tournament ID: ${tournamentId}`
-			console.log(msg)
-                        this.reCalculateStandingsPrizes(round, tournamentId, current_round)
-		      }
-               }
+          if (keyToCheck === `ccm_standings_ttl_${tournamentId}`) {
+            const ttl_left_in_secs = await this.redisService.ttl(keyToCheck)
+            if (Number(ttl_left_in_secs) <= 3) {
+              const reCalculateStandingsLock = `ccm_recalculate_standings_${tournamentId}_${round}`
+              const lockAcquired = await this.redisService.lock(
+                reCalculateStandingsLock,
+                moment().toISOString(),
+                { NX: true, EX: 5 }
+              )
+              if (lockAcquired) {
+                const msg = `Standing Calculation in progress : ${round}, Tournament ID: ${tournamentId}`
+                console.log(msg)
+                this.reCalculateStandingsPrizes(
+                  round,
+                  tournamentId,
+                  current_round
+                )
+              }
+            }
           }
 
           const redisKey = `ccm_standings_${tournamentId}_${round}`
@@ -3189,7 +3194,8 @@ class TournamentService {
           )
           if (!results.count) {
             message = `No players standings found for Round ${round}! Please try again.`
-            return responseHandler.returnError(httpStatus.BAD_REQUEST, message)
+            return this.getPairings(round - 1, tournamentId, limit, offset)
+            // return responseHandler.returnError(httpStatus.BAD_REQUEST, message)
           }
         }
 
@@ -3542,7 +3548,10 @@ class TournamentService {
         tournament?.current_round
       )
       let promises = []
-      if ( tournament.current_round > Number(round) && tournament.tournament_type !== 'Circlechess_Online') {
+      if (
+        tournament.current_round > Number(round) &&
+        tournament.tournament_type !== 'Circlechess_Online'
+      ) {
         console.log(
           `Tournament round is ahead of provided round. Will adjust scores for future rounds.`
         )
@@ -3673,10 +3682,8 @@ class TournamentService {
 
       // Recalculate standings and prizes after scores update
 
-
-      if(round == tournament.rounds)
-      {
-          this.reCalculateStandingsPrizes(round, tournamentId, tournament.rounds)
+      if (round == tournament.rounds) {
+        this.reCalculateStandingsPrizes(round, tournamentId, tournament.rounds)
       }
       console.log(
         `--- [updateScoring] END | Round ${round} updated successfully ---`
