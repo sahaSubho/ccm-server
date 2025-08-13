@@ -3344,19 +3344,37 @@ class TournamentService {
         await this.tournamentStandingsDao.bulkCreate(payload)
         console.log(`Standings created.`)
       } else {
-        await this.tournamentStandingsDao.deleteByWhere({
-          round,
-          tournament_id: tournamentId,
-          version: 0,
-        })
-        await this.tournamentStandingsDao.updateWhere(
-          {
-            version: 0,
-          },
-          { round, tournament_id: tournamentId, version: 1 }
-        )
-        await this.tournamentStandingsDao.bulkCreate(payload)
-        console.log(`Standings replaced.`)
+        const t = await sequelize.transaction()
+
+        try {
+          await this.tournamentStandingsDao.deleteByWhere(
+            {
+              round,
+              tournament_id: tournamentId,
+              version: 0,
+            },
+            { transaction: t }
+          )
+
+          await this.tournamentStandingsDao.updateWhere(
+            {
+              version: 0,
+            },
+            { round, tournament_id: tournamentId, version: 1 },
+            { transaction: t }
+          )
+
+          await this.tournamentStandingsDao.bulkCreate(payload, {
+            transaction: t,
+          })
+
+          // Commit only if all succeed
+          await t.commit()
+          console.log(`Standings replaced.`)
+        } catch (error) {
+          // Rollback everything if any query fails
+          await t.rollback()
+        }
       }
 
       const redisResult = await this.redisService.setValueWithExpiry(
