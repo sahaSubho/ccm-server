@@ -12,7 +12,71 @@ const calculateGE = require('./GE')
 const calculateWIN = require('./WIN')
 // const calculatePTP = require('./PTP')
 
+
 function calculateTB1TB2TB3(players) {
+	const tiebreaks = {};
+
+	const playerInfo = {};
+	for (const [id, opponents] of Object.entries(players)) {
+		for (const opp of opponents) {
+			if (!playerInfo[opp.player_id]) playerInfo[opp.player_id] = opp;
+		}
+	}
+
+	for (const [id, opponents] of Object.entries(players)) {
+		let totalOppScore = 0;
+		let minOppScore = Infinity;
+		let tb3Score = 0;
+
+		const player = playerInfo[id];
+		const n = opponents.length;
+
+		opponents.forEach((opp, i) => {
+			let score = 0;
+			let isDraw = false;
+
+			if (!opp) {
+				if (player?.scores) {
+					const r = i + 1;
+					const current = player.scores[i];
+					score =
+						Number(current.score) +
+						(1 - Number(current.result)) +
+						0.5 * (n - r);
+				}
+			} else {
+				score = opp.scores.reduce((a, b) => a + Number(b.result), 0);
+				if (
+					player?.scores[i]?.result === opp?.scores[i]?.result &&
+					Number(player?.scores[i]?.result) === 0.5
+				) {
+					isDraw = true;
+				}
+			}
+
+			totalOppScore += score;
+			if (score < minOppScore) minOppScore = score;
+
+			tb3Score += isDraw ? 0.5 * score : score;
+		});
+
+    const tb2 = totalOppScore;
+    const tb1 = tb2 - (minOppScore === Infinity ? 0 : minOppScore);
+
+    tiebreaks[id] = {
+	          'BH-C1': tb1,
+	          BH: tb2,
+	          SB: tb3Score,
+	        };
+	  }
+
+  return tiebreaks;
+}
+
+
+
+
+		function calculateTB1TB2TB3(players) {
   // Initialize tiebreaks object to store TB1, TB2, and TB3 for each player
   const tiebreaks = {}
 
@@ -123,8 +187,11 @@ const getTieBreakByCode = (code, data, setting = {}) => {
 }
 
 function getTieBreaks(data, round, trnConfig) {
+	console.log('test pring 111')
   const playersMapping = getPlayerOpponentMapping(data)
+	console.log('test pring 112')
   const tieBreakerResult = calculateTB1TB2TB3(playersMapping)
+	console.log('test pring 113')
 
   const othertieBreaks = trnConfig?.tiebreaks?.reduce((acc, code) => {
     acc[code] = getTieBreakByCode(
@@ -134,6 +201,7 @@ function getTieBreaks(data, round, trnConfig) {
     )
     return acc
   }, {})
+	console.log('test pring 114')
 
   const player_ids = [
     ...new Set(
@@ -150,12 +218,14 @@ function getTieBreaks(data, round, trnConfig) {
           return d.player_id === id
         })
         .pop()
+	console.log('test pring 115')
       const tie_breaks = trnConfig?.tiebreaks?.reduce((acc, code, i) => {
         acc[`TB${i + 1}`] = othertieBreaks[code]
           ? othertieBreaks[code][e.player_id]
           : tieBreakerResult[e.player_id][code]
         return acc
       }, {})
+	console.log('test pring 116')
       return {
         round,
         tournament_id: e.tournament_id,

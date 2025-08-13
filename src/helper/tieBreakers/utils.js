@@ -1,43 +1,54 @@
 /* eslint-disable no-param-reassign */
+
+/* eslint-disable no-param-reassign */
+
 const getPlayerOpponentMapping = (data) => {
-  const playersMapping = data.reduce((p, c) => {
-    const opponent = {
-      id: c.id,
-      player_id: c.player_id,
-      rating: c.player_rating,
-      scores: data
-        .filter((d) => {
-          return d.player_id === c.player_id
-        })
-        .map((o) => {
-          return {
-            round: o.round,
-            score: o.player_score,
-            result: o.result,
-          }
-        }),
-    }
-    let player
-    if (c.parent_id) {
-      player = data.find((d) => {
-        return d.id === c.parent_id && d.round === c.round
-      })
-    } else {
-      player = data.find((d) => {
-        return d.parent_id === c.id && d.round === c.round
-      })
-    }
-    if (player) {
-      p[player.player_id] = p[player.player_id]
-        ? [...p[player.player_id], opponent]
-        : [opponent]
-    } else {
-      p[c.player_id] = p[c.player_id] ? [...p[c.player_id]] : []
-    }
-    return p
-  }, {})
-  return playersMapping
-}
+	const scoresByPlayer = {};
+	for (const row of data) {
+		if (!scoresByPlayer[row.player_id]) scoresByPlayer[row.player_id] = [];
+		scoresByPlayer[row.player_id].push({
+			round: row.round,
+			score: row.player_score,
+			result: row.result,
+		});
+	}
+
+	const byId = {};
+	for (const row of data) {
+		byId[row.id] = row;
+	}
+
+	const playersMapping = {};
+	for (const row of data) {
+		const opponent = {
+			id: row.id,
+			player_id: row.player_id,
+			rating: row.player_rating,
+			scores: scoresByPlayer[row.player_id] || [],
+		};
+
+		let playerRow;
+		if (row.parent_id) {
+			playerRow = byId[row.parent_id];
+		} else {
+			playerRow = Object.values(byId).find(
+				d => d.parent_id === row.id && d.round === row.round
+			);
+		}
+
+		if (playerRow) {
+			if (!playersMapping[playerRow.player_id]) playersMapping[playerRow.player_id] = [];
+			playersMapping[playerRow.player_id].push(opponent);
+		} else {
+
+			if (!playersMapping[row.player_id]) playersMapping[row.player_id] = [];
+		}
+
+	}
+		  return playersMapping;
+	}
+
+
 
 function findIntervalWithNumber(intervals, number) {
   for (let i = 0; i < intervals.length; i += 1) {
