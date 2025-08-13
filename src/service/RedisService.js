@@ -111,6 +111,11 @@ class RedisService {
     return await this.redisHelper.lock(key, value, config_data)
   }
 
+  ttl = async (key) => {
+    return await this.redisHelper.ttl(key)
+  }
+
+
   /**
    * Set Value for Atomic
    * @param {Object} key
