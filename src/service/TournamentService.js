@@ -1923,7 +1923,7 @@ class TournamentService {
           )
           const disconnectedUsers = players
             .filter((p) => {
-              return !results.connectedUsers.includes(p.cc_userid)
+              return !results.connectedUsers?.includes(String(p.cc_userid))
             })
             .map((p) => {
               return p.id
