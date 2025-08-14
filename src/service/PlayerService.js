@@ -1473,7 +1473,7 @@ class PlayersService {
       })
 
       if (pairings.length > opponents.length) {
-        const obj = pairings.find((p) => {
+        const byes = pairings.filter((p) => {
           return (
             p.parent_id === null &&
             !opponents.some((o) => {
@@ -1481,14 +1481,16 @@ class PlayersService {
             })
           )
         })
-        const byePairings = { ...obj }
-        byePairings.player_name = 'Bye'
-        byePairings.player_id = null
-        byePairings.player_rating = 0
-        byePairings.player_score = 0
-        byePairings.result = '0-1'
-        byePairings.player_fide_id = null
-        opponents.push(byePairings)
+        byes.forEach((obj) => {
+          const byePairings = { ...obj }
+          byePairings.player_name = 'Bye'
+          byePairings.player_id = null
+          byePairings.player_rating = 0
+          byePairings.player_score = 0
+          byePairings.result = '0-1'
+          byePairings.player_fide_id = null
+          opponents.splice(byePairings.round - 1, 0, byePairings)
+        })
       }
 
       delete player.mobile
