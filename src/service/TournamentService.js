@@ -3146,7 +3146,7 @@ class TournamentService {
             tournament_id: tournamentId,
           })
           // whatever be the results computed, save that in the cache.
-          const lockKey = `ccm_standings_write_lock_${tournamentId}_${round}`
+          const lockKey = `ccm_pairings_write_lock_${tournamentId}_${round}`
           const lockAcquired = await this.redisService.lock(
             lockKey,
             moment().toISOString(),
