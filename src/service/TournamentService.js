@@ -3145,7 +3145,16 @@ class TournamentService {
             round: { [Op.lte]: round },
             tournament_id: tournamentId,
           })
-          this.storePairingToRedis(tournamentId, round, data)
+          // whatever be the results computed, save that in the cache.
+          const lockKey = `ccm_standings_write_lock_${tournamentId}_${round}`
+          const lockAcquired = await this.redisService.lock(
+            lockKey,
+            moment().toISOString(),
+            { NX: true, EX: 5 }
+          )
+          if (lockAcquired) {
+            this.storePairingToRedis(tournamentId, round, data)
+          }
         }
 
         if (!data?.length) {
