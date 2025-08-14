@@ -177,11 +177,8 @@ const getTieBreakByCode = (code, data, setting = {}) => {
 }
 
 function getTieBreaks(data, round, trnConfig) {
-	console.log('test pring 111')
   const playersMapping = getPlayerOpponentMapping(data)
-	console.log('test pring 112')
   const tieBreakerResult = calculateTB1TB2TB3(playersMapping)
-	console.log('test pring 113')
 
   const othertieBreaks = trnConfig?.tiebreaks?.reduce((acc, code) => {
     acc[code] = getTieBreakByCode(
@@ -191,7 +188,6 @@ function getTieBreaks(data, round, trnConfig) {
     )
     return acc
   }, {})
-	console.log('test pring 114')
 
   const player_ids = [
     ...new Set(
@@ -208,14 +204,12 @@ function getTieBreaks(data, round, trnConfig) {
           return d.player_id === id
         })
         .pop()
-	console.log('test pring 115')
       const tie_breaks = trnConfig?.tiebreaks?.reduce((acc, code, i) => {
         acc[`TB${i + 1}`] = othertieBreaks[code]
           ? othertieBreaks[code][e.player_id]
           : tieBreakerResult[e.player_id][code]
         return acc
       }, {})
-	console.log('test pring 116')
       return {
         round,
         tournament_id: e.tournament_id,
