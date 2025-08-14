@@ -2839,16 +2839,14 @@ class TournamentService {
   ) => {
     const message = `Fetched players ranking after round ${round} successfully.`
 
+    const total = output.length
+    const result = output.slice(offset, offset + limit)
+    let pageNumber
     if (search.length > 0) {
       output = output.filter((r) => {
         return r?.player_name?.toLowerCase()?.includes(search?.toLowerCase())
       })
-    }
-
-    const total = output.length
-    const result = output.slice(offset, offset + limit)
-    let pageNumber
-    if (userId) {
+    } else if (userId) {
       console.log(`Standings Old for UserId: ${userId}`)
       const userData = output.find((o) => {
         return o.cc_userid === userId
@@ -3008,7 +3006,17 @@ class TournamentService {
           // let totalPlayers = redisResults.length
 
           let pageNumber
-          if (userId) {
+          if (search.length) {
+            redisResults = redisResults.filter((r) => {
+              return r?.player_name
+                ?.toLowerCase()
+                ?.includes(search?.toLowerCase())
+            })
+            totalPlayers = redisResults.length
+            start = offset
+            end = start + limit
+            redisResults = redisResults.slice(start, end)
+          } else if (userId) {
             const userData = redisResults.find((o) => {
               return o.cc_userid === Number(userId)
             })
@@ -3021,16 +3029,6 @@ class TournamentService {
             if (userData) {
               redisResults.unshift(userData)
             }
-          } else if (search.length) {
-            redisResults = redisResults.filter((r) => {
-              return r?.player_name
-                ?.toLowerCase()
-                ?.includes(search?.toLowerCase())
-            })
-            totalPlayers = redisResults.length
-            start = offset
-            end = start + limit
-            redisResults = redisResults.slice(start, end)
           }
 
           console.log(
