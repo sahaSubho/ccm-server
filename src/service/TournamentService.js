@@ -2972,7 +2972,7 @@ class TournamentService {
         if (ttlExists) {
           if (keyToCheck === `ccm_standings_ttl_${tournamentId}`) {
             const ttl_left_in_secs = await this.redisService.ttl(keyToCheck)
-            if (Number(ttl_left_in_secs) <= 3) {
+            if (Number(ttl_left_in_secs) <= 5) {
               const reCalculateStandingsLock = `ccm_recalculate_standings_${tournamentId}_${round}`
               const lockAcquired = await this.redisService.lock(
                 reCalculateStandingsLock,
