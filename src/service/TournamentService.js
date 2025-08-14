@@ -2700,7 +2700,16 @@ class TournamentService {
 
       console.log(`Final pairings mapped with teams.`)
 
-      this.storePairingToRedis(tournamentId, round)
+      // whatever be the results computed, save that in the cache.
+      const lockKey = `ccm_pairings_write_lock_${tournamentId}_${round}`
+      const lockAcquired = await this.redisService.lock(
+        lockKey,
+        moment().toISOString(),
+        { NX: true, EX: 5 }
+      )
+      if (lockAcquired) {
+        this.storePairingToRedis(tournamentId, round, players)
+      }
 
       console.log(`--- [getPairings] END | SUCCESS ---`)
       return responseHandler.returnSuccess(
@@ -3136,7 +3145,7 @@ class TournamentService {
             round: { [Op.lte]: round },
             tournament_id: tournamentId,
           })
-          this.storePairingToRedis(tournamentId, round)
+          this.storePairingToRedis(tournamentId, round, data)
         }
 
         if (!data?.length) {
@@ -3247,6 +3256,10 @@ class TournamentService {
         output = results.rows.map((r) => {
           return { ...r, ...r.tie_breaks }
         })
+      }
+
+      if (!output.length) {
+        return this.getPlayersRanking(round - 1, tournamentId, limit, offset)
       }
 
       // whatever be the results computed, save that in the cache.
