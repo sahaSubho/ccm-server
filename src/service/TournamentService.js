@@ -2611,7 +2611,7 @@ class TournamentService {
         console.log(`No cached pairings found. Querying DB...`)
       }
 
-      if (userId) {
+      if (search.length === 0 && userId) {
         console.log(`Pairings for UserId: ${userId}`)
         const userData = await this.tournamentPairingsDao.findOneByWhere({
           cc_userid: userId,
