@@ -2302,7 +2302,16 @@ class TournamentService {
           }
         })
 
-        this.storePairingToRedis(tournamentId, round, data)
+        // save pairing in the redis cache.
+        const lockKey = `ccm_pairings_write_lock_${tournamentId}_${round}`
+        const pairingLockAcquired = await this.redisService.lock(
+          lockKey,
+          moment().toISOString(),
+          { NX: true, EX: 60 }
+        )
+        if (pairingLockAcquired) {
+          this.storePairingToRedis(tournamentId, round, data)
+        }
 
         console.log(`Pairings prepared for response.`)
         await this.redisService.removeKey(
@@ -2702,12 +2711,12 @@ class TournamentService {
 
       console.log(`Final pairings mapped with teams.`)
 
-      // whatever be the results computed, save that in the cache.
+      // save pairing in the redis cache.
       const lockKey = `ccm_pairings_write_lock_${tournamentId}_${round}`
       const lockAcquired = await this.redisService.lock(
         lockKey,
         moment().toISOString(),
-        { NX: true, EX: 5 }
+        { NX: true, EX: 60 }
       )
       if (lockAcquired) {
         this.storePairingToRedis(tournamentId, round)
@@ -3147,12 +3156,12 @@ class TournamentService {
             round: { [Op.lte]: round },
             tournament_id: tournamentId,
           })
-          // whatever be the results computed, save that in the cache.
+          // save pairing in the redis cache.
           const lockKey = `ccm_pairings_write_lock_${tournamentId}_${round}`
           const lockAcquired = await this.redisService.lock(
             lockKey,
             moment().toISOString(),
-            { NX: true, EX: 5 }
+            { NX: true, EX: 60 }
           )
           if (lockAcquired) {
             this.storePairingToRedis(tournamentId, round)
