@@ -1642,7 +1642,7 @@ class TournamentService {
         }
       })
     }
-    console.log(`Saving Pairing in redis`, JSON.stringify(data))
+    console.log(`Saving Pairing in redis`, players.length)
     // === Save in Redis ===
     const hashKey = `ccm_pairings_${tournamentId}_${round}`
     const listKey = `ccm_pairings_order_${tournamentId}_${round}`
@@ -1654,6 +1654,7 @@ class TournamentService {
     // === Remove if Already Exists ===
     await this.redisService.removeKey(hashKey)
     await this.redisService.removeKey(listKey)
+    await this.redisService.removeKey(ongoingKey)
 
     // const hashFields = []
     for (const player of players) {
@@ -1662,13 +1663,14 @@ class TournamentService {
       await this.redisService.hSet(hashKey, field, JSON.stringify(player))
       await this.redisService.rPush(listKey, field)
       // Storing in ongoingKey only after pairing creation
-      if (data.length > 0) {
+      if (!player?.player?.is_scored) {
         await this.redisService.rPush(ongoingKey, String(field))
       }
     }
 
     await this.redisService.expire(hashKey)
     await this.redisService.expire(listKey)
+    await this.redisService.expire(ongoingKey)
 
     console.log(`Pairings stored in Redis.`)
   }
@@ -2708,7 +2710,7 @@ class TournamentService {
         { NX: true, EX: 5 }
       )
       if (lockAcquired) {
-        this.storePairingToRedis(tournamentId, round, players)
+        this.storePairingToRedis(tournamentId, round)
       }
 
       console.log(`--- [getPairings] END | SUCCESS ---`)
@@ -3153,7 +3155,7 @@ class TournamentService {
             { NX: true, EX: 5 }
           )
           if (lockAcquired) {
-            this.storePairingToRedis(tournamentId, round, data)
+            this.storePairingToRedis(tournamentId, round)
           }
         }
 
