@@ -1856,8 +1856,19 @@ class TournamentService {
         const msg = `Pairing already completed for Round ${round} in Tournament ID: ${tournamentId}`
         console.log(msg)
 
+        const listKey = `ccm_pairings_order_${tournamentId}_${round}`
+        const totalPairings = await this.redisService.lLen(listKey)
         try {
-          return await this.getPairings(round, tournamentId)
+          return await this.getPairings(
+            round,
+            tournamentId,
+            totalPairings,
+            0,
+            '',
+            false,
+            null,
+            'already_generated'
+          )
         } catch (error) {
           await this.redisService.removeKey(
             `ccm_pairing_completed__${tournamentId}_${round}`
@@ -2021,7 +2032,7 @@ class TournamentService {
           '',
           false,
           null,
-          message
+          'already_generated'
         )
         return res
       }
@@ -2217,8 +2228,19 @@ class TournamentService {
           const msg = `Pairing already completed for Round ${round} in Tournament ID: ${tournamentId}`
           console.log(msg)
 
+          const listKey = `ccm_pairings_order_${tournamentId}_${round}`
+          const totalPairings = await this.redisService.lLen(listKey)
           try {
-            return await this.getPairings(round, tournamentId)
+            return await this.getPairings(
+              round,
+              tournamentId,
+              totalPairings,
+              0,
+              '',
+              false,
+              null,
+              'already_generated'
+            )
           } catch (error) {
             await this.redisService.removeKey(
               `ccm_pairing_completed__${tournamentId}_${round}`
