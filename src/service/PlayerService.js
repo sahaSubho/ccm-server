@@ -9,6 +9,7 @@ const TournamentPlayersDao = require('../dao/TournamentPlayersDao')
 const PlayersPrizePayoutDao = require('../dao/PlayersPrizePayoutDao')
 const PayoutTransactionsDao = require('../dao/PayoutTransactionsDao')
 const TournamentDao = require('../dao/TournamentDao')
+const TournamentConfigurationDao = require('../dao/TournamentConfigurationDao')
 const TournamentPairingDao = require('../dao/TournamentPairingDao')
 const PrizeCategoryDao = require('../dao/PrizeCategoryDao')
 const responseHandler = require('../helper/responseHandler')
@@ -34,6 +35,7 @@ class PlayersService {
     this.payoutTransactionsDao = new PayoutTransactionsDao()
     this.CCUserDao = new CCUserDao()
     this.prizeCategoryDao = new PrizeCategoryDao()
+    this.tournamentConfigurationDao = new TournamentConfigurationDao()
   }
 
   static getRatingToConsider = (tournamentType, ratings) => {
@@ -66,8 +68,8 @@ class PlayersService {
   }
 
   static CSOCTournamentMapping = {
-    advance: 16599,
-    intermediate: '19538,29210',
+    advance: '16599,39462,39554,39571,39572',
+    intermediate: '19538,29210,38380,37470,38389,38807',
     foundation: '24797,23696,28545',
     beginner: 19526,
   }
@@ -823,10 +825,11 @@ class PlayersService {
         if (fidePlayer) {
           playerData = {
             ...playerData,
-            rating: PlayersService.getRatingToConsider(
-              tournament.time_format,
-              fidePlayer
-            ),
+            rating:
+              PlayersService.getRatingToConsider(
+                tournament.time_format,
+                fidePlayer
+              ) || playerData.rating,
             title: fidePlayer.title,
             age: fidePlayer.age,
             gender: fidePlayer.gender,
@@ -1321,6 +1324,14 @@ class PlayersService {
     try {
       let message = 'Successfully withdrawn player from this tournament.'
 
+      const trnConfig = await this.tournamentConfigurationDao.findOneByWhere({
+        tournament_id: playerBody.tournamentId,
+      })
+
+      if (trnConfig.engine === 'bbpPairing') {
+        return responseHandler.returnSuccess(httpStatus.OK, message)
+      }
+
       // const tournament = await this.tournamentDao.findById(
       //   playerBody.tournamentId
       // )
@@ -1444,28 +1455,52 @@ class PlayersService {
         type: sequelize.QueryTypes.SELECT,
       })
 
+      const opponents = data.filter((t) => {
+        return !(
+          t.result ===
+            tournaments.find((p) => {
+              return p.parent_id === t.id || t.parent_id === p.id
+            })?.result && t.result === ''
+        )
+      })
+      const pairings = tournaments.filter((t) => {
+        return !(
+          t.result ===
+            data.find((p) => {
+              return p.parent_id === t.id || t.parent_id === p.id
+            })?.result && t.result === ''
+        )
+      })
+
+      if (pairings.length > opponents.length) {
+        const byes = pairings.filter((p) => {
+          return (
+            p.parent_id === null &&
+            !opponents.some((o) => {
+              return o.parent_id === p.id
+            })
+          )
+        })
+        byes.forEach((obj) => {
+          const byePairings = { ...obj }
+          byePairings.player_name = 'Bye'
+          byePairings.player_id = null
+          byePairings.player_rating = 0
+          byePairings.player_score = 0
+          byePairings.result = '0-1'
+          byePairings.player_fide_id = null
+          opponents.splice(byePairings.round - 1, 0, byePairings)
+        })
+      }
+
       delete player.mobile
       const result = {
         tournamentName,
         details: {
           ...player,
-          tournaments: tournaments.filter((t) => {
-            return !(
-              t.result ===
-                data.find((p) => {
-                  return p.parent_id === t.id || t.parent_id === p.id
-                })?.result && t.result === ''
-            )
-          }),
+          tournaments: pairings,
         },
-        opponents: data.filter((t) => {
-          return !(
-            t.result ===
-              tournaments.find((p) => {
-                return p.parent_id === t.id || t.parent_id === p.id
-              })?.result && t.result === ''
-          )
-        }),
+        opponents,
       }
       return responseHandler.returnSuccess(httpStatus.OK, message, result)
     } catch (error) {

@@ -10,10 +10,18 @@ class TournamentStandingsDao extends SuperDao {
     super(TournamentStandings)
   }
 
-  async findAndCountAll(round, tournamentId, limit, offset, search = '') {
+  async findAndCountAll(
+    round,
+    tournamentId,
+    limit,
+    offset,
+    search = '',
+    version = 1
+  ) {
     const where = {
       round,
       tournament_id: tournamentId,
+      version,
     }
     if (search.length) {
       where[sequelize.Op.or] = [
