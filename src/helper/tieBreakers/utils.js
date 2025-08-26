@@ -5,56 +5,56 @@
 const getPlayerOpponentMapping = (data) => {
 
 	const parentRoundIndex = {};
-	for (const row of data) {
+  for (const row of data) {
 		  const key = `${row.parent_id}-${row.round}`;
 		  if (!parentRoundIndex[key]) parentRoundIndex[key] = [];
 		  parentRoundIndex[key].push(row);
-	}
+  }
 	const scoresByPlayer = {};
-	for (const row of data) {
+  for (const row of data) {
 		if (!scoresByPlayer[row.player_id]) scoresByPlayer[row.player_id] = [];
-		scoresByPlayer[row.player_id].push({
-			round: row.round,
-			score: row.player_score,
-			result: row.result,
+    scoresByPlayer[row.player_id].push({
+      round: row.round,
+      score: row.player_score,
+      result: row.result,
 		});
-	}
+  }
 
 	const byId = {};
-	for (const row of data) {
+  for (const row of data) {
 		byId[row.id] = row;
-	}
+  }
 
 	const playersMapping = {};
-	for (const row of data) {
-		const opponent = {
-			id: row.id,
-			player_id: row.player_id,
-			rating: row.player_rating,
-			scores: scoresByPlayer[row.player_id] || [],
+  for (const row of data) {
+    const opponent = {
+      id: row.id,
+      player_id: row.player_id,
+      rating: row.player_rating,
+      scores: scoresByPlayer[row.player_id] || [],
 		};
 
 		let playerRow;
-		if (row.parent_id) {
+    if (row.parent_id) {
 			playerRow = byId[row.parent_id];
-		} else {
+    } else {
 
 			playerRow = parentRoundIndex[`${row.id}-${row.round}`]?.[0] || null;
 
 
-		}
+    }
 
-		if (playerRow) {
+    if (playerRow) {
 			if (!playersMapping[playerRow.player_id]) playersMapping[playerRow.player_id] = [];
 			playersMapping[playerRow.player_id].push(opponent);
-		} else {
+    } else {
 
 			if (!playersMapping[row.player_id]) playersMapping[row.player_id] = [];
-		}
+    }
 
-	}
+  }
 		  return playersMapping;
-	}
+}
 
 
 
@@ -75,10 +75,8 @@ function processResult(result, playersType, config = { bye_point: 1 }) {
   let modifiedResult = [0, 0]
   switch (result) {
     case '--+':
-    case '0-1':
       modifiedResult = [0, 1]
       break
-    case '1-0':
     case '+--':
       modifiedResult = [1, 0]
       break
@@ -89,6 +87,7 @@ function processResult(result, playersType, config = { bye_point: 1 }) {
       modifiedResult = [Number(config?.bye_point), 0]
       break
     default:
+      modifiedResult = result.split('-').map(Number)
       break
   }
   if (playersType === 'player') {
