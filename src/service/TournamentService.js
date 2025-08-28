@@ -44,8 +44,6 @@ const {
 const s3Helper = require('../helper/s3Helper')
 // const fetchLatestFidePlayers = require('../helper/fidePlayers')
 
-const fieldsOfType1 = ['address', 'email', 'upi_id']
-
 class TournamentService {
   constructor() {
     this.tournamentDao = new TournamentDao()
@@ -816,7 +814,7 @@ class TournamentService {
             field_to_update: f.field,
             tournament_key: key,
             flow_id: 2,
-            field_type: fieldsOfType1.includes(f.field) ? 1 : 2,
+            field_type: f.field_type ? Number(f.field_type) : 2,
             is_mandatory: f.is_mandatory,
             validator_regex: f.validator_regex,
             pincode_regex: f.pincode_regex,
@@ -4267,7 +4265,7 @@ class TournamentService {
               field_to_update: f.field,
               tournament_key: tournament.feedback_key || key,
               flow_id: 2,
-              field_type: fieldsOfType1.includes(f.field) ? 1 : 2,
+              field_type: f.field_type ? Number(f.field_type) : 2,
               is_mandatory: f?.is_mandatory ? f.is_mandatory : 0,
               validator_regex: f.validator_regex,
               pincode_regex: f.pincode_regex,
