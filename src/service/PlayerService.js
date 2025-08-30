@@ -82,6 +82,8 @@ class PlayersService {
     usa: 'US%',
   }
 
+  static allowedUsers = [80324]
+
   static areNamesSimilar = (_name1, _name2, threshold = 0.1) => {
     // Convert names to lowercase for case-insensitive comparison
     const name1 = _name1.toLowerCase()
@@ -636,35 +638,12 @@ class PlayersService {
 
       const user = await this.CCUserDao.findOne({ user_id: data.playerId })
 
-      if (tournament.csoc_batch === 'usa') {
-        const res1 = await sequelize.query(
-          `select id from cc_csoc_registration where status in (1,3) and mobile_number='${
-            user.mobile_number
-          }' and class_name like '%${
-            PlayersService.CSOCTournamentClassNameMapping[tournament.csoc_batch]
-          }%'`,
-          {
-            type: sequelize.QueryTypes.SELECT,
-          }
-        )
-        if (!res1.length) {
-          message =
-            "Failed to add player! Since Player doesn't belongs to USA CSOC batch."
-          return responseHandler.returnError(httpStatus.BAD_REQUEST, message)
-        }
-      } else if (PlayersService.CSOCTournamentMapping[tournament.csoc_batch]) {
-        const res = await sequelize.query(
-          `select id from cc_csoc_registration where status in (1,3) and mobile_number='${
-            user.mobile_number
-          }' and tournament_id in (${
-            PlayersService.CSOCTournamentMapping[tournament.csoc_batch]
-          })`,
-          {
-            type: sequelize.QueryTypes.SELECT,
-          }
-        )
+      if (!user) {
+        throw new Error(`User with user_id ${data.playerId} not found`)
+      }
 
-        if (!res.length) {
+      if (!PlayersService.allowedUsers.includes(data.playerId)) {
+        if (tournament.csoc_batch === 'usa') {
           const res1 = await sequelize.query(
             `select id from cc_csoc_registration where status in (1,3) and mobile_number='${
               user.mobile_number
@@ -679,14 +658,46 @@ class PlayersService {
           )
           if (!res1.length) {
             message =
-              "Failed to add player! Since Player doesn't belongs to respective CSOC batch."
+              "Failed to add player! Since Player doesn't belongs to USA CSOC batch."
             return responseHandler.returnError(httpStatus.BAD_REQUEST, message)
           }
-        }
-      }
+        } else if (
+          PlayersService.CSOCTournamentMapping[tournament.csoc_batch]
+        ) {
+          const res = await sequelize.query(
+            `select id from cc_csoc_registration where status in (1,3) and mobile_number='${
+              user.mobile_number
+            }' and tournament_id in (${
+              PlayersService.CSOCTournamentMapping[tournament.csoc_batch]
+            })`,
+            {
+              type: sequelize.QueryTypes.SELECT,
+            }
+          )
 
-      if (!user) {
-        throw new Error(`User with user_id ${data.playerId} not found`)
+          if (!res.length) {
+            const res1 = await sequelize.query(
+              `select id from cc_csoc_registration where status in (1,3) and mobile_number='${
+                user.mobile_number
+              }' and class_name like '%${
+                PlayersService.CSOCTournamentClassNameMapping[
+                  tournament.csoc_batch
+                ]
+              }%'`,
+              {
+                type: sequelize.QueryTypes.SELECT,
+              }
+            )
+            if (!res1.length) {
+              message =
+                "Failed to add player! Since Player doesn't belongs to respective CSOC batch."
+              return responseHandler.returnError(
+                httpStatus.BAD_REQUEST,
+                message
+              )
+            }
+          }
+        }
       }
 
       let age = 0
