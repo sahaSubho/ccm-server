@@ -3007,7 +3007,7 @@ class TournamentService {
       console.log('current_round is ', current_round)
 
       try {
-        if (ttlExists) {
+        if (ttlExists && tournament.is_active) {
           if (keyToCheck === `ccm_standings_ttl_${tournamentId}`) {
             const ttl_left_in_secs = await this.redisService.ttl(keyToCheck)
             if (Number(ttl_left_in_secs) <= 5) {
