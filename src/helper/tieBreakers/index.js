@@ -210,7 +210,10 @@ function getTieBreaks(data, round, trnConfig) {
           : tieBreakerResult[e.player_id][code]
         return acc
       }, {})
+      
+      delete e.id
       return {
+        ...e,
         round,
         tournament_id: e.tournament_id,
         player_id: e.player_id,

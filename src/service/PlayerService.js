@@ -642,7 +642,7 @@ class PlayersService {
         throw new Error(`User with user_id ${data.playerId} not found`)
       }
 
-      if (!PlayersService.allowedUsers.includes(data.playerId)) {
+      if (!PlayersService.allowedUsers.includes(Number(data.playerId))) {
         if (tournament.csoc_batch === 'usa') {
           const res1 = await sequelize.query(
             `select id from cc_csoc_registration where status in (1,3) and mobile_number='${
