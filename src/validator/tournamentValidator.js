@@ -35,6 +35,7 @@ class TournamentValidator {
       end_date: Joi.date().greater(Joi.ref('start_date')).required(),
       pairing_type: Joi.string().default('Individual'),
       prize: Joi.string(),
+      rated: Joi.number().default(0),
       is_club_membership: Joi.number().default(0),
       association_level: Joi.alternatives().conditional('is_club_membership', {
         is: 1,
