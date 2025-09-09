@@ -44,7 +44,7 @@
     "pg": "^8.11.1",
     "redis": "^4.6.8",
     "sequelize": "^6.6.5",
-    "sequelize-cli": "^6.6.3",
+    "sequelize-cli": "^6.2.0",
     "sharp": "^0.32.6",
     "socket.io": "^4.4.1",
     "unzipper": "^0.11.6",
