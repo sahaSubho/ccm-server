@@ -57,6 +57,7 @@ class TournamentValidator {
       mandatory_club_membership_name: Joi.string().allow(''),
       whatsapp_group_link: Joi.string(),
       max_participants: Joi.number().min(0).default(0),
+      expected_participants: Joi.number().min(0).default(-1),
       multiple_registration: Joi.number().default(0),
       custom_message: Joi.string().allow(''),
       default_category: Joi.string().default(''),
@@ -488,6 +489,43 @@ class TournamentValidator {
       next(new ApiError(httpStatus.BAD_REQUEST, errorMessage))
     } else {
       // on success replace req.body with validated value and trigger next middleware function
+      req.body = value
+      return next()
+    }
+  }
+
+  static formTournamentValidator(req, res, next) {
+    const schema = Joi.object({
+      custom_message: Joi.string().allow(''),
+      default_category: Joi.string().default(''),
+      entry_fee: Joi.number().required(),
+      expected_participants: Joi.number().min(0).default(-1),
+      increment_time: Joi.number().required(),
+      initial_time: Joi.number().required(),
+      is_private: Joi.boolean(),
+      max_participants: Joi.number().min(0).default(0),
+      name: Joi.string().required(),
+      organizer: Joi.string().required(),
+      password: Joi.string(),
+      rated: Joi.boolean(),
+      rounds: Joi.number().required(),
+      startDate: Joi.date(),
+      tournament_type: Joi.string().required(),
+      multiple_registration: Joi.number().default(0),
+      mandatory_club_membership_name: Joi.string().allow(''),
+    })
+
+    const { error, value } = schema.validate(req.body, options)
+
+    if (error) {
+      // on fail return comma separated errors
+      const errorMessage = error.details
+        .map((details) => {
+          return details.message
+        })
+        .join(', ')
+      next(new ApiError(httpStatus.BAD_REQUEST, errorMessage))
+    } else {
       req.body = value
       return next()
     }

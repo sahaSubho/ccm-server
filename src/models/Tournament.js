@@ -124,6 +124,10 @@ module.exports = (sequelize, DataTypes) => {
       default_category: DataTypes.STRING,
       description: DataTypes.TEXT,
       status_message: DataTypes.STRING,
+      expected_participants: {
+        type: DataTypes.INTEGER,
+        defaultValue: 0,
+      },
     },
     {
       sequelize,
