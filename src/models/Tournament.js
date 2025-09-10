@@ -56,6 +56,7 @@ module.exports = (sequelize, DataTypes) => {
       meeting_time: DataTypes.TIME,
       rating: DataTypes.INTEGER,
       rounds: DataTypes.INTEGER,
+      rated: DataTypes.INTEGER,
       /*
       This is per category basis, needs to be
       moved to another table
