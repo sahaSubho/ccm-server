@@ -508,7 +508,7 @@ class TournamentValidator {
       name: Joi.string().required(),
       organizer: Joi.string().required(),
       password: Joi.string(),
-      rated: Joi.boolean(),
+      rated: Joi.number(),
       rounds: Joi.number().required(),
       startDate: Joi.date(),
       tournament_type: Joi.string().required(),
