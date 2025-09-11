@@ -20,6 +20,7 @@ const { sortByInitialRankings } = require('../helper/pairingEngine/swiss')
 const JuspayService = require('./JuspayService')
 const RedisService = require('./RedisService')
 const CCUserDao = require('../dao/CCUserDao')
+const CCTournamentAccessDao = require('../dao/CCTournamentAccessDao')
 const { getFilterBasedOnOperator } = require('../helper/utils')
 
 class PlayersService {
@@ -36,6 +37,7 @@ class PlayersService {
     this.CCUserDao = new CCUserDao()
     this.prizeCategoryDao = new PrizeCategoryDao()
     this.tournamentConfigurationDao = new TournamentConfigurationDao()
+    this.tournamentAccessDao = new CCTournamentAccessDao()
   }
 
   static getRatingToConsider = (tournamentType, ratings) => {
@@ -642,7 +644,12 @@ class PlayersService {
         throw new Error(`User with user_id ${data.playerId} not found`)
       }
 
-      if (!PlayersService.allowedUsers.includes(Number(data.playerId))) {
+      const accessRecord = await this.tournamentAccessDao.checkExist({
+        phone_number: user.mobile_number,
+        [Op.or]: [{ tournament_id: id }, { tournament_id: null, access: 1 }],
+      })
+
+      if (!accessRecord) {
         if (tournament.csoc_batch === 'usa') {
           const res1 = await sequelize.query(
             `select id from cc_csoc_registration where status in (1,3) and mobile_number='${
