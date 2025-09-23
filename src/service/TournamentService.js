@@ -3646,7 +3646,7 @@ class TournamentService {
       )
       let promises = []
       if (
-        tournament.current_round > Number(round) &&
+        tournament.current_round >= Number(round) &&
         tournament.tournament_type !== 'Circlechess_Online'
       ) {
         console.log(
@@ -3718,9 +3718,8 @@ class TournamentService {
           pairingKey
         )
         if (
-          tournament.tournament_type !== 'Circlechess_Online' ||
-          (tournament.tournament_type === 'Circlechess_Online' &&
-            !(paringinInQueue || pairingExits))
+          tournament.tournament_type === 'Circlechess_Online' &&
+          !(paringinInQueue || pairingExits)
         ) {
           const result = await sequelize.query(`
             UPDATE ccm_tournament_pairings AS t
